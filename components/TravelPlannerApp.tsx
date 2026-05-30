@@ -15,10 +15,12 @@ type Trip = {
   ideas: Place[];
 };
 type Suggestion = { id: string; name: string; type: string; lat: number; lon: number; address?: string; distance: number; kind: string };
+type LeafletApi = any;
 
 declare global {
   interface Window {
-    L?: any;
+    L?: LeafletApi;
+    __leafletLoading?: Promise<LeafletApi>;
   }
 }
 
@@ -43,6 +45,7 @@ export default function TravelPlannerApp() {
   const [costInputs, setCostInputs] = useState(defaults.petrol);
   const [search, setSearch] = useState("");
   const [leafletReady, setLeafletReady] = useState(false);
+  const leafletRef = useRef<LeafletApi | null>(null);
   const mapRef = useRef<any>(null);
   const groupsRef = useRef<Record<string, any>>({});
   const routeGeometryRef = useRef<{ lat: number; lon: number }[]>([]);
@@ -60,24 +63,27 @@ export default function TravelPlannerApp() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (window.L) {
-        setLeafletReady(true);
-        window.clearInterval(timer);
-      }
-    }, 100);
-    return () => window.clearInterval(timer);
+    let mounted = true;
+    loadLeaflet().then((leaflet) => {
+      if (!mounted) return;
+      leafletRef.current = leaflet;
+      setLeafletReady(true);
+    }).catch(() => {
+      if (mounted) setStatus("Could not load the map library. Check your internet connection and refresh.");
+    });
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
-    if (!user || mapRef.current || !window.L) return;
-    const map = window.L.map("map", { zoomControl: true }).setView([54.5, -2.4], 6);
-    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const L = leafletRef.current;
+    if (!user || mapRef.current || !L) return;
+    const map = L.map("map", { zoomControl: true }).setView([54.5, -2.4], 6);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(map);
-    groupsRef.current.route = window.L.featureGroup().addTo(map);
-    groupsRef.current.suggestions = window.L.featureGroup().addTo(map);
+    groupsRef.current.route = L.featureGroup().addTo(map);
+    groupsRef.current.suggestions = L.featureGroup().addTo(map);
     mapRef.current = map;
   }, [user, leafletReady]);
 
@@ -127,6 +133,17 @@ export default function TravelPlannerApp() {
     setActiveId("");
   }
 
+  async function demoLogin() {
+    const res = await fetch("/api/auth/demo", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) {
+      setAuthMessage(data.error || "Could not start demo.");
+      return;
+    }
+    setUser(data.user);
+    await loadTrips();
+  }
+
   async function saveTrip(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -167,7 +184,7 @@ export default function TravelPlannerApp() {
   }
 
   async function mapTrip(trip = activeTrip) {
-    if (!mapRef.current || !window.L) {
+    if (!mapRef.current || !leafletRef.current) {
       setStatus("Map is still loading. Try again in a moment.");
       return;
     }
@@ -187,12 +204,12 @@ export default function TravelPlannerApp() {
       const country = ukHint(places) ? "gb" : "";
       const points = [];
       for (const place of places) points.push(await geocode(place, country));
-      points.forEach((point, index) => addMarker(groupsRef.current.route, point.lat, point.lon, String(index + 1), "pin", `${point.name}<br>${point.label}`));
+      points.forEach((point, index) => addMarker(leafletRef.current!, groupsRef.current.route, point.lat, point.lon, String(index + 1), "pin", `${point.name}<br>${point.label}`));
       const coords = points.map((p) => `${p.lon},${p.lat}`).join(";");
       const route = await osrm(coords);
       const latlngs = route.geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
       routeGeometryRef.current = latlngs.map(([lat, lon]: number[]) => ({ lat, lon }));
-      window.L.polyline(latlngs, { color: "#7c3aed", weight: 7, opacity: 0.9 }).addTo(groupsRef.current.route);
+      leafletRef.current.polyline(latlngs, { color: "#7c3aed", weight: 7, opacity: 0.9 }).addTo(groupsRef.current.route);
       setDistance(route.distance);
       setStatus(`${trip.name} mapped: ${km(route.distance)} · ${hours(route.duration)}.`);
       mapRef.current.fitBounds(groupsRef.current.route.getBounds().pad(0.12));
@@ -220,7 +237,7 @@ export default function TravelPlannerApp() {
         .sort((a: Suggestion, b: Suggestion) => a.distance - b.distance)
         .slice(0, 12);
       setSuggestions(items);
-      items.forEach((item: Suggestion) => addMarker(groupsRef.current.suggestions, item.lat, item.lon, iconFor(kind), `pin ${kind}`, `${item.name}<br>${item.type}`));
+      items.forEach((item: Suggestion) => addMarker(leafletRef.current!, groupsRef.current.suggestions, item.lat, item.lon, iconFor(kind), `pin ${kind}`, `${item.name}<br>${item.type}`));
       setSuggestionStatus(items.length ? `Found ${items.length} ${labelFor(kind)}.` : `No ${labelFor(kind)} found near the route.`);
     } catch (error) {
       setSuggestionStatus(error instanceof Error ? error.message : "Could not load suggestions.");
@@ -260,6 +277,7 @@ export default function TravelPlannerApp() {
               <button type="button" onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}>
                 {authMode === "login" ? "Create account" : "Use login"}
               </button>
+              <button type="button" onClick={demoLogin}>Try demo</button>
             </div>
             <p className="status">{authMessage}</p>
           </form>
@@ -379,6 +397,27 @@ function lines(value: string) {
   return value.split("\n").map((line) => line.trim()).filter(Boolean);
 }
 
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (window.__leafletLoading) return window.__leafletLoading;
+  window.__leafletLoading = new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-leaflet="true"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.L));
+      existing.addEventListener("error", () => reject(new Error("Leaflet failed to load")));
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    script.async = true;
+    script.dataset.leaflet = "true";
+    script.onload = () => window.L ? resolve(window.L) : reject(new Error("Leaflet loaded without exposing L"));
+    script.onerror = () => reject(new Error("Leaflet failed to load"));
+    document.head.appendChild(script);
+  });
+  return window.__leafletLoading;
+}
+
 function title(value: string) {
   return value.replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -406,8 +445,7 @@ async function osrm(coords: string) {
   return data.routes[0];
 }
 
-function addMarker(group: any, lat: number, lon: number, label: string, className: string, popup: string) {
-  const L = window.L;
+function addMarker(L: LeafletApi, group: any, lat: number, lon: number, label: string, className: string, popup: string) {
   const icon = L.divIcon({ className: "", html: `<div class="${className}">${label}</div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
   const marker = L.marker([lat, lon], { icon }).bindPopup(popup);
   marker.addTo(group);
