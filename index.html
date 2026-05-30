@@ -335,6 +335,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     .poi-icon.activities { background: #f97316; }
     .poi-icon.food { background: #dc2626; }
     .poi-icon.hotel { background: #2563eb; }
+    .poi-icon.fuel { background: #ca8a04; }
+    .poi-icon.ev { background: #059669; }
     .suggestion-list { display: grid; gap: 8px; margin-top: 10px; }
     .suggestion-item { border: 1px solid var(--border); border-radius: 10px; padding: 9px; background: color-mix(in srgb, var(--surface-strong), var(--bg) 18%); }
     .suggestion-item b { display: block; font-size: 13px; margin-bottom: 3px; }
@@ -402,7 +404,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
           <select id="tripSelect"></select>
         </div>
         <div id="tripSummary" class="metric-grid"></div>
-        <p class="meta">This panel follows the selected route. The pre-filled Iceland itinerary has its own tab.</p>
+        <p class="meta">This panel follows the selected route. Select the saved Iceland trip from Trips to view its itinerary.</p>
       </div>
 
       <div class="card" data-tab-section="trips">
@@ -506,6 +508,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <div class="button-row">
           <button id="findFoodSuggestions" class="primary" type="button">Find food</button>
           <button id="findHotelSuggestions" type="button">Find hotels</button>
+          <button id="findFuelSuggestions" type="button">Find fuel</button>
+          <button id="findEvSuggestions" type="button">Find EV chargers</button>
           <button id="clearSuggestions" type="button">Clear suggestions</button>
         </div>
         <div id="suggestionStatus" class="status small" style="margin-top:10px">Map a route first, then search for useful places along it.</div>
@@ -684,6 +688,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     }
 
     function routeDistanceForEstimate() {
+      if (!activeTripRecord()) return 0;
       if (draftRouteMetrics?.distanceMeters) return draftRouteMetrics.distanceMeters;
       return routeTotals.loadedDistanceMeters || routeTotals.distanceMeters || plannedDistanceMeters();
     }
@@ -718,6 +723,13 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       const select = document.getElementById('tripSelect');
       if (select) {
         const records = allTripRecords();
+        if (!records.length) {
+          select.innerHTML = '<option value="">No trips available</option>';
+          select.value = '';
+          select.disabled = true;
+          select.onchange = null;
+          return;
+        }
         select.innerHTML = records.map(trip => `<option value="${safeText(trip.id)}">${safeText(trip.name)}${trip.kind === 'draft' ? ' (draft)' : ''}</option>`).join('');
         if (activeTripRecord()) select.value = activeTripRecord().id;
         select.disabled = records.length <= 1;
@@ -774,6 +786,10 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     function updateCostEstimate() {
       const summary = document.getElementById('costSummary');
       if (!summary) return;
+      if (!activeTripRecord()) {
+        summary.innerHTML = '<p class="meta">No active route selected. Create or select a trip to estimate fuel, energy, and stops.</p>';
+        return;
+      }
       const { type, consumption, price, range } = vehicleState();
       const km = routeDistanceForEstimate() / 1000;
       const units = km * consumption / 100;
@@ -826,6 +842,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     function setActiveTab(tab) {
       const tabs = availableTabs();
       const next = tabs.includes(tab) ? tab : 'trips';
+      const record = activeTripRecord();
       document.querySelectorAll('[data-tab]').forEach(button => {
         button.setAttribute('aria-selected', String(button.dataset.tab === next));
       });
@@ -833,7 +850,9 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         section.hidden = section.dataset.tabSection !== next;
       });
       updateRouteDetailVisibility();
-      if (activeTripRecord()?.kind === 'draft') {
+      if (record?.kind === 'saved' && next === 'details') {
+        setIcelandMapVisible(true);
+      } else {
         setIcelandMapVisible(false);
       }
       setTimeout(() => {
@@ -912,6 +931,18 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         }
       });
       setIcelandLayerControlVisible(visible);
+    }
+
+    function clearActiveRouteState(message = 'No trips selected. Create a new route from the New route tab.') {
+      ++draftRouteRequestId;
+      ACTIVE_DRAFT_ROUTE_ID = '';
+      try { localStorage.setItem('travel-planner-active-route', ''); } catch (err) {}
+      clearDraftRouteMap();
+      setIcelandMapVisible(false);
+      setDraftRouteStatus(message, 'bad');
+      setSuggestionStatus('Map a route first, then search for useful places along it.', 'bad');
+      updateCostEstimate();
+      fitAll();
     }
 
     function updateRouteDetailVisibility() {
@@ -1072,7 +1103,9 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       ACTIVE_DRAFT_ROUTE_ID = id;
       try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID || ''); } catch (err) {}
       const record = activeTripRecord();
-      if (record?.kind === 'draft') {
+      if (!record) {
+        clearActiveRouteState();
+      } else if (record.kind === 'draft') {
         setIcelandMapVisible(false);
         renderDraftRouteOnMap(record);
       } else {
@@ -1105,9 +1138,13 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     }
 
     function overpassQuery(points, kind) {
-      const tags = kind === 'hotel'
-        ? ['tourism="hotel"', 'tourism="guest_house"', 'tourism="hostel"', 'tourism="apartment"']
-        : ['amenity="restaurant"', 'amenity="cafe"', 'amenity="fast_food"', 'amenity="pub"'];
+      const tagsByKind = {
+        hotel: ['tourism="hotel"', 'tourism="guest_house"', 'tourism="hostel"', 'tourism="apartment"'],
+        fuel: ['amenity="fuel"'],
+        ev: ['amenity="charging_station"'],
+        food: ['amenity="restaurant"', 'amenity="cafe"', 'amenity="fast_food"', 'amenity="pub"']
+      };
+      const tags = tagsByKind[kind] || tagsByKind.food;
       const clauses = [];
       points.forEach(point => {
         tags.forEach(tag => {
@@ -1129,14 +1166,20 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       const lon = element.lon ?? element.center?.lon;
       if (lat == null || lon == null) return null;
       const tags = element.tags || {};
-      const name = tags.name || tags.brand || (kind === 'hotel' ? 'Unnamed stay' : 'Unnamed food stop');
+      const fallbackName = {
+        hotel: 'Unnamed stay',
+        fuel: 'Unnamed fuel stop',
+        ev: 'Unnamed EV charger',
+        food: 'Unnamed food stop'
+      }[kind] || 'Unnamed stop';
+      const name = tags.name || tags.brand || tags.operator || fallbackName;
       return {
         id: `${element.type}-${element.id}`,
         kind,
         name,
         lat: Number(lat),
         lon: Number(lon),
-        type: tags.cuisine || tags.amenity || tags.tourism || kind,
+        type: tags.cuisine || tags.fuel || tags.socket || tags.amenity || tags.tourism || kind,
         address: [tags['addr:street'], tags['addr:city'], tags['addr:postcode']].filter(Boolean).join(', ')
       };
     }
@@ -1164,7 +1207,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         return;
       }
       const points = suggestionSearchPoints();
-      setSuggestionStatus(`Searching for ${kind === 'hotel' ? 'hotels' : 'food places'} along the active route...`);
+      const label = { hotel: 'hotels', fuel: 'fuel stops', ev: 'EV chargers', food: 'food places' }[kind] || 'places';
+      setSuggestionStatus(`Searching for ${label} along the active route...`);
       try {
         const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery(points, kind))}`;
         const res = await fetch(url, { mode: 'cors' });
@@ -1187,7 +1231,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         items.forEach(item => {
           const icon = L.divIcon({
             className: '',
-            html: `<div class="poi-icon ${safeText(kind)}">${kind === 'hotel' ? 'H' : 'F'}</div>`,
+            html: `<div class="poi-icon ${safeText(kind)}">${({ hotel: 'H', fuel: 'P', ev: 'E', food: 'F' }[kind] || 'P')}</div>`,
             iconSize: [26, 26],
             iconAnchor: [13, 13]
           });
@@ -1198,7 +1242,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
           `).addTo(suggestionGroup);
         });
         renderSuggestions(items);
-        setSuggestionStatus(items.length ? `Found ${items.length} ${kind === 'hotel' ? 'hotel/stay' : 'food'} suggestion(s) near the active route.` : `No ${kind === 'hotel' ? 'hotel' : 'food'} suggestions found near this route.`, items.length ? 'good' : 'bad');
+        setSuggestionStatus(items.length ? `Found ${items.length} ${label} suggestion(s) near the active route.` : `No ${label} suggestions found near this route.`, items.length ? 'good' : 'bad');
       } catch (err) {
         setSuggestionStatus(`Could not load suggestions: ${err.message}`, 'bad');
       }
@@ -1270,9 +1314,12 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       const list = document.getElementById('tripTabs');
       if (!list) return;
       const query = document.getElementById('tripSearch')?.value || '';
-      const routes = allTripRecords().filter(route => matchesTripSearch(route, query));
+      const allRoutes = allTripRecords();
+      const routes = allRoutes.filter(route => matchesTripSearch(route, query));
       if (!routes.length) {
-        list.innerHTML = '<p class="meta">No matching routes yet. Add one from New route.</p>';
+        list.innerHTML = allRoutes.length
+          ? '<p class="meta">No matching routes. Try a different search.</p>'
+          : '<p class="meta">No trips yet. Add one from New route.</p>';
         return;
       }
       list.innerHTML = routes.map(route => `
@@ -1305,15 +1352,17 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       hidden.add(id);
       saveHiddenSavedTripIds(hidden);
       if (ACTIVE_DRAFT_ROUTE_ID === id) {
-        const next = allTripRecords().find(route => route.id !== id) || null;
+        const next = allTripRecords()[0] || null;
         ACTIVE_DRAFT_ROUTE_ID = next?.id || '';
         try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID); } catch (err) {}
         if (next?.kind === 'draft') {
           setIcelandMapVisible(false);
           renderDraftRouteOnMap(next);
-        } else {
-          setIcelandMapVisible(false);
+        } else if (next?.kind === 'saved') {
           clearDraftRouteMap();
+          setIcelandMapVisible(true);
+        } else {
+          clearActiveRouteState('All trips deleted. Add a new route to start planning.');
         }
       }
       renderTripControls();
@@ -1327,11 +1376,20 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       const routes = draftRoutes().filter(route => route.id !== id);
       saveDraftRoutes(routes);
       if (ACTIVE_DRAFT_ROUTE_ID === id) {
-        ACTIVE_DRAFT_ROUTE_ID = allTripRecords().find(route => route.kind === 'saved')?.id || null;
+        ACTIVE_DRAFT_ROUTE_ID = allTripRecords()[0]?.id || null;
         try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID || ''); } catch (err) {}
         ++draftRouteRequestId;
-        clearDraftRouteMap();
-        setDraftRouteStatus('Draft deleted. Saved trip selected.', 'good');
+        const next = activeTripRecord();
+        if (next?.kind === 'saved') {
+          clearDraftRouteMap();
+          setIcelandMapVisible(true);
+          setDraftRouteStatus('Draft deleted. Saved trip selected.', 'good');
+        } else if (next?.kind === 'draft') {
+          setIcelandMapVisible(false);
+          renderDraftRouteOnMap(next);
+        } else {
+          clearActiveRouteState('All trips deleted. Add a new route to start planning.');
+        }
       }
       renderTripControls();
       renderDraftRoutes();
@@ -1340,7 +1398,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       const record = activeTripRecord();
       if (record?.kind === 'draft') {
         window.setTimeout(() => renderDraftRouteOnMap(record), 300);
-      } else {
+      } else if (record?.kind === 'saved') {
         setDraftRouteStatus('Saved trip selected. Create or select a draft to map a new route.', 'good');
       }
       updateRouteDetailVisibility();
@@ -1349,6 +1407,21 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     function renderActiveTripContext() {
       const record = activeTripRecord();
       const select = document.getElementById('tripSelect');
+      const summary = document.getElementById('tripSummary');
+      if (!record) {
+        if (select) {
+          select.innerHTML = '<option value="">No trips available</option>';
+          select.value = '';
+          select.disabled = true;
+        }
+        if (summary) {
+          summary.innerHTML = '<p class="meta">No active route. Create a new trip from the New route tab, or restore a saved trip by clearing browser planner data.</p>';
+        }
+        setIcelandMapVisible(false);
+        clearDraftRouteMap();
+        updateRouteDetailVisibility();
+        return;
+      }
       if (select && record?.kind === 'draft') {
         const existing = [...select.options].some(option => option.value === record.id);
         if (!existing) {
@@ -1359,7 +1432,6 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         }
         select.value = record.id;
       }
-      const summary = document.getElementById('tripSummary');
       if (summary && record?.kind === 'draft') {
         summary.innerHTML = [
           metric('Start', record.start || 'Not set'),
@@ -1758,6 +1830,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     document.getElementById('fitAll').addEventListener('click', fitAll);
     document.getElementById('findFoodSuggestions').addEventListener('click', () => findRouteSuggestions('food'));
     document.getElementById('findHotelSuggestions').addEventListener('click', () => findRouteSuggestions('hotel'));
+    document.getElementById('findFuelSuggestions').addEventListener('click', () => findRouteSuggestions('fuel'));
+    document.getElementById('findEvSuggestions').addEventListener('click', () => findRouteSuggestions('ev'));
     document.getElementById('clearSuggestions').addEventListener('click', () => {
       suggestionGroup.clearLayers();
       renderSuggestions([]);
