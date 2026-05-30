@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Iceland 8-day road-following route with road types — fixed v2</title>
+  <title>Travel route planner</title>
   <style>
 
 /* Leaflet 1.x critical CSS embedded so the map still renders correctly when the external leaflet.css file is blocked. */
@@ -301,7 +301,9 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     textarea:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
     .draft-list { display: grid; gap: 8px; margin-top: 10px; }
     .draft-item { border: 1px solid var(--border); border-radius: 10px; padding: 9px; background: color-mix(in srgb, var(--surface-strong), var(--bg) 18%); }
+    .draft-item.selected { border-color: var(--accent); background: var(--accent-soft); }
     .draft-item b { display: block; font-size: 13px; margin-bottom: 3px; }
+    .draft-item button { margin-top: 8px; min-height: 30px; padding: 6px 9px; }
     [data-tab-section][hidden] { display: none !important; }
     .popup-title { font-weight: 800; margin-bottom: 4px; color: var(--text); }
     .popup-note { font-size: 12px; color: var(--muted); }
@@ -365,22 +367,22 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
 <body>
   <header>
     <div class="brand">
-      <div class="brand-mark" aria-hidden="true">IS</div>
+      <div class="brand-mark" aria-hidden="true">TP</div>
       <div>
-        <h1>Iceland road trip map</h1>
-        <div class="sub">8-day clockwise route with road numbers, surface notes, and F-road warnings.</div>
+        <h1>Travel route planner</h1>
+        <div class="sub">Plan routes, stops, stays, activities, vehicle costs, and map layers.</div>
       </div>
     </div>
     <div class="header-actions">
       <nav class="top-tabs" aria-label="Planner sections">
-        <button class="tab-button" type="button" data-tab="map" aria-selected="true">Map</button>
-        <button class="tab-button" type="button" data-tab="plan" aria-selected="false">Plan route</button>
+        <button class="tab-button" type="button" data-tab="trips" aria-selected="true">Trips</button>
+        <button class="tab-button" type="button" data-tab="plan" aria-selected="false">New route</button>
         <button class="tab-button" type="button" data-tab="costs" aria-selected="false">Costs</button>
         <button class="tab-button" type="button" data-tab="places" aria-selected="false">Places</button>
+        <button class="tab-button" type="button" data-tab="details" aria-selected="false">Route details</button>
       </nav>
       <nav class="quick-links" aria-label="External road resources">
-        <a href="https://umferdin.is/en" target="_blank" rel="noreferrer">Live roads</a>
-        <a href="https://vegasja.vegagerdin.is/eng/" target="_blank" rel="noreferrer">Surface map</a>
+        <a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">OpenStreetMap</a>
       </nav>
       <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="true">Dark</button>
     </div>
@@ -388,14 +390,24 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
   <main id="app">
     <div id="map"></div>
     <aside id="panel">
-      <div class="card" data-tab-section="plan">
-        <h2>Trip workspace</h2>
+      <div class="card" data-tab-section="details">
+        <h2>Saved trip details</h2>
         <div class="field">
           <label for="tripSelect">Active trip</label>
           <select id="tripSelect"></select>
         </div>
         <div id="tripSummary" class="metric-grid"></div>
-        <p class="meta">This app now loads trips through a manifest, so new destinations can become separate saved trip files without rewriting the map.</p>
+        <p class="meta">The selected saved trip appears here. Use New route to plan another holiday or destination.</p>
+      </div>
+
+      <div class="card" data-tab-section="trips">
+        <h2>Trips and route search</h2>
+        <div class="field">
+          <label for="tripSearch">Search saved routes</label>
+          <input id="tripSearch" type="search" placeholder="Search by destination, start, stop, or vehicle">
+        </div>
+        <div id="tripTabs" class="draft-list"></div>
+        <p class="meta">Saved drafts are stored in this browser. Selecting a draft switches the planner context; the map-routing step comes next.</p>
       </div>
 
       <div class="card" data-tab-section="plan">
@@ -407,11 +419,11 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
           </div>
           <div class="field">
             <label for="draftStart">Start</label>
-            <input id="draftStart" type="text" placeholder="Keflavik Airport">
+            <input id="draftStart" type="text" placeholder="London">
           </div>
           <div class="field">
             <label for="draftDestination">Destination</label>
-            <input id="draftDestination" type="text" placeholder="Akureyri">
+            <input id="draftDestination" type="text" placeholder="Lake Como">
           </div>
           <div class="field">
             <label for="draftVehicle">Vehicle</label>
@@ -434,7 +446,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta">Drafts are saved in this browser. The next step is geocoding these place names into map stops and routed legs.</p>
       </div>
 
-      <div class="card" data-tab-section="map">
+      <div class="card" data-tab-section="details">
         <h2>Route loading</h2>
         <div id="routeStatus" class="status"><span class="loading">Preparing road-following routes…</span></div>
         <div class="button-row">
@@ -479,7 +491,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta">These are static planning markers for now. Later they can be replaced with live charger, hotel, and activity datasets.</p>
       </div>
 
-      <div class="card legend" data-tab-section="map">
+      <div class="card legend" data-tab-section="details">
         <h2>Road-type legend</h2>
         <div class="legend-row"><span class="swatch" style="background:#111827"></span> Paved / main roads used heavily on this route</div>
         <div class="legend-row"><span class="swatch" style="background:#a05a00"></span> Ordinary gravel or condition-dependent roads/accesses</div>
@@ -487,14 +499,14 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta"><b>Important:</b> F-roads are not “off-road”; they are marked mountain roads/tracks. Driving outside marked roads or tracks is off-road driving and is not part of this plan.</p>
       </div>
 
-      <div class="card" data-tab-section="map">
+      <div class="card" data-tab-section="details">
         <h2>High-risk roads intentionally avoided</h2>
         <ul id="warningList" class="warning-list"></ul>
       </div>
 
-      <div id="dayCards" data-tab-section="map"></div>
+      <div id="dayCards" data-tab-section="details"></div>
 
-      <div class="card" data-tab-section="places">
+      <div class="card" data-tab-section="details">
         <h2>Source links used in this planning map</h2>
         <ul class="source-list" id="sourceList"></ul>
       </div>
@@ -510,6 +522,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     let POIS = [];
     let TRIPS = [];
     let ACTIVE_TRIP = null;
+    let ACTIVE_DRAFT_ROUTE_ID = null;
     let routeTotals = { distanceMeters: 0, durationSeconds: 0, loadedDistanceMeters: 0, loadedDurationSeconds: 0 };
 
     const DATA_FILES = {
@@ -548,7 +561,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       }
     }
 
-    const THEME_KEY = 'iceland-road-trip-theme';
+    const THEME_KEY = 'travel-planner-theme';
     const themeToggle = document.getElementById('themeToggle');
 
     function setTheme(theme) {
@@ -709,7 +722,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     }
 
     function saveVehicleState() {
-      try { localStorage.setItem('iceland-road-trip-vehicle', JSON.stringify(vehicleState())); } catch (err) {}
+      try { localStorage.setItem('travel-planner-vehicle', JSON.stringify(vehicleState())); } catch (err) {}
     }
 
     function applyVehicleDefaults(type) {
@@ -754,7 +767,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       const price = document.getElementById('priceInput');
       const range = document.getElementById('rangeInput');
       let saved = null;
-      try { saved = JSON.parse(localStorage.getItem('iceland-road-trip-vehicle') || 'null'); } catch (err) {}
+      try { saved = JSON.parse(localStorage.getItem('travel-planner-vehicle') || 'null'); } catch (err) {}
       if (type && saved?.type) type.value = saved.type;
       updateVehicleLabels();
       if (saved) {
@@ -775,8 +788,13 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
 
     const DRAFT_ROUTES_KEY = 'travel-planner-draft-routes';
 
+    function availableTabs() {
+      return [...document.querySelectorAll('[data-tab]')].map(button => button.dataset.tab);
+    }
+
     function setActiveTab(tab) {
-      const next = tab || 'map';
+      const tabs = availableTabs();
+      const next = tabs.includes(tab) ? tab : 'trips';
       document.querySelectorAll('[data-tab]').forEach(button => {
         button.setAttribute('aria-selected', String(button.dataset.tab === next));
       });
@@ -785,7 +803,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       });
       setTimeout(() => {
         map.invalidateSize(true);
-        if (next === 'map') fitAll();
+        if (next === 'details') fitAll();
       }, 80);
       try { localStorage.setItem('travel-planner-active-tab', next); } catch (err) {}
     }
@@ -794,8 +812,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       document.querySelectorAll('[data-tab]').forEach(button => {
         button.addEventListener('click', () => setActiveTab(button.dataset.tab));
       });
-      let savedTab = 'map';
-      try { savedTab = localStorage.getItem('travel-planner-active-tab') || 'map'; } catch (err) {}
+      let savedTab = 'trips';
+      try { savedTab = localStorage.getItem('travel-planner-active-tab') || 'trips'; } catch (err) {}
       setActiveTab(savedTab);
     }
 
@@ -805,6 +823,37 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
 
     function saveDraftRoutes(routes) {
       try { localStorage.setItem(DRAFT_ROUTES_KEY, JSON.stringify(routes)); } catch (err) {}
+    }
+
+    function allTripRecords() {
+      const savedTrips = TRIPS.map(trip => ({
+        id: trip.id,
+        kind: 'saved',
+        name: trip.name,
+        start: trip.region || '',
+        destination: trip.region || '',
+        vehicle: 'configured',
+        stops: [],
+        description: trip.description || ''
+      }));
+      return [...savedTrips, ...draftRoutes().map(route => ({ ...route, kind: 'draft' }))];
+    }
+
+    function activeTripRecord() {
+      return allTripRecords().find(route => route.id === ACTIVE_DRAFT_ROUTE_ID) || allTripRecords()[0] || null;
+    }
+
+    function matchesTripSearch(route, query) {
+      if (!query) return true;
+      const haystack = [
+        route.name,
+        route.start,
+        route.destination,
+        route.vehicle,
+        route.description,
+        ...(route.stops || [])
+      ].join(' ').toLowerCase();
+      return haystack.includes(query.toLowerCase());
     }
 
     function clearDraftInputs() {
@@ -829,14 +878,88 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
           <b>${safeText(route.name || 'Untitled trip')}</b>
           <div class="meta">${safeText(route.start || 'Unknown start')} → ${safeText(route.destination || 'Unknown destination')}</div>
           <div class="meta">${safeText(route.vehicle)} · ${route.stops.length} saved place(s)</div>
+          <button type="button" data-delete-draft="${safeText(route.id)}">Delete</button>
         </div>
       `).join('');
+      list.querySelectorAll('[data-delete-draft]').forEach(button => {
+        button.addEventListener('click', () => deleteDraftRoute(button.dataset.deleteDraft));
+      });
+    }
+
+    function renderTripTabs() {
+      const list = document.getElementById('tripTabs');
+      if (!list) return;
+      const query = document.getElementById('tripSearch')?.value || '';
+      const routes = allTripRecords().filter(route => matchesTripSearch(route, query));
+      if (!routes.length) {
+        list.innerHTML = '<p class="meta">No matching routes yet. Add one from New route.</p>';
+        return;
+      }
+      list.innerHTML = routes.map(route => `
+        <div class="draft-item ${route.id === ACTIVE_DRAFT_ROUTE_ID ? 'selected' : ''}">
+          <b>${safeText(route.name || 'Untitled trip')}</b>
+          <div class="meta">${safeText(route.kind === 'saved' ? route.description : `${route.start || 'Unknown start'} → ${route.destination || 'Unknown destination'}`)}</div>
+          <div class="meta">${safeText(route.kind === 'saved' ? 'Saved route' : `${route.vehicle} · ${(route.stops || []).length} saved place(s)`)}</div>
+          <div class="button-row">
+            <button type="button" data-select-route="${safeText(route.id)}">${route.id === ACTIVE_DRAFT_ROUTE_ID ? 'Selected' : 'Select'}</button>
+            ${route.kind === 'draft' ? `<button type="button" data-delete-draft="${safeText(route.id)}">Delete</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+      list.querySelectorAll('[data-select-route]').forEach(button => {
+        button.addEventListener('click', () => {
+          ACTIVE_DRAFT_ROUTE_ID = button.dataset.selectRoute;
+          try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID); } catch (err) {}
+          renderTripTabs();
+          renderActiveTripContext();
+        });
+      });
+      list.querySelectorAll('[data-delete-draft]').forEach(button => {
+        button.addEventListener('click', () => deleteDraftRoute(button.dataset.deleteDraft));
+      });
+    }
+
+    function deleteDraftRoute(id) {
+      const routes = draftRoutes().filter(route => route.id !== id);
+      saveDraftRoutes(routes);
+      if (ACTIVE_DRAFT_ROUTE_ID === id) {
+        ACTIVE_DRAFT_ROUTE_ID = ACTIVE_TRIP?.id || null;
+        try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID || ''); } catch (err) {}
+      }
+      renderDraftRoutes();
+      renderTripTabs();
+      renderActiveTripContext();
+    }
+
+    function renderActiveTripContext() {
+      const record = activeTripRecord();
+      const select = document.getElementById('tripSelect');
+      if (select && record?.kind === 'draft') {
+        const existing = [...select.options].some(option => option.value === record.id);
+        if (!existing) {
+          const option = document.createElement('option');
+          option.value = record.id;
+          option.textContent = `${record.name} (draft)`;
+          select.appendChild(option);
+        }
+        select.value = record.id;
+      }
+      const summary = document.getElementById('tripSummary');
+      if (summary && record?.kind === 'draft') {
+        summary.innerHTML = [
+          metric('Start', record.start || 'Not set'),
+          metric('Destination', record.destination || 'Not set'),
+          metric('Places', (record.stops || []).length)
+        ].join('');
+      }
     }
 
     function setupDraftRouteControls() {
       const save = document.getElementById('saveDraftRoute');
       const clear = document.getElementById('clearDraftRoute');
       document.getElementById('draftVehicle')?.addEventListener('change', () => {});
+      document.getElementById('tripSearch')?.addEventListener('input', renderTripTabs);
+      try { ACTIVE_DRAFT_ROUTE_ID = localStorage.getItem('travel-planner-active-route') || ACTIVE_TRIP?.id || null; } catch (err) {}
       save?.addEventListener('click', () => {
         const route = {
           id: `draft-${Date.now()}`,
@@ -850,12 +973,19 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         const routes = draftRoutes();
         routes.unshift(route);
         saveDraftRoutes(routes.slice(0, 12));
+        ACTIVE_DRAFT_ROUTE_ID = route.id;
+        try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID); } catch (err) {}
         clearDraftInputs();
         renderDraftRoutes();
+        renderTripTabs();
+        renderActiveTripContext();
+        setActiveTab('trips');
       });
       clear?.addEventListener('click', clearDraftInputs);
       clearDraftInputs();
       renderDraftRoutes();
+      renderTripTabs();
+      renderActiveTripContext();
     }
 
     const POI_LAYER_META = {
@@ -1154,8 +1284,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     }
     if (window.ResizeObserver) {
       const observer = new ResizeObserver(() => {
-        clearTimeout(window.__icelandMapResizeTimer);
-        window.__icelandMapResizeTimer = setTimeout(() => map.invalidateSize(true), 150);
+        clearTimeout(window.__travelPlannerMapResizeTimer);
+        window.__travelPlannerMapResizeTimer = setTimeout(() => map.invalidateSize(true), 150);
       });
       observer.observe(document.getElementById('map'));
     }
