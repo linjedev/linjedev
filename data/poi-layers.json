@@ -1,0 +1,106 @@
+[
+  {
+    "id": "keflavik-charging",
+    "category": "chargers",
+    "name": "Keflavik charging planning area",
+    "lat": 63.985,
+    "lon": -22.6056,
+    "note": "Confirm live charger availability before departure or return."
+  },
+  {
+    "id": "reykjavik-charging",
+    "category": "chargers",
+    "name": "Reykjavik charging planning area",
+    "lat": 64.1466,
+    "lon": -21.9426,
+    "note": "Major services area for charging, food, and resupply."
+  },
+  {
+    "id": "borgarnes-charging",
+    "category": "chargers",
+    "name": "Borgarnes charging planning area",
+    "lat": 64.5383,
+    "lon": -21.9206,
+    "note": "Useful west/north route service stop."
+  },
+  {
+    "id": "akureyri-charging",
+    "category": "chargers",
+    "name": "Akureyri charging planning area",
+    "lat": 65.6835,
+    "lon": -18.1105,
+    "note": "Major North Iceland service hub."
+  },
+  {
+    "id": "egilsstadir-charging",
+    "category": "chargers",
+    "name": "Egilsstadir charging planning area",
+    "lat": 65.2669,
+    "lon": -14.3948,
+    "note": "Key East Iceland service stop before/after fjord roads."
+  },
+  {
+    "id": "hofn-charging",
+    "category": "chargers",
+    "name": "Hofn charging planning area",
+    "lat": 64.2539,
+    "lon": -15.2082,
+    "note": "South-east coast service area."
+  },
+  {
+    "id": "selfoss-charging",
+    "category": "chargers",
+    "name": "Selfoss charging planning area",
+    "lat": 63.9335,
+    "lon": -20.997,
+    "note": "South Coast and Golden Circle service hub."
+  },
+  {
+    "id": "grundarfjordur-overnight",
+    "category": "overnights",
+    "name": "Grundarfjordur overnight area",
+    "lat": 64.9263,
+    "lon": -23.3067,
+    "note": "Day 1 overnight planning area."
+  },
+  {
+    "id": "myvatn-overnight",
+    "category": "overnights",
+    "name": "Myvatn overnight area",
+    "lat": 65.6428,
+    "lon": -16.9138,
+    "note": "Day 3 overnight planning area."
+  },
+  {
+    "id": "vik-overnight",
+    "category": "overnights",
+    "name": "Vik overnight area",
+    "lat": 63.419,
+    "lon": -19.0065,
+    "note": "Day 6 overnight planning area."
+  },
+  {
+    "id": "dettifoss-activity",
+    "category": "activities",
+    "name": "Dettifoss west-side stop",
+    "lat": 65.8156,
+    "lon": -16.3847,
+    "note": "Activity stop; planned via Road 862."
+  },
+  {
+    "id": "jokulsarlon-activity",
+    "category": "activities",
+    "name": "Jokulsarlon glacier lagoon",
+    "lat": 64.0477,
+    "lon": -16.179,
+    "note": "Activity stop on the South Coast."
+  },
+  {
+    "id": "gullfoss-activity",
+    "category": "activities",
+    "name": "Gullfoss",
+    "lat": 64.3271,
+    "lon": -20.1199,
+    "note": "Golden Circle activity stop."
+  }
+]
