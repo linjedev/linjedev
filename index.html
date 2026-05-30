@@ -236,6 +236,9 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     header h1 { margin: 0; font-size: 18px; line-height: 1.15; font-weight: 780; letter-spacing: 0; }
     .sub { font-size: 13px; color: var(--muted); line-height: 1.35; }
     .header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+    .top-tabs { display: flex; align-items: center; gap: 6px; padding: 4px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--surface), transparent 18%); }
+    .tab-button { min-height: 34px; border-color: transparent; background: transparent; color: var(--muted); box-shadow: none; }
+    .tab-button[aria-selected="true"] { color: #fff; background: linear-gradient(145deg, var(--accent), #5b21b6); border-color: color-mix(in srgb, var(--accent), white 20%); box-shadow: 0 8px 18px rgba(124,58,237,.22); }
     .quick-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     a { color: var(--accent-2); }
     .quick-links a { border: 1px solid var(--border); color: var(--text); background: var(--surface); border-radius: 10px; padding: 8px 10px; text-decoration: none; font-size: 13px; box-shadow: 0 1px 0 rgba(255,255,255,.04) inset; }
@@ -294,12 +297,27 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     .layer-toggle-list { display: grid; gap: 8px; margin-top: 10px; }
     .layer-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--border); background: color-mix(in srgb, var(--surface-strong), var(--bg) 18%); border-radius: 10px; padding: 9px 10px; font-size: 13px; }
     .layer-toggle input { width: 18px; min-height: 18px; accent-color: var(--accent); }
+    textarea { width: 100%; min-height: 92px; resize: vertical; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-strong); color: var(--text); padding: 8px 9px; font: inherit; font-size: 13px; }
+    textarea:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .draft-list { display: grid; gap: 8px; margin-top: 10px; }
+    .draft-item { border: 1px solid var(--border); border-radius: 10px; padding: 9px; background: color-mix(in srgb, var(--surface-strong), var(--bg) 18%); }
+    .draft-item b { display: block; font-size: 13px; margin-bottom: 3px; }
+    [data-tab-section][hidden] { display: none !important; }
     .popup-title { font-weight: 800; margin-bottom: 4px; color: var(--text); }
     .popup-note { font-size: 12px; color: var(--muted); }
     .leaflet-popup-content { line-height: 1.35; color: var(--text); }
     .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface-strong); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); }
-    .leaflet-control-layers { font-size: 13px; border: 1px solid var(--border) !important; background: var(--surface-strong) !important; color: var(--text); box-shadow: var(--shadow-soft) !important; border-radius: 10px !important; }
-    .leaflet-control-layers-expanded { background: var(--surface-strong); color: var(--text); }
+    .leaflet-control-layers { font-size: 12px; border: 1px solid var(--border) !important; background: var(--surface-strong) !important; color: var(--text); box-shadow: var(--shadow-soft) !important; border-radius: 10px !important; overflow: hidden; }
+    .leaflet-control-layers-toggle { width: 34px !important; height: 34px !important; }
+    .leaflet-control-layers-expanded { background: var(--surface-strong); color: var(--text); max-width: 250px; max-height: 52vh; overflow: auto; padding: 8px !important; }
+    .leaflet-control-layers label { display: flex; align-items: center; gap: 8px; min-height: 28px; margin: 0; padding: 3px 2px; font-size: 12px; line-height: 1.2; }
+    .leaflet-control-layers-selector { appearance: none; width: 28px; height: 16px; min-width: 28px; margin: 0 !important; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--bg-2); position: relative; top: auto !important; cursor: pointer; transition: background .16s ease, border-color .16s ease; }
+    .leaflet-control-layers-selector::before { content: ""; position: absolute; width: 12px; height: 12px; left: 1px; top: 1px; border-radius: 50%; background: var(--muted-2); transition: transform .16s ease, background .16s ease; }
+    .leaflet-control-layers-selector:checked { background: var(--accent-soft); border-color: var(--accent); }
+    .leaflet-control-layers-selector:checked::before { transform: translateX(12px); background: var(--accent); }
+    .leaflet-control-layers-base .leaflet-control-layers-selector { width: 16px; height: 16px; min-width: 16px; border-radius: 50%; }
+    .leaflet-control-layers-base .leaflet-control-layers-selector::before { width: 8px; height: 8px; left: 3px; top: 3px; transform: none; opacity: 0; }
+    .leaflet-control-layers-base .leaflet-control-layers-selector:checked::before { opacity: 1; transform: none; }
     .leaflet-control-layers-separator { border-top-color: var(--border); }
     .leaflet-bar { border: 1px solid var(--border) !important; box-shadow: var(--shadow-soft); }
     .leaflet-bar a { background: var(--surface-strong); border-bottom-color: var(--border); color: var(--text); }
@@ -319,6 +337,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       .brand { min-width: 0; }
       .brand-mark { width: 38px; height: 38px; border-radius: 12px; }
       .header-actions { width: 100%; justify-content: flex-start; }
+      .top-tabs { width: 100%; overflow-x: auto; justify-content: flex-start; }
+      .tab-button { flex: 1 0 auto; }
       .quick-links { width: 100%; }
       .quick-links a, .theme-toggle { flex: 1 1 auto; }
       .field-grid, .metric-grid { grid-template-columns: 1fr; }
@@ -352,6 +372,12 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       </div>
     </div>
     <div class="header-actions">
+      <nav class="top-tabs" aria-label="Planner sections">
+        <button class="tab-button" type="button" data-tab="map" aria-selected="true">Map</button>
+        <button class="tab-button" type="button" data-tab="plan" aria-selected="false">Plan route</button>
+        <button class="tab-button" type="button" data-tab="costs" aria-selected="false">Costs</button>
+        <button class="tab-button" type="button" data-tab="places" aria-selected="false">Places</button>
+      </nav>
       <nav class="quick-links" aria-label="External road resources">
         <a href="https://umferdin.is/en" target="_blank" rel="noreferrer">Live roads</a>
         <a href="https://vegasja.vegagerdin.is/eng/" target="_blank" rel="noreferrer">Surface map</a>
@@ -362,7 +388,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
   <main id="app">
     <div id="map"></div>
     <aside id="panel">
-      <div class="card">
+      <div class="card" data-tab-section="plan">
         <h2>Trip workspace</h2>
         <div class="field">
           <label for="tripSelect">Active trip</label>
@@ -372,7 +398,43 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta">This app now loads trips through a manifest, so new destinations can become separate saved trip files without rewriting the map.</p>
       </div>
 
-      <div class="card">
+      <div class="card" data-tab-section="plan">
+        <h2>New route / destination</h2>
+        <div class="field-grid">
+          <div class="field">
+            <label for="draftRouteName">Trip name</label>
+            <input id="draftRouteName" type="text" placeholder="Norway fjords summer trip">
+          </div>
+          <div class="field">
+            <label for="draftStart">Start</label>
+            <input id="draftStart" type="text" placeholder="Keflavik Airport">
+          </div>
+          <div class="field">
+            <label for="draftDestination">Destination</label>
+            <input id="draftDestination" type="text" placeholder="Akureyri">
+          </div>
+          <div class="field">
+            <label for="draftVehicle">Vehicle</label>
+            <select id="draftVehicle">
+              <option value="petrol">Petrol</option>
+              <option value="diesel">Diesel</option>
+              <option value="electric">Electric</option>
+            </select>
+          </div>
+        </div>
+        <div class="field" style="margin-top:10px">
+          <label for="draftStops">Stops, hotels, activities</label>
+          <textarea id="draftStops" placeholder="One place per line: hotel ideas, activities, lunch stops, chargers to verify"></textarea>
+        </div>
+        <div class="button-row">
+          <button id="saveDraftRoute" class="primary" type="button">Save draft</button>
+          <button id="clearDraftRoute" type="button">Clear</button>
+        </div>
+        <div id="draftRouteList" class="draft-list"></div>
+        <p class="meta">Drafts are saved in this browser. The next step is geocoding these place names into map stops and routed legs.</p>
+      </div>
+
+      <div class="card" data-tab-section="map">
         <h2>Route loading</h2>
         <div id="routeStatus" class="status"><span class="loading">Preparing road-following routes…</span></div>
         <div class="button-row">
@@ -383,7 +445,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta">Each coloured route is requested from OSRM in your browser, so it follows the road network rather than drawing straight lines. If the routing server is unavailable, the map keeps a dashed fallback line through the planned stops and still shows the road-number/type labels.</p>
       </div>
 
-      <div class="card">
+      <div class="card" data-tab-section="costs">
         <h2>Vehicle and energy estimate</h2>
         <div class="field-grid">
           <div class="field">
@@ -411,13 +473,13 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta">Costs use the loaded route distance when available. Before OSRM finishes, estimates use the planned stop-to-stop fallback distance.</p>
       </div>
 
-      <div class="card">
+      <div class="card" data-tab-section="places">
         <h2>Place layers</h2>
         <div id="poiLayerControls" class="layer-toggle-list"></div>
         <p class="meta">These are static planning markers for now. Later they can be replaced with live charger, hotel, and activity datasets.</p>
       </div>
 
-      <div class="card legend">
+      <div class="card legend" data-tab-section="map">
         <h2>Road-type legend</h2>
         <div class="legend-row"><span class="swatch" style="background:#111827"></span> Paved / main roads used heavily on this route</div>
         <div class="legend-row"><span class="swatch" style="background:#a05a00"></span> Ordinary gravel or condition-dependent roads/accesses</div>
@@ -425,14 +487,14 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta"><b>Important:</b> F-roads are not “off-road”; they are marked mountain roads/tracks. Driving outside marked roads or tracks is off-road driving and is not part of this plan.</p>
       </div>
 
-      <div class="card">
+      <div class="card" data-tab-section="map">
         <h2>High-risk roads intentionally avoided</h2>
         <ul id="warningList" class="warning-list"></ul>
       </div>
 
-      <div id="dayCards"></div>
+      <div id="dayCards" data-tab-section="map"></div>
 
-      <div class="card">
+      <div class="card" data-tab-section="places">
         <h2>Source links used in this planning map</h2>
         <ul class="source-list" id="sourceList"></ul>
       </div>
@@ -711,6 +773,91 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       updateCostEstimate();
     }
 
+    const DRAFT_ROUTES_KEY = 'travel-planner-draft-routes';
+
+    function setActiveTab(tab) {
+      const next = tab || 'map';
+      document.querySelectorAll('[data-tab]').forEach(button => {
+        button.setAttribute('aria-selected', String(button.dataset.tab === next));
+      });
+      document.querySelectorAll('[data-tab-section]').forEach(section => {
+        section.hidden = section.dataset.tabSection !== next;
+      });
+      setTimeout(() => {
+        map.invalidateSize(true);
+        if (next === 'map') fitAll();
+      }, 80);
+      try { localStorage.setItem('travel-planner-active-tab', next); } catch (err) {}
+    }
+
+    function setupTabs() {
+      document.querySelectorAll('[data-tab]').forEach(button => {
+        button.addEventListener('click', () => setActiveTab(button.dataset.tab));
+      });
+      let savedTab = 'map';
+      try { savedTab = localStorage.getItem('travel-planner-active-tab') || 'map'; } catch (err) {}
+      setActiveTab(savedTab);
+    }
+
+    function draftRoutes() {
+      try { return JSON.parse(localStorage.getItem(DRAFT_ROUTES_KEY) || '[]'); } catch (err) { return []; }
+    }
+
+    function saveDraftRoutes(routes) {
+      try { localStorage.setItem(DRAFT_ROUTES_KEY, JSON.stringify(routes)); } catch (err) {}
+    }
+
+    function clearDraftInputs() {
+      ['draftRouteName', 'draftStart', 'draftDestination', 'draftStops'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      const vehicle = document.getElementById('draftVehicle');
+      if (vehicle) vehicle.value = document.getElementById('vehicleType')?.value || 'petrol';
+    }
+
+    function renderDraftRoutes() {
+      const list = document.getElementById('draftRouteList');
+      if (!list) return;
+      const routes = draftRoutes();
+      if (!routes.length) {
+        list.innerHTML = '<p class="meta">No draft routes yet.</p>';
+        return;
+      }
+      list.innerHTML = routes.map(route => `
+        <div class="draft-item">
+          <b>${safeText(route.name || 'Untitled trip')}</b>
+          <div class="meta">${safeText(route.start || 'Unknown start')} → ${safeText(route.destination || 'Unknown destination')}</div>
+          <div class="meta">${safeText(route.vehicle)} · ${route.stops.length} saved place(s)</div>
+        </div>
+      `).join('');
+    }
+
+    function setupDraftRouteControls() {
+      const save = document.getElementById('saveDraftRoute');
+      const clear = document.getElementById('clearDraftRoute');
+      document.getElementById('draftVehicle')?.addEventListener('change', () => {});
+      save?.addEventListener('click', () => {
+        const route = {
+          id: `draft-${Date.now()}`,
+          name: document.getElementById('draftRouteName')?.value.trim() || 'Untitled trip',
+          start: document.getElementById('draftStart')?.value.trim() || '',
+          destination: document.getElementById('draftDestination')?.value.trim() || '',
+          vehicle: document.getElementById('draftVehicle')?.value || 'petrol',
+          stops: (document.getElementById('draftStops')?.value || '').split('\n').map(s => s.trim()).filter(Boolean),
+          createdAt: new Date().toISOString()
+        };
+        const routes = draftRoutes();
+        routes.unshift(route);
+        saveDraftRoutes(routes.slice(0, 12));
+        clearDraftInputs();
+        renderDraftRoutes();
+      });
+      clear?.addEventListener('click', clearDraftInputs);
+      clearDraftInputs();
+      renderDraftRoutes();
+    }
+
     const POI_LAYER_META = {
       chargers: { label: 'EV charging planning', icon: '⚡', enabled: true },
       overnights: { label: 'Hotels / overnight bases', icon: '●', enabled: true },
@@ -854,6 +1001,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     function setupMap() {
       renderPanel();
       routeTotals = { distanceMeters: plannedDistanceMeters(), durationSeconds: 0, loadedDistanceMeters: 0, loadedDurationSeconds: 0 };
+      setupTabs();
+      setupDraftRouteControls();
       setupVehicleControls();
       DAYS.forEach(day => {
         dayGroups[day.id] = L.featureGroup().addTo(map);
@@ -865,7 +1014,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       addTypeSegments();
       addRoadLabels();
       addPoiLayers();
-      layerControl = L.control.layers({ 'OpenStreetMap': osm, 'OpenTopoMap': topo }, {}, { collapsed: false }).addTo(map);
+      layerControl = L.control.layers({ 'OpenStreetMap': osm, 'OpenTopoMap': topo }, {}, { collapsed: true }).addTo(map);
       DAYS.forEach(day => layerControl.addOverlay(dayGroups[day.id], `Day ${day.id} route`));
       layerControl.addOverlay(warningsGroup, 'F-road / gravel warning pins');
       layerControl.addOverlay(roadTypeGroup, 'Road-type highlights');
