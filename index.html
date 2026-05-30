@@ -436,8 +436,12 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
           </div>
         </div>
         <div class="field" style="margin-top:10px">
-          <label for="draftStops">Stops, hotels, activities</label>
-          <textarea id="draftStops" placeholder="One place per line: hotel ideas, activities, lunch stops, chargers to verify"></textarea>
+          <label for="draftStops">Stops to route through</label>
+          <textarea id="draftStops" placeholder="Optional route waypoints, one place per line"></textarea>
+        </div>
+        <div class="field" style="margin-top:10px">
+          <label for="draftIdeas">Food, hotel, and activity ideas</label>
+          <textarea id="draftIdeas" placeholder="Ideas and notes only. These will not be used as route waypoints."></textarea>
         </div>
         <div class="button-row">
           <button id="saveDraftRoute" class="primary" type="button">Save draft</button>
@@ -844,13 +848,38 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     function routePlaceNames(route) {
       return [
         route.start,
-        ...(route.stops || []),
+        ...routeableStops(route),
         route.destination
       ].map(place => String(place || '').trim()).filter(Boolean);
     }
 
-    async function geocodePlace(place) {
-      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(place)}`;
+    function routeableStops(route) {
+      return (route.stops || []).filter(stop => {
+        const value = String(stop || '').trim();
+        if (!value) return false;
+        return !/^(food|hotel|activity|activities|idea|ideas|note|notes)\b/i.test(value);
+      });
+    }
+
+    function draftIdeas(route) {
+      return route.ideas || route.notes || [];
+    }
+
+    function normaliseUkPostcode(value) {
+      return String(value || '').replace(/\b([A-Z]{1,2}\d[A-Z\d]?)(\d[A-Z]{2})\b/gi, '$1 $2');
+    }
+
+    function geocodeCountryHint(places) {
+      const joined = places.join(' ');
+      if (/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i.test(joined)) return 'gb';
+      if (/\b(uk|united kingdom|england|scotland|wales|northern ireland)\b/i.test(joined)) return 'gb';
+      return '';
+    }
+
+    async function geocodePlace(place, countryHint = '') {
+      const normalised = normaliseUkPostcode(place);
+      const country = countryHint ? `&countrycodes=${encodeURIComponent(countryHint)}` : '';
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(normalised)}${country}`;
       const res = await fetch(url, {
         headers: { 'Accept': 'application/json' }
       });
@@ -912,8 +941,9 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       setDraftRouteStatus(`Finding ${places.length} place(s) on the map...`);
       try {
         const points = [];
+        const countryHint = geocodeCountryHint(places);
         for (const place of places) {
-          points.push(await geocodePlace(place));
+          points.push(await geocodePlace(place, countryHint));
           if (requestId !== draftRouteRequestId) return;
         }
         addDraftMarkers(points);
@@ -995,7 +1025,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     }
 
     function clearDraftInputs() {
-      ['draftRouteName', 'draftStart', 'draftDestination', 'draftStops'].forEach(id => {
+      ['draftRouteName', 'draftStart', 'draftDestination', 'draftStops', 'draftIdeas'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
       });
@@ -1015,7 +1045,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <div class="draft-item">
           <b>${safeText(route.name || 'Untitled trip')}</b>
           <div class="meta">${safeText(route.start || 'Unknown start')} → ${safeText(route.destination || 'Unknown destination')}</div>
-          <div class="meta">${safeText(route.vehicle)} · ${route.stops.length} saved place(s)</div>
+          <div class="meta">${safeText(route.vehicle)} · ${routeableStops(route).length} waypoint(s) · ${draftIdeas(route).length} idea(s)</div>
           <button type="button" data-delete-draft="${safeText(route.id)}">Delete</button>
         </div>
       `).join('');
@@ -1037,7 +1067,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <div class="draft-item ${route.id === ACTIVE_DRAFT_ROUTE_ID ? 'selected' : ''}">
           <b>${safeText(route.name || 'Untitled trip')}</b>
           <div class="meta">${safeText(route.kind === 'saved' ? route.description : `${route.start || 'Unknown start'} → ${route.destination || 'Unknown destination'}`)}</div>
-          <div class="meta">${safeText(route.kind === 'saved' ? 'Saved route' : `${route.vehicle} · ${(route.stops || []).length} saved place(s)`)}</div>
+          <div class="meta">${safeText(route.kind === 'saved' ? 'Saved route' : `${route.vehicle} · ${routeableStops(route).length} waypoint(s) · ${draftIdeas(route).length} idea(s)`)}</div>
           <div class="button-row">
             <button type="button" data-select-route="${safeText(route.id)}">${route.id === ACTIVE_DRAFT_ROUTE_ID ? 'Selected' : 'Select'}</button>
             ${route.kind === 'draft' ? `<button type="button" data-delete-draft="${safeText(route.id)}">Delete</button>` : ''}
@@ -1091,7 +1121,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         summary.innerHTML = [
           metric('Start', record.start || 'Not set'),
           metric('Destination', record.destination || 'Not set'),
-          metric('Places', (record.stops || []).length),
+          metric('Waypoints', routeableStops(record).length),
+          metric('Ideas', draftIdeas(record).length),
           metric('Vehicle', record.vehicle || 'Not set')
         ].join('') + `
           <div class="button-row" style="grid-column:1/-1">
@@ -1105,12 +1136,48 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       }
     }
 
+    function importDraftRouteFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const name = params.get('routeName') || params.get('name');
+      const start = params.get('start');
+      const destination = params.get('destination');
+      if (!name || !start || !destination) return '';
+      const route = {
+        id: `draft-url-${Date.now()}`,
+        name: name.trim(),
+        start: start.trim(),
+        destination: destination.trim(),
+        vehicle: params.get('vehicle') || 'petrol',
+        stops: (params.get('stops') || '').split('\n').map(s => s.trim()).filter(Boolean),
+        ideas: (params.get('ideas') || '').split('\n').map(s => s.trim()).filter(Boolean),
+        createdAt: new Date().toISOString()
+      };
+      const routes = draftRoutes().filter(existing => {
+        const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+        return !(
+          same(existing.name, route.name) &&
+          same(existing.start, route.start) &&
+          same(existing.destination, route.destination)
+        );
+      });
+      routes.unshift(route);
+      saveDraftRoutes(routes.slice(0, 12));
+      ACTIVE_DRAFT_ROUTE_ID = route.id;
+      try {
+        localStorage.setItem('travel-planner-active-route', route.id);
+        localStorage.setItem('travel-planner-active-tab', 'trips');
+      } catch (err) {}
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return route.id;
+    }
+
     function setupDraftRouteControls() {
       const save = document.getElementById('saveDraftRoute');
       const clear = document.getElementById('clearDraftRoute');
       document.getElementById('draftVehicle')?.addEventListener('change', () => {});
       document.getElementById('tripSearch')?.addEventListener('input', renderTripTabs);
       try { ACTIVE_DRAFT_ROUTE_ID = localStorage.getItem('travel-planner-active-route') || ACTIVE_TRIP?.id || null; } catch (err) {}
+      const importedRouteId = importDraftRouteFromUrl();
       save?.addEventListener('click', () => {
         const route = {
           id: `draft-${Date.now()}`,
@@ -1119,6 +1186,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
           destination: document.getElementById('draftDestination')?.value.trim() || '',
           vehicle: document.getElementById('draftVehicle')?.value || 'petrol',
           stops: (document.getElementById('draftStops')?.value || '').split('\n').map(s => s.trim()).filter(Boolean),
+          ideas: (document.getElementById('draftIdeas')?.value || '').split('\n').map(s => s.trim()).filter(Boolean),
           createdAt: new Date().toISOString()
         };
         const routes = draftRoutes();
@@ -1134,6 +1202,14 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       renderDraftRoutes();
       renderTripTabs();
       renderActiveTripContext();
+      if (importedRouteId) {
+        setActiveTab('trips');
+        window.setTimeout(() => activateRoute(importedRouteId), 300);
+      } else if (activeTripRecord()?.kind === 'draft') {
+        window.setTimeout(() => renderDraftRouteOnMap(activeTripRecord()), 300);
+      } else {
+        setDraftRouteStatus('Saved trip selected. Create or select a draft to map a new route.', 'good');
+      }
     }
 
     const POI_LAYER_META = {
