@@ -407,6 +407,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
           <input id="tripSearch" type="search" placeholder="Search by destination, start, stop, or vehicle">
         </div>
         <div id="tripTabs" class="draft-list"></div>
+        <div id="draftRouteStatus" class="status small" style="margin-top:10px">Select a saved route or create a new one.</div>
         <p class="meta">Saved drafts are stored in this browser. Selecting a draft switches the planner context; the map-routing step comes next.</p>
       </div>
 
@@ -609,12 +610,15 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     const warningsGroup = L.featureGroup().addTo(map);
     const roadTypeGroup = L.featureGroup().addTo(map);
     const roadLabelGroup = L.featureGroup().addTo(map);
+    const draftRouteGroup = L.featureGroup().addTo(map);
     const dayGroups = {};
     const poiGroups = {};
     const routeLayers = {};
     const fallbackLayers = {};
     const routeStepSummaries = {};
     let layerControl;
+    let draftRouteRequestId = 0;
+    let draftRouteMetrics = null;
 
     function gmapsStopLink(lat, lon) {
       return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lat + ',' + lon)}`;
@@ -657,6 +661,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     }
 
     function routeDistanceForEstimate() {
+      if (draftRouteMetrics?.distanceMeters) return draftRouteMetrics.distanceMeters;
       return routeTotals.loadedDistanceMeters || routeTotals.distanceMeters || plannedDistanceMeters();
     }
 
@@ -825,6 +830,139 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       try { localStorage.setItem(DRAFT_ROUTES_KEY, JSON.stringify(routes)); } catch (err) {}
     }
 
+    function setDraftRouteStatus(message, tone = 'loading') {
+      const el = document.getElementById('draftRouteStatus');
+      if (el) el.innerHTML = `<span class="${safeText(tone)}">${safeText(message)}</span>`;
+    }
+
+    function clearDraftRouteMap() {
+      draftRouteGroup.clearLayers();
+      draftRouteMetrics = null;
+      updateCostEstimate();
+    }
+
+    function routePlaceNames(route) {
+      return [
+        route.start,
+        ...(route.stops || []),
+        route.destination
+      ].map(place => String(place || '').trim()).filter(Boolean);
+    }
+
+    async function geocodePlace(place) {
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(place)}`;
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) throw new Error(`${place}: geocoder returned ${res.status}`);
+      const results = await res.json();
+      if (!results.length) throw new Error(`${place}: no map result found`);
+      return {
+        name: place,
+        label: results[0].display_name || place,
+        lat: Number(results[0].lat),
+        lon: Number(results[0].lon)
+      };
+    }
+
+    async function fetchDraftRoadRoute(points) {
+      const coords = points.map(point => `${point.lon},${point.lat}`).join(';');
+      const query = `${coords}?overview=full&geometries=geojson&steps=true&continue_straight=false&alternatives=false`;
+      let lastError;
+      for (const service of OSRM_SERVICES) {
+        const url = `${service}/route/v1/driving/${query}`;
+        try {
+          const res = await fetch(url, { mode: 'cors' });
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const json = await res.json();
+          if (!json.routes || !json.routes.length) throw new Error(json.message || 'No route returned');
+          return { route: json.routes[0], service };
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      throw lastError || new Error('No routing service available');
+    }
+
+    function addDraftMarkers(points) {
+      points.forEach((point, index) => {
+        const label = index === 0 ? 'Start' : index === points.length - 1 ? 'End' : `Stop ${index}`;
+        const icon = L.divIcon({
+          className: '',
+          html: `<div class="stop-icon">${index + 1}</div>`,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+        L.marker([point.lat, point.lon], { icon }).bindPopup(`
+          <div class="popup-title">${safeText(label)}: ${safeText(point.name)}</div>
+          <div class="popup-note">${safeText(point.label)}</div>
+          <div style="margin-top:6px"><a href="${gmapsStopLink(point.lat, point.lon)}" target="_blank" rel="noreferrer">Open this place in Google Maps</a></div>
+        `).addTo(draftRouteGroup);
+      });
+    }
+
+    async function renderDraftRouteOnMap(route) {
+      const requestId = ++draftRouteRequestId;
+      clearDraftRouteMap();
+      const places = routePlaceNames(route);
+      if (places.length < 2) {
+        setDraftRouteStatus('Add at least a start and destination before mapping this route.', 'bad');
+        return;
+      }
+      setDraftRouteStatus(`Finding ${places.length} place(s) on the map...`);
+      try {
+        const points = [];
+        for (const place of places) {
+          points.push(await geocodePlace(place));
+          if (requestId !== draftRouteRequestId) return;
+        }
+        addDraftMarkers(points);
+        const fallback = L.polyline(points.map(point => [point.lat, point.lon]), {
+          color: '#7c3aed',
+          weight: 3,
+          opacity: 0.45,
+          dashArray: '7,7'
+        }).bindPopup(`<b>${safeText(route.name)}</b><br>Fallback line through your planned places.`);
+        fallback.addTo(draftRouteGroup);
+        setDraftRouteStatus('Building road-following route...');
+        const { route: osrmRoute, service } = await fetchDraftRoadRoute(points);
+        if (requestId !== draftRouteRequestId) return;
+        const latlngs = osrmRoute.geometry.coordinates.map(c => [c[1], c[0]]);
+        L.polyline(latlngs, {
+          color: '#7c3aed',
+          weight: 7,
+          opacity: 0.92
+        }).bindPopup(`<b>${safeText(route.name)}</b><br>Road-following route: ${fmtKm(osrmRoute.distance)} · ${fmtHours(osrmRoute.duration)}<br>Generated from OSRM/OpenStreetMap.`).addTo(draftRouteGroup);
+        draftRouteMetrics = {
+          distanceMeters: osrmRoute.distance,
+          durationSeconds: osrmRoute.duration
+        };
+        setDraftRouteStatus(`${safeText(route.name)} mapped: ${fmtKm(osrmRoute.distance)} · ${fmtHours(osrmRoute.duration)}.`, 'good');
+        updateCostEstimate();
+        fitAll();
+      } catch (err) {
+        if (requestId !== draftRouteRequestId) return;
+        setDraftRouteStatus(`Could not map this route yet: ${err.message}`, 'bad');
+        updateCostEstimate();
+      }
+    }
+
+    function activateRoute(id) {
+      ACTIVE_DRAFT_ROUTE_ID = id;
+      try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID || ''); } catch (err) {}
+      const record = activeTripRecord();
+      if (record?.kind === 'draft') {
+        renderDraftRouteOnMap(record);
+      } else {
+        ++draftRouteRequestId;
+        clearDraftRouteMap();
+        setDraftRouteStatus('Saved trip selected. Route details are shown in the Route details tab.', 'good');
+        fitAll();
+      }
+      renderTripTabs();
+      renderActiveTripContext();
+    }
+
     function allTripRecords() {
       const savedTrips = TRIPS.map(trip => ({
         id: trip.id,
@@ -907,12 +1045,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         </div>
       `).join('');
       list.querySelectorAll('[data-select-route]').forEach(button => {
-        button.addEventListener('click', () => {
-          ACTIVE_DRAFT_ROUTE_ID = button.dataset.selectRoute;
-          try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID); } catch (err) {}
-          renderTripTabs();
-          renderActiveTripContext();
-        });
+        button.addEventListener('click', () => activateRoute(button.dataset.selectRoute));
       });
       list.querySelectorAll('[data-delete-draft]').forEach(button => {
         button.addEventListener('click', () => deleteDraftRoute(button.dataset.deleteDraft));
@@ -925,10 +1058,19 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       if (ACTIVE_DRAFT_ROUTE_ID === id) {
         ACTIVE_DRAFT_ROUTE_ID = ACTIVE_TRIP?.id || null;
         try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID || ''); } catch (err) {}
+        ++draftRouteRequestId;
+        clearDraftRouteMap();
+        setDraftRouteStatus('Draft deleted. Saved trip selected.', 'good');
       }
       renderDraftRoutes();
       renderTripTabs();
       renderActiveTripContext();
+      const record = activeTripRecord();
+      if (record?.kind === 'draft') {
+        window.setTimeout(() => renderDraftRouteOnMap(record), 300);
+      } else {
+        setDraftRouteStatus('Saved trip selected. Create or select a draft to map a new route.', 'good');
+      }
     }
 
     function renderActiveTripContext() {
@@ -949,8 +1091,17 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         summary.innerHTML = [
           metric('Start', record.start || 'Not set'),
           metric('Destination', record.destination || 'Not set'),
-          metric('Places', (record.stops || []).length)
-        ].join('');
+          metric('Places', (record.stops || []).length),
+          metric('Vehicle', record.vehicle || 'Not set')
+        ].join('') + `
+          <div class="button-row" style="grid-column:1/-1">
+            <button type="button" data-map-active-draft="${safeText(record.id)}">Map this route</button>
+            <button type="button" data-delete-draft="${safeText(record.id)}">Delete draft</button>
+          </div>`;
+        summary.querySelector('[data-map-active-draft]')?.addEventListener('click', () => renderDraftRouteOnMap(record));
+        summary.querySelector('[data-delete-draft]')?.addEventListener('click', () => deleteDraftRoute(record.id));
+      } else if (summary && record?.kind === 'saved') {
+        renderTripControls();
       }
     }
 
@@ -973,12 +1124,9 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         const routes = draftRoutes();
         routes.unshift(route);
         saveDraftRoutes(routes.slice(0, 12));
-        ACTIVE_DRAFT_ROUTE_ID = route.id;
-        try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID); } catch (err) {}
         clearDraftInputs();
         renderDraftRoutes();
-        renderTripTabs();
-        renderActiveTripContext();
+        activateRoute(route.id);
         setActiveTab('trips');
       });
       clear?.addEventListener('click', clearDraftInputs);
@@ -1149,6 +1297,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       layerControl.addOverlay(warningsGroup, 'F-road / gravel warning pins');
       layerControl.addOverlay(roadTypeGroup, 'Road-type highlights');
       layerControl.addOverlay(roadLabelGroup, 'Road number/name labels');
+      layerControl.addOverlay(draftRouteGroup, 'Active planned route');
       Object.entries(poiGroups).forEach(([category, group]) => {
         const meta = POI_LAYER_META[category] || { label: category };
         layerControl.addOverlay(group, meta.label);
@@ -1263,7 +1412,13 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     }
 
     function fitAll() {
-      try { map.fitBounds(allGroup.getBounds().pad(0.08)); } catch (e) { map.setView([64.75,-18.8], 6); }
+      try {
+        if (draftRouteGroup.getLayers().length && activeTripRecord()?.kind === 'draft') {
+          map.fitBounds(draftRouteGroup.getBounds().pad(0.12));
+        } else {
+          map.fitBounds(allGroup.getBounds().pad(0.08));
+        }
+      } catch (e) { map.setView([64.75,-18.8], 6); }
     }
 
     window.zoomToDay = function(id) {
@@ -1291,6 +1446,10 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     }
     document.getElementById('resetLayout').addEventListener('click', resetMapLayout);
     window.addEventListener('load', () => setTimeout(resetMapLayout, 350));
+    window.travelPlanner = {
+      activateRoute,
+      renderDraftRouteOnMap
+    };
 
     async function initApp() {
       try {
