@@ -1,33 +1,59 @@
-# Iceland 8-day road trip map
+# Travel Planner
 
-This is a single-page interactive Leaflet map for an 8-day Iceland road trip starting and ending at Keflavík.
+A Next.js travel planning web app with local user accounts, SQLite database storage, saved trips, road routing, and route-based place suggestions.
 
-## Files
+## What This Is Now
 
-- `index.html` - the interactive map app.
-- `data/iceland_road_type_breakdown.csv` - road-type/day breakdown.
-- `data/iceland_8_day_route.kml` - KML route companion file.
+This project has moved away from the old single-file static map. The app now uses:
 
-## Local preview
+- Next.js App Router for the website and API routes
+- Prisma with SQLite for local database storage
+- Cookie sessions for local login
+- Leaflet/OpenStreetMap for the map
+- OSRM for road-following route geometry
+- Nominatim for place lookup
+- Overpass for food, hotel, fuel, and EV charger suggestions
 
-From this folder, run:
+The old Iceland files in `data/` are kept as reference/import data only. They are not the global app anymore.
 
-```bash
-python3 -m http.server 8000
+## Local Setup
+
+1. Install dependencies:
+
+```powershell
+npm install
 ```
 
-Then open:
+2. Create your local environment file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+3. Create the SQLite database:
+
+```powershell
+npm run db:push
+```
+
+4. Start the website:
+
+```powershell
+npm run dev
+```
+
+5. Open:
 
 ```text
-http://localhost:8000
+http://localhost:3000
 ```
 
-The map uses external services/CDNs for map tiles, Leaflet assets, and OSRM/OpenStreetMap road routing. If using Codex Cloud to test live route loading, enable limited internet access for the needed domains.
+## First Login
 
-## Suggested Codex tasks
+Use `Create account` the first time. Your users and trips are stored locally in `dev.db`.
 
-- Split route stop data, road-segment metadata, and UI code out of `index.html` into separate files.
-- Replace runtime OSRM calls with precomputed GeoJSON so the map works offline.
-- Add a printable day-by-day itinerary panel.
-- Add clearer road-type badges for paved roads, gravel/check-surface roads, F-roads, and forbidden off-road areas.
-- Add tests/checks to verify every planned segment has a road number/name and F-road flag.
+## Notes
+
+- `dev.db` is ignored by Git and should stay local.
+- Online mapping services are still used for geocoding, road routing, and suggestions.
+- The next sensible step is adding an explicit import flow for the old Iceland JSON data instead of seeding it automatically.
