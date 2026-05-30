@@ -333,6 +333,11 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     .poi-icon.chargers { background: #16a34a; }
     .poi-icon.overnights { background: #7c3aed; }
     .poi-icon.activities { background: #f97316; }
+    .poi-icon.food { background: #dc2626; }
+    .poi-icon.hotel { background: #2563eb; }
+    .suggestion-list { display: grid; gap: 8px; margin-top: 10px; }
+    .suggestion-item { border: 1px solid var(--border); border-radius: 10px; padding: 9px; background: color-mix(in srgb, var(--surface-strong), var(--bg) 18%); }
+    .suggestion-item b { display: block; font-size: 13px; margin-bottom: 3px; }
     @media (max-width: 900px) {
       :root { --header-height: 124px; }
       header { align-items: flex-start; padding: 12px; }
@@ -391,13 +396,13 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     <div id="map"></div>
     <aside id="panel">
       <div class="card" data-tab-section="details">
-        <h2>Saved trip details</h2>
+        <h2>Active route details</h2>
         <div class="field">
           <label for="tripSelect">Active trip</label>
           <select id="tripSelect"></select>
         </div>
         <div id="tripSummary" class="metric-grid"></div>
-        <p class="meta">The selected saved trip appears here. Use New route to plan another holiday or destination.</p>
+        <p class="meta">This panel follows the selected route. The pre-filled Iceland itinerary has its own tab.</p>
       </div>
 
       <div class="card" data-tab-section="trips">
@@ -451,7 +456,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta">Drafts are saved in this browser. The next step is geocoding these place names into map stops and routed legs.</p>
       </div>
 
-      <div class="card" data-tab-section="details">
+      <div class="card saved-route-only" data-tab-section="details">
         <h2>Route loading</h2>
         <div id="routeStatus" class="status"><span class="loading">Preparing road-following routes…</span></div>
         <div class="button-row">
@@ -496,7 +501,18 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta">These are static planning markers for now. Later they can be replaced with live charger, hotel, and activity datasets.</p>
       </div>
 
-      <div class="card legend" data-tab-section="details">
+      <div class="card" data-tab-section="places">
+        <h2>Suggestions on active route</h2>
+        <div class="button-row">
+          <button id="findFoodSuggestions" class="primary" type="button">Find food</button>
+          <button id="findHotelSuggestions" type="button">Find hotels</button>
+          <button id="clearSuggestions" type="button">Clear suggestions</button>
+        </div>
+        <div id="suggestionStatus" class="status small" style="margin-top:10px">Map a route first, then search for useful places along it.</div>
+        <div id="suggestionList" class="suggestion-list"></div>
+      </div>
+
+      <div class="card legend saved-route-only" data-tab-section="details">
         <h2>Road-type legend</h2>
         <div class="legend-row"><span class="swatch" style="background:#111827"></span> Paved / main roads used heavily on this route</div>
         <div class="legend-row"><span class="swatch" style="background:#a05a00"></span> Ordinary gravel or condition-dependent roads/accesses</div>
@@ -504,14 +520,14 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         <p class="meta"><b>Important:</b> F-roads are not “off-road”; they are marked mountain roads/tracks. Driving outside marked roads or tracks is off-road driving and is not part of this plan.</p>
       </div>
 
-      <div class="card" data-tab-section="details">
+      <div class="card saved-route-only" data-tab-section="details">
         <h2>High-risk roads intentionally avoided</h2>
         <ul id="warningList" class="warning-list"></ul>
       </div>
 
-      <div id="dayCards" data-tab-section="details"></div>
+      <div id="dayCards" class="saved-route-only" data-tab-section="details"></div>
 
-      <div class="card" data-tab-section="details">
+      <div class="card saved-route-only" data-tab-section="details">
         <h2>Source links used in this planning map</h2>
         <ul class="source-list" id="sourceList"></ul>
       </div>
@@ -615,6 +631,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     const roadTypeGroup = L.featureGroup().addTo(map);
     const roadLabelGroup = L.featureGroup().addTo(map);
     const draftRouteGroup = L.featureGroup().addTo(map);
+    const suggestionGroup = L.featureGroup().addTo(map);
     const dayGroups = {};
     const poiGroups = {};
     const routeLayers = {};
@@ -623,6 +640,8 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     let layerControl;
     let draftRouteRequestId = 0;
     let draftRouteMetrics = null;
+    let draftRouteGeometry = [];
+    let icelandOverlaysInControl = false;
 
     function gmapsStopLink(lat, lon) {
       return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lat + ',' + lon)}`;
@@ -698,9 +717,11 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     function renderTripControls() {
       const select = document.getElementById('tripSelect');
       if (select) {
-        select.innerHTML = TRIPS.map(trip => `<option value="${safeText(trip.id)}">${safeText(trip.name)}</option>`).join('');
-        if (ACTIVE_TRIP) select.value = ACTIVE_TRIP.id;
-        select.disabled = TRIPS.length <= 1;
+        const records = allTripRecords();
+        select.innerHTML = records.map(trip => `<option value="${safeText(trip.id)}">${safeText(trip.name)}${trip.kind === 'draft' ? ' (draft)' : ''}</option>`).join('');
+        if (activeTripRecord()) select.value = activeTripRecord().id;
+        select.disabled = records.length <= 1;
+        select.onchange = () => activateRoute(select.value);
       }
       const stopCount = DAYS.reduce((count, day) => count + day.stops.length, 0);
       const roadCount = DAYS.reduce((count, day) => count + day.roads.length, 0);
@@ -796,6 +817,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
     }
 
     const DRAFT_ROUTES_KEY = 'travel-planner-draft-routes';
+    const HIDDEN_SAVED_TRIPS_KEY = 'travel-planner-hidden-saved-trips';
 
     function availableTabs() {
       return [...document.querySelectorAll('[data-tab]')].map(button => button.dataset.tab);
@@ -810,9 +832,15 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       document.querySelectorAll('[data-tab-section]').forEach(section => {
         section.hidden = section.dataset.tabSection !== next;
       });
+      updateRouteDetailVisibility();
+      if (activeTripRecord()?.kind === 'draft') {
+        setIcelandMapVisible(false);
+      }
       setTimeout(() => {
         map.invalidateSize(true);
-        if (next === 'details') fitAll();
+        if (next === 'details') {
+          fitAll();
+        }
       }, 80);
       try { localStorage.setItem('travel-planner-active-tab', next); } catch (err) {}
     }
@@ -834,6 +862,65 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       try { localStorage.setItem(DRAFT_ROUTES_KEY, JSON.stringify(routes)); } catch (err) {}
     }
 
+    function hiddenSavedTripIds() {
+      try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_SAVED_TRIPS_KEY) || '[]')); } catch (err) { return new Set(); }
+    }
+
+    function saveHiddenSavedTripIds(ids) {
+      try { localStorage.setItem(HIDDEN_SAVED_TRIPS_KEY, JSON.stringify([...ids])); } catch (err) {}
+    }
+
+    function icelandMapGroups() {
+      return [
+        ...Object.values(dayGroups),
+        warningsGroup,
+        roadTypeGroup,
+        roadLabelGroup,
+        ...Object.values(poiGroups)
+      ];
+    }
+
+    function icelandOverlayDefinitions() {
+      return [
+        ...DAYS.map(day => [dayGroups[day.id], `Day ${day.id} route`]),
+        [warningsGroup, 'F-road / gravel warning pins'],
+        [roadTypeGroup, 'Road-type highlights'],
+        [roadLabelGroup, 'Road number/name labels'],
+        ...Object.entries(poiGroups).map(([category, group]) => {
+          const meta = POI_LAYER_META[category] || { label: category };
+          return [group, meta.label];
+        })
+      ].filter(([group]) => group);
+    }
+
+    function setIcelandLayerControlVisible(visible) {
+      if (!layerControl || visible === icelandOverlaysInControl) return;
+      icelandOverlayDefinitions().forEach(([group, label]) => {
+        if (visible) layerControl.addOverlay(group, label);
+        else layerControl.removeLayer(group);
+      });
+      icelandOverlaysInControl = visible;
+    }
+
+    function setIcelandMapVisible(visible) {
+      icelandMapGroups().forEach(group => {
+        if (!group) return;
+        if (visible) {
+          if (!map.hasLayer(group)) group.addTo(map);
+        } else if (map.hasLayer(group)) {
+          map.removeLayer(group);
+        }
+      });
+      setIcelandLayerControlVisible(visible);
+    }
+
+    function updateRouteDetailVisibility() {
+      const showSavedDetails = activeTripRecord()?.kind === 'saved';
+      document.querySelectorAll('.saved-route-only').forEach(section => {
+        section.hidden = section.dataset.tabSection !== 'details' || !showSavedDetails || document.querySelector('[data-tab="details"]')?.getAttribute('aria-selected') !== 'true';
+      });
+    }
+
     function setDraftRouteStatus(message, tone = 'loading') {
       const el = document.getElementById('draftRouteStatus');
       if (el) el.innerHTML = `<span class="${safeText(tone)}">${safeText(message)}</span>`;
@@ -841,7 +928,10 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
 
     function clearDraftRouteMap() {
       draftRouteGroup.clearLayers();
+      suggestionGroup.clearLayers();
       draftRouteMetrics = null;
+      draftRouteGeometry = [];
+      renderSuggestions([]);
       updateCostEstimate();
     }
 
@@ -958,6 +1048,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         const { route: osrmRoute, service } = await fetchDraftRoadRoute(points);
         if (requestId !== draftRouteRequestId) return;
         const latlngs = osrmRoute.geometry.coordinates.map(c => [c[1], c[0]]);
+        draftRouteGeometry = latlngs.map(([lat, lon]) => ({ lat, lon }));
         L.polyline(latlngs, {
           color: '#7c3aed',
           weight: 7,
@@ -982,18 +1073,139 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID || ''); } catch (err) {}
       const record = activeTripRecord();
       if (record?.kind === 'draft') {
+        setIcelandMapVisible(false);
         renderDraftRouteOnMap(record);
       } else {
         ++draftRouteRequestId;
         clearDraftRouteMap();
+        setIcelandMapVisible(true);
         setDraftRouteStatus('Saved trip selected. Route details are shown in the Route details tab.', 'good');
+        if (document.querySelector('[data-tab="trips"]')?.getAttribute('aria-selected') === 'true') {
+          setActiveTab('details');
+        }
         fitAll();
       }
       renderTripTabs();
       renderActiveTripContext();
+      updateRouteDetailVisibility();
+    }
+
+    function setSuggestionStatus(message, tone = 'loading') {
+      const el = document.getElementById('suggestionStatus');
+      if (el) el.innerHTML = `<span class="${safeText(tone)}">${safeText(message)}</span>`;
+    }
+
+    function suggestionSearchPoints() {
+      const points = draftRouteGeometry.length ? draftRouteGeometry : [];
+      if (points.length <= 6) return points;
+      const indexes = [0, 0.22, 0.45, 0.68, 0.9, 1].map(ratio => {
+        return Math.min(points.length - 1, Math.max(0, Math.round((points.length - 1) * ratio)));
+      });
+      return [...new Set(indexes)].map(index => points[index]);
+    }
+
+    function overpassQuery(points, kind) {
+      const tags = kind === 'hotel'
+        ? ['tourism="hotel"', 'tourism="guest_house"', 'tourism="hostel"', 'tourism="apartment"']
+        : ['amenity="restaurant"', 'amenity="cafe"', 'amenity="fast_food"', 'amenity="pub"'];
+      const clauses = [];
+      points.forEach(point => {
+        tags.forEach(tag => {
+          clauses.push(`node[${tag}](around:1800,${point.lat},${point.lon});`);
+          clauses.push(`way[${tag}](around:1800,${point.lat},${point.lon});`);
+        });
+      });
+      return `[out:json][timeout:20];(${clauses.join('')});out center tags 40;`;
+    }
+
+    function suggestionDistanceFromRoute(item) {
+      if (!draftRouteGeometry.length) return 0;
+      const point = { lat: item.lat, lon: item.lon };
+      return Math.min(...draftRouteGeometry.filter((_, idx) => idx % 8 === 0).map(routePoint => haversineMeters(point, routePoint)));
+    }
+
+    function normaliseSuggestionElement(element, kind) {
+      const lat = element.lat ?? element.center?.lat;
+      const lon = element.lon ?? element.center?.lon;
+      if (lat == null || lon == null) return null;
+      const tags = element.tags || {};
+      const name = tags.name || tags.brand || (kind === 'hotel' ? 'Unnamed stay' : 'Unnamed food stop');
+      return {
+        id: `${element.type}-${element.id}`,
+        kind,
+        name,
+        lat: Number(lat),
+        lon: Number(lon),
+        type: tags.cuisine || tags.amenity || tags.tourism || kind,
+        address: [tags['addr:street'], tags['addr:city'], tags['addr:postcode']].filter(Boolean).join(', ')
+      };
+    }
+
+    function renderSuggestions(items) {
+      const list = document.getElementById('suggestionList');
+      if (!list) return;
+      if (!items.length) {
+        list.innerHTML = '';
+        return;
+      }
+      list.innerHTML = items.map(item => `
+        <div class="suggestion-item">
+          <b>${safeText(item.name)}</b>
+          <div class="meta">${safeText(item.type)}${item.address ? ` · ${safeText(item.address)}` : ''}</div>
+          <div class="meta">Near route: ${Math.round(item.routeDistance || 0).toLocaleString()} m</div>
+          <a target="_blank" rel="noreferrer" href="${gmapsStopLink(item.lat, item.lon)}">Open in Google Maps</a>
+        </div>
+      `).join('');
+    }
+
+    async function findRouteSuggestions(kind) {
+      if (!draftRouteGeometry.length) {
+        setSuggestionStatus('Map a draft route first, then search along it.', 'bad');
+        return;
+      }
+      const points = suggestionSearchPoints();
+      setSuggestionStatus(`Searching for ${kind === 'hotel' ? 'hotels' : 'food places'} along the active route...`);
+      try {
+        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery(points, kind))}`;
+        const res = await fetch(url, { mode: 'cors' });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const json = await res.json();
+        const seen = new Set();
+        const items = (json.elements || [])
+          .map(element => normaliseSuggestionElement(element, kind))
+          .filter(Boolean)
+          .map(item => ({ ...item, routeDistance: suggestionDistanceFromRoute(item) }))
+          .filter(item => {
+            const key = `${item.name.toLowerCase()}-${item.lat.toFixed(4)}-${item.lon.toFixed(4)}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a, b) => (a.routeDistance || 0) - (b.routeDistance || 0))
+          .slice(0, 12);
+        suggestionGroup.clearLayers();
+        items.forEach(item => {
+          const icon = L.divIcon({
+            className: '',
+            html: `<div class="poi-icon ${safeText(kind)}">${kind === 'hotel' ? 'H' : 'F'}</div>`,
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
+          });
+          L.marker([item.lat, item.lon], { icon }).bindPopup(`
+            <div class="popup-title">${safeText(item.name)}</div>
+            <div class="popup-note">${safeText(item.type)}${item.address ? `<br>${safeText(item.address)}` : ''}</div>
+            <div style="margin-top:6px"><a href="${gmapsStopLink(item.lat, item.lon)}" target="_blank" rel="noreferrer">Open in Google Maps</a></div>
+          `).addTo(suggestionGroup);
+        });
+        renderSuggestions(items);
+        setSuggestionStatus(items.length ? `Found ${items.length} ${kind === 'hotel' ? 'hotel/stay' : 'food'} suggestion(s) near the active route.` : `No ${kind === 'hotel' ? 'hotel' : 'food'} suggestions found near this route.`, items.length ? 'good' : 'bad');
+      } catch (err) {
+        setSuggestionStatus(`Could not load suggestions: ${err.message}`, 'bad');
+      }
     }
 
     function allTripRecords() {
+      const hidden = hiddenSavedTripIds();
       const savedTrips = TRIPS.map(trip => ({
         id: trip.id,
         kind: 'saved',
@@ -1003,7 +1215,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         vehicle: 'configured',
         stops: [],
         description: trip.description || ''
-      }));
+      })).filter(trip => !hidden.has(trip.id));
       return [...savedTrips, ...draftRoutes().map(route => ({ ...route, kind: 'draft' }))];
     }
 
@@ -1070,28 +1282,58 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
           <div class="meta">${safeText(route.kind === 'saved' ? 'Saved route' : `${route.vehicle} · ${routeableStops(route).length} waypoint(s) · ${draftIdeas(route).length} idea(s)`)}</div>
           <div class="button-row">
             <button type="button" data-select-route="${safeText(route.id)}">${route.id === ACTIVE_DRAFT_ROUTE_ID ? 'Selected' : 'Select'}</button>
-            ${route.kind === 'draft' ? `<button type="button" data-delete-draft="${safeText(route.id)}">Delete</button>` : ''}
+            <button type="button" data-delete-route="${safeText(route.id)}">${route.kind === 'saved' ? 'Delete saved trip' : 'Delete'}</button>
           </div>
         </div>
       `).join('');
       list.querySelectorAll('[data-select-route]').forEach(button => {
         button.addEventListener('click', () => activateRoute(button.dataset.selectRoute));
       });
-      list.querySelectorAll('[data-delete-draft]').forEach(button => {
-        button.addEventListener('click', () => deleteDraftRoute(button.dataset.deleteDraft));
+      list.querySelectorAll('[data-delete-route]').forEach(button => {
+        button.addEventListener('click', () => deleteRoute(button.dataset.deleteRoute));
       });
+    }
+
+    function deleteRoute(id) {
+      const record = allTripRecords().find(route => route.id === id);
+      if (!record) return;
+      if (record.kind === 'draft') {
+        deleteDraftRoute(id);
+        return;
+      }
+      const hidden = hiddenSavedTripIds();
+      hidden.add(id);
+      saveHiddenSavedTripIds(hidden);
+      if (ACTIVE_DRAFT_ROUTE_ID === id) {
+        const next = allTripRecords().find(route => route.id !== id) || null;
+        ACTIVE_DRAFT_ROUTE_ID = next?.id || '';
+        try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID); } catch (err) {}
+        if (next?.kind === 'draft') {
+          setIcelandMapVisible(false);
+          renderDraftRouteOnMap(next);
+        } else {
+          setIcelandMapVisible(false);
+          clearDraftRouteMap();
+        }
+      }
+      renderTripControls();
+      renderDraftRoutes();
+      renderTripTabs();
+      renderActiveTripContext();
+      updateRouteDetailVisibility();
     }
 
     function deleteDraftRoute(id) {
       const routes = draftRoutes().filter(route => route.id !== id);
       saveDraftRoutes(routes);
       if (ACTIVE_DRAFT_ROUTE_ID === id) {
-        ACTIVE_DRAFT_ROUTE_ID = ACTIVE_TRIP?.id || null;
+        ACTIVE_DRAFT_ROUTE_ID = allTripRecords().find(route => route.kind === 'saved')?.id || null;
         try { localStorage.setItem('travel-planner-active-route', ACTIVE_DRAFT_ROUTE_ID || ''); } catch (err) {}
         ++draftRouteRequestId;
         clearDraftRouteMap();
         setDraftRouteStatus('Draft deleted. Saved trip selected.', 'good');
       }
+      renderTripControls();
       renderDraftRoutes();
       renderTripTabs();
       renderActiveTripContext();
@@ -1101,6 +1343,7 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       } else {
         setDraftRouteStatus('Saved trip selected. Create or select a draft to map a new route.', 'good');
       }
+      updateRouteDetailVisibility();
     }
 
     function renderActiveTripContext() {
@@ -1132,8 +1375,18 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
         summary.querySelector('[data-map-active-draft]')?.addEventListener('click', () => renderDraftRouteOnMap(record));
         summary.querySelector('[data-delete-draft]')?.addEventListener('click', () => deleteDraftRoute(record.id));
       } else if (summary && record?.kind === 'saved') {
-        renderTripControls();
+        summary.innerHTML = [
+          metric('Saved route', record.name || 'Saved trip'),
+          metric('Region', record.destination || record.start || 'Not set'),
+          metric('Details', `${DAYS.length} days`),
+          metric('Stops', DAYS.reduce((count, day) => count + day.stops.length, 0))
+        ].join('') + `
+          <div class="button-row" style="grid-column:1/-1">
+            <button type="button" data-delete-route="${safeText(record.id)}">Delete saved trip</button>
+          </div>`;
+        summary.querySelector('[data-delete-route]')?.addEventListener('click', event => deleteRoute(event.currentTarget.dataset.deleteRoute));
       }
+      updateRouteDetailVisibility();
     }
 
     function importDraftRouteFromUrl() {
@@ -1369,16 +1622,11 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       addRoadLabels();
       addPoiLayers();
       layerControl = L.control.layers({ 'OpenStreetMap': osm, 'OpenTopoMap': topo }, {}, { collapsed: true }).addTo(map);
-      DAYS.forEach(day => layerControl.addOverlay(dayGroups[day.id], `Day ${day.id} route`));
-      layerControl.addOverlay(warningsGroup, 'F-road / gravel warning pins');
-      layerControl.addOverlay(roadTypeGroup, 'Road-type highlights');
-      layerControl.addOverlay(roadLabelGroup, 'Road number/name labels');
       layerControl.addOverlay(draftRouteGroup, 'Active planned route');
-      Object.entries(poiGroups).forEach(([category, group]) => {
-        const meta = POI_LAYER_META[category] || { label: category };
-        layerControl.addOverlay(group, meta.label);
-      });
+      layerControl.addOverlay(suggestionGroup, 'Suggested places');
+      setIcelandLayerControlVisible(true);
       fitAll();
+      if (activeTripRecord()?.kind === 'draft') setIcelandMapVisible(false);
     }
 
     async function fetchRoute(day) {
@@ -1491,8 +1739,10 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
       try {
         if (draftRouteGroup.getLayers().length && activeTripRecord()?.kind === 'draft') {
           map.fitBounds(draftRouteGroup.getBounds().pad(0.12));
-        } else {
+        } else if (map.hasLayer(warningsGroup) || Object.values(dayGroups).some(group => map.hasLayer(group))) {
           map.fitBounds(allGroup.getBounds().pad(0.08));
+        } else {
+          map.setView([54.6, -2.2], 6);
         }
       } catch (e) { map.setView([64.75,-18.8], 6); }
     }
@@ -1506,6 +1756,13 @@ svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainte
 
     document.getElementById('reloadRoutes').addEventListener('click', loadAllRoutes);
     document.getElementById('fitAll').addEventListener('click', fitAll);
+    document.getElementById('findFoodSuggestions').addEventListener('click', () => findRouteSuggestions('food'));
+    document.getElementById('findHotelSuggestions').addEventListener('click', () => findRouteSuggestions('hotel'));
+    document.getElementById('clearSuggestions').addEventListener('click', () => {
+      suggestionGroup.clearLayers();
+      renderSuggestions([]);
+      setSuggestionStatus('Suggestions cleared.', 'good');
+    });
 
     function resetMapLayout() {
       map.invalidateSize(true);
