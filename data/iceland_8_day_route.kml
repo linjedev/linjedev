@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>Iceland 8-day Land Cruiser road trip</name>
+<description>Clockwise Iceland loop from Keflavík via Reykjavík and Grundarfjörður first.</description>
+<Style id="routeStyle"><LineStyle><color>ff0066cc</color><width>4</width></LineStyle></Style>
+<Style id="stopStyle"><IconStyle><scale>1.1</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/red-circle.png</href></Icon></IconStyle></Style>
+<Style id="fuelStyle"><IconStyle><scale>1.0</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/orange-circle.png</href></Icon></IconStyle></Style>
+<Style id="sleepStyle"><IconStyle><scale>1.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/grn-circle.png</href></Icon></IconStyle></Style>
+
+
+<Placemark>
+<name>Full route overlay</name>
+<styleUrl>#routeStyle</styleUrl>
+<LineString><tessellate>1</tessellate><coordinates>
+-22.6056,63.985,0
+-21.9426,64.1466,0
+-21.9206,64.5383,0
+-23.311,64.926,0
+-23.7092,64.8945,0
+-23.9019,64.753,0
+-23.7736,64.7357,0
+-23.6277,64.7661,0
+-23.3844,64.8208,0
+-21.9206,64.5383,0
+-20.9416,65.3975,0
+-20.6356,65.6065,0
+-20.2806,65.6606,0
+-18.1262,65.6885,0
+-17.5502,65.6828,0
+-16.9129,65.6426,0
+-16.8086,65.6416,0
+-16.7585,65.7153,0
+-16.3846,65.8147,0
+-14.3948,65.2669,0
+-14.0058,65.2609,0
+-14.3948,65.2669,0
+-14.0182,64.9326,0
+-14.2851,64.6577,0
+-15.202,64.2497,0
+-14.9723,64.2446,0
+-15.202,64.2497,0
+-16.1791,64.0476,0
+-16.9667,64.0167,0
+-18.1719,63.7714,0
+-19.006,63.4186,0
+-19.0449,63.4046,0
+-19.1263,63.4025,0
+-19.5114,63.5321,0
+-19.9886,63.6156,0
+-20.225,63.751,0
+-20.3024,64.3104,0
+-20.1211,64.3271,0
+-20.7323,64.2175,0
+-21.1295,64.2559,0
+-21.9426,64.1466,0
+-22.6056,63.985,0
+</coordinates></LineString>
+</Placemark>
+
+
+<Placemark>
+<name>Day 1: Keflavík → Reykjavík → Grundarfjörður</name>
+<description>Keflavík → Reykjavík → Grundarfjörður | approx 245 km | Sleep: Grundarfjörður / Snæfellsnes campsite area | Pick up the Land Cruiser, visit Reykjavík, then drive to Kirkjufell country for the first night.</description>
+<styleUrl>#routeStyle</styleUrl>
+<LineString><tessellate>1</tessellate><coordinates>
+-22.6056,63.985,0
+-21.9426,64.1466,0
+-21.9206,64.5383,0
+-23.311,64.926,0
+</coordinates></LineString>
+</Placemark>
+
+
+<Placemark>
+<name>Day 2: Snæfellsnes loop → Hvammstangi</name>
+<description>Snæfellsnes loop → Hvammstangi | approx 350 km | Sleep: Hvammstangi campsite area | Full Snæfellsnes day: coast, lava fields, black-pebble beach, sea cliffs, then reposition north.</description>
+<styleUrl>#routeStyle</styleUrl>
+<LineString><tessellate>1</tessellate><coordinates>
+-23.311,64.926,0
+-23.7092,64.8945,0
+-23.9019,64.753,0
+-23.7736,64.7357,0
+-23.6277,64.7661,0
+-23.3844,64.8208,0
+-21.9206,64.5383,0
+-20.9416,65.3975,0
+</coordinates></LineString>
+</Placemark>
+
+
+<Placemark>
+<name>Day 3: North Iceland to Akureyri, Goðafoss &amp; Mývatn</name>
+<description>North Iceland to Akureyri, Goðafoss &amp; Mývatn | approx 330 km | Sleep: Mývatn / Reykjahlíð campsite area | Optional early Hvítserkur detour, then Akureyri, Goðafoss and the Mývatn area.</description>
+<styleUrl>#routeStyle</styleUrl>
+<LineString><tessellate>1</tessellate><coordinates>
+-20.9416,65.3975,0
+-20.6356,65.6065,0
+-20.2806,65.6606,0
+-18.1262,65.6885,0
+-17.5502,65.6828,0
+-16.9129,65.6426,0
+</coordinates></LineString>
+</Placemark>
+
+
+<Placemark>
+<name>Day 4: Mývatn sights → Dettifoss → Egilsstaðir / Seyðisfjörður</name>
+<description>Mývatn sights → Dettifoss → Egilsstaðir / Seyðisfjörður | approx 285 km | Sleep: Seyðisfjörður or Egilsstaðir campsite area | Geothermal stops first, then Dettifoss and the scenic mountain road into Seyðisfjörður if conditions allow.</description>
+<styleUrl>#routeStyle</styleUrl>
+<LineString><tessellate>1</tessellate><coordinates>
+-16.9129,65.6426,0
+-16.8086,65.6416,0
+-16.7585,65.7153,0
+-16.3846,65.8147,0
+-14.3948,65.2669,0
+-14.0058,65.2609,0
+</coordinates></LineString>
+</Placemark>
+
+
+<Placemark>
+<name>Day 5: Eastfjords → Höfn / Vestrahorn</name>
+<description>Eastfjords → Höfn / Vestrahorn | approx 320 km | Sleep: Höfn campsite area | Slow fjord driving day. Aim for Höfn, with Stokksnes/Vestrahorn as the late-day photo stop.</description>
+<styleUrl>#routeStyle</styleUrl>
+<LineString><tessellate>1</tessellate><coordinates>
+-14.0058,65.2609,0
+-14.3948,65.2669,0
+-14.0182,64.9326,0
+-14.2851,64.6577,0
+-15.202,64.2497,0
+-14.9723,64.2446,0
+-15.202,64.2497,0
+</coordinates></LineString>
+</Placemark>
+
+
+<Placemark>
+<name>Day 6: Glacier lagoon → Skaftafell → Vík</name>
+<description>Glacier lagoon → Skaftafell → Vík | approx 290 km | Sleep: Vík campsite area | Jökulsárlón and Diamond Beach early, then Skaftafell and the canyon before Vík.</description>
+<styleUrl>#routeStyle</styleUrl>
+<LineString><tessellate>1</tessellate><coordinates>
+-15.202,64.2497,0
+-16.1791,64.0476,0
+-16.9667,64.0167,0
+-18.1719,63.7714,0
+-19.006,63.4186,0
+</coordinates></LineString>
+</Placemark>
+
+
+<Placemark>
+<name>Day 7: South Coast waterfalls → Geysir area</name>
+<description>South Coast waterfalls → Geysir area | approx 230 km | Sleep: Geysir / Haukadalur campsite area | Black-sand beach safety day, then the classic South Coast waterfalls and a Golden Circle positioning night.</description>
+<styleUrl>#routeStyle</styleUrl>
+<LineString><tessellate>1</tessellate><coordinates>
+-19.006,63.4186,0
+-19.0449,63.4046,0
+-19.1263,63.4025,0
+-19.5114,63.5321,0
+-19.9886,63.6156,0
+-20.225,63.751,0
+-20.3024,64.3104,0
+</coordinates></LineString>
+</Placemark>
+
+
+<Placemark>
+<name>Day 8: Golden Circle → Keflavík return</name>
+<description>Golden Circle → Keflavík return | approx 210 km | Sleep: Return / drop-off | Finish with Gullfoss, Geysir and Þingvellir, then return the car at Keflavík.</description>
+<styleUrl>#routeStyle</styleUrl>
+<LineString><tessellate>1</tessellate><coordinates>
+-20.3024,64.3104,0
+-20.1211,64.3271,0
+-20.7323,64.2175,0
+-21.1295,64.2559,0
+-21.9426,64.1466,0
+-22.6056,63.985,0
+</coordinates></LineString>
+</Placemark>
+
+
+<Placemark>
+<name>Keflavík Airport</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#fuelStyle</styleUrl>
+<Point><coordinates>-22.6056,63.985,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Reykjavík</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#fuelStyle</styleUrl>
+<Point><coordinates>-21.9426,64.1466,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Borgarnes</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#fuelStyle</styleUrl>
+<Point><coordinates>-21.9206,64.5383,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Grundarfjörður / Kirkjufell</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#sleepStyle</styleUrl>
+<Point><coordinates>-23.311,64.926,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Ólafsvík</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-23.7092,64.8945,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Djúpalónssandur</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-23.9019,64.753,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Lóndrangar</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-23.7736,64.7357,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Arnarstapi</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-23.6277,64.7661,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Búðir / Búðakirkja</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-23.3844,64.8208,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Hvammstangi</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#sleepStyle</styleUrl>
+<Point><coordinates>-20.9416,65.3975,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Hvítserkur</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-20.6356,65.6065,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Blönduós</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#fuelStyle</styleUrl>
+<Point><coordinates>-20.2806,65.6606,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Akureyri</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#fuelStyle</styleUrl>
+<Point><coordinates>-18.1262,65.6885,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Goðafoss</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-17.5502,65.6828,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Mývatn / Reykjahlíð</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#sleepStyle</styleUrl>
+<Point><coordinates>-16.9129,65.6426,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Hverir geothermal area</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-16.8086,65.6416,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Krafla / Víti</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-16.7585,65.7153,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Dettifoss</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-16.3846,65.8147,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Egilsstaðir</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#fuelStyle</styleUrl>
+<Point><coordinates>-14.3948,65.2669,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Seyðisfjörður</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#sleepStyle</styleUrl>
+<Point><coordinates>-14.0058,65.2609,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Fáskrúðsfjörður</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-14.0182,64.9326,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Djúpivogur</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-14.2851,64.6577,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Höfn</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#sleepStyle</styleUrl>
+<Point><coordinates>-15.202,64.2497,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Stokksnes / Vestrahorn</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-14.9723,64.2446,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Jökulsárlón</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-16.1791,64.0476,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Skaftafell</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-16.9667,64.0167,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Fjaðrárgljúfur</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-18.1719,63.7714,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Vík</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#sleepStyle</styleUrl>
+<Point><coordinates>-19.006,63.4186,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Reynisfjara</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-19.0449,63.4046,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Dyrhólaey</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-19.1263,63.4025,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Skógafoss</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-19.5114,63.5321,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Seljalandsfoss</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-19.9886,63.6156,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Hvolsvöllur</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#fuelStyle</styleUrl>
+<Point><coordinates>-20.225,63.751,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Geysir / Haukadalur</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#sleepStyle</styleUrl>
+<Point><coordinates>-20.3024,64.3104,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Gullfoss</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-20.1211,64.3271,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Laugarvatn</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-20.7323,64.2175,0</coordinates></Point>
+</Placemark>
+
+
+<Placemark>
+<name>Þingvellir</name>
+<description>Included in Iceland 8-day route. Search/route in your navigation app before driving.</description>
+<styleUrl>#stopStyle</styleUrl>
+<Point><coordinates>-21.1295,64.2559,0</coordinates></Point>
+</Placemark>
+
+</Document></kml>

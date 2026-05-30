@@ -1,0 +1,654 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iceland 8-day road-following route with road types — fixed v2</title>
+  <style>
+
+/* Leaflet 1.x critical CSS embedded so the map still renders correctly when the external leaflet.css file is blocked. */
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer { position: absolute; left: 0; top: 0; }
+.leaflet-container { overflow: hidden; background: #ddd; outline-offset: 1px; touch-action: pan-x pan-y; font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif; }
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow { -webkit-user-select: none; -moz-user-select: none; user-select: none; -webkit-user-drag: none; }
+.leaflet-tile::selection { background: transparent; }
+.leaflet-safari .leaflet-tile { image-rendering: -webkit-optimize-contrast; }
+.leaflet-safari .leaflet-tile-container { width: 1600px; height: 1600px; -webkit-transform-origin: 0 0; }
+.leaflet-marker-icon,
+.leaflet-marker-shadow { display: block; }
+.leaflet-container .leaflet-overlay-pane svg { max-width: none !important; max-height: none !important; }
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container img.leaflet-image-layer,
+.leaflet-container .leaflet-tile { max-width: none !important; max-height: none !important; width: auto; padding: 0; }
+.leaflet-container.leaflet-touch-zoom { touch-action: pan-x pan-y; }
+.leaflet-container.leaflet-touch-drag { touch-action: pinch-zoom; }
+.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom { touch-action: none; }
+.leaflet-tile { filter: inherit; visibility: hidden; }
+.leaflet-tile-loaded { visibility: inherit; }
+.leaflet-zoom-box { width: 0; height: 0; box-sizing: border-box; z-index: 800; border: 2px dotted #38f; background: rgba(255,255,255,0.5); }
+.leaflet-overlay-pane svg { -moz-user-select: none; }
+.leaflet-pane { z-index: 400; }
+.leaflet-tile-pane { z-index: 200; }
+.leaflet-overlay-pane { z-index: 400; }
+.leaflet-shadow-pane { z-index: 500; }
+.leaflet-marker-pane { z-index: 600; }
+.leaflet-tooltip-pane { z-index: 650; }
+.leaflet-popup-pane { z-index: 700; }
+.leaflet-map-pane canvas { z-index: 100; }
+.leaflet-map-pane svg { z-index: 200; }
+.leaflet-vml-shape { width: 1px; height: 1px; }
+.lvml { behavior: url(#default#VML); display: inline-block; position: absolute; }
+.leaflet-control { position: relative; z-index: 800; pointer-events: visiblePainted; pointer-events: auto; }
+.leaflet-top,
+.leaflet-bottom { position: absolute; z-index: 1000; pointer-events: none; }
+.leaflet-top { top: 0; }
+.leaflet-right { right: 0; }
+.leaflet-bottom { bottom: 0; }
+.leaflet-left { left: 0; }
+.leaflet-control { float: left; clear: both; }
+.leaflet-right .leaflet-control { float: right; }
+.leaflet-top .leaflet-control { margin-top: 10px; }
+.leaflet-bottom .leaflet-control { margin-bottom: 10px; }
+.leaflet-left .leaflet-control { margin-left: 10px; }
+.leaflet-right .leaflet-control { margin-right: 10px; }
+.leaflet-fade-anim .leaflet-popup { opacity: 0; transition: opacity 0.2s linear; }
+.leaflet-fade-anim .leaflet-map-pane .leaflet-popup { opacity: 1; }
+.leaflet-zoom-animated { transform-origin: 0 0; }
+svg.leaflet-zoom-animated { will-change: transform; }
+.leaflet-zoom-anim .leaflet-zoom-animated { transition: transform 0.25s cubic-bezier(0,0,0.25,1); }
+.leaflet-zoom-anim .leaflet-tile,
+.leaflet-pan-anim .leaflet-tile { transition: none; }
+.leaflet-zoom-anim .leaflet-zoom-hide { visibility: hidden; }
+.leaflet-interactive { cursor: pointer; }
+.leaflet-grab { cursor: grab; }
+.leaflet-crosshair,
+.leaflet-crosshair .leaflet-interactive { cursor: crosshair; }
+.leaflet-popup-pane,
+.leaflet-control { cursor: auto; }
+.leaflet-dragging .leaflet-grab,
+.leaflet-dragging .leaflet-grab .leaflet-interactive,
+.leaflet-dragging .leaflet-marker-draggable { cursor: move; cursor: grabbing; }
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-image-layer,
+.leaflet-pane > svg path,
+.leaflet-tile-container { pointer-events: none; }
+.leaflet-marker-icon.leaflet-interactive,
+.leaflet-image-layer.leaflet-interactive,
+.leaflet-pane > svg path.leaflet-interactive,
+svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainted; pointer-events: auto; }
+.leaflet-container a { color: #0078A8; }
+.leaflet-container a.leaflet-active { outline: 2px solid orange; }
+.leaflet-zoom-box { border: 2px dotted #38f; background: rgba(255,255,255,0.5); }
+.leaflet-bar { box-shadow: 0 1px 5px rgba(0,0,0,0.65); border-radius: 4px; }
+.leaflet-bar a { background-color: #fff; border-bottom: 1px solid #ccc; width: 26px; height: 26px; line-height: 26px; display: block; text-align: center; text-decoration: none; color: black; }
+.leaflet-bar a,
+.leaflet-control-layers-toggle { background-position: 50% 50%; background-repeat: no-repeat; display: block; }
+.leaflet-bar a:hover,
+.leaflet-bar a:focus { background-color: #f4f4f4; }
+.leaflet-bar a:first-child { border-top-left-radius: 4px; border-top-right-radius: 4px; }
+.leaflet-bar a:last-child { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; border-bottom: none; }
+.leaflet-bar a.leaflet-disabled { cursor: default; background-color: #f4f4f4; color: #bbb; }
+.leaflet-touch .leaflet-bar a { width: 30px; height: 30px; line-height: 30px; }
+.leaflet-touch .leaflet-bar a:first-child { border-top-left-radius: 2px; border-top-right-radius: 2px; }
+.leaflet-touch .leaflet-bar a:last-child { border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; }
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out { font: bold 18px 'Lucida Console', Monaco, monospace; text-indent: 1px; }
+.leaflet-touch .leaflet-control-zoom-in,
+.leaflet-touch .leaflet-control-zoom-out { font-size: 22px; }
+.leaflet-control-layers { box-shadow: 0 1px 5px rgba(0,0,0,0.4); background: #fff; border-radius: 5px; }
+.leaflet-control-layers-toggle { background-image: none; width: 36px; height: 36px; position: relative; }
+.leaflet-control-layers-toggle::before { content: '☰'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #333; }
+.leaflet-retina .leaflet-control-layers-toggle { background-size: 26px 26px; }
+.leaflet-touch .leaflet-control-layers-toggle { width: 44px; height: 44px; }
+.leaflet-control-layers .leaflet-control-layers-list,
+.leaflet-control-layers-expanded .leaflet-control-layers-toggle { display: none; }
+.leaflet-control-layers-expanded .leaflet-control-layers-list { display: block; position: relative; }
+.leaflet-control-layers-expanded { padding: 6px 10px 6px 6px; color: #333; background: #fff; }
+.leaflet-control-layers-scrollbar { overflow-y: scroll; overflow-x: hidden; padding-right: 5px; }
+.leaflet-control-layers-selector { margin-top: 2px; position: relative; top: 1px; }
+.leaflet-control-layers label { display: block; font-size: 13px; line-height: 1.25; }
+.leaflet-control-layers-separator { height: 0; border-top: 1px solid #ddd; margin: 5px -10px 5px -6px; }
+.leaflet-default-icon-path { background-image: none; }
+.leaflet-container .leaflet-control-attribution { background: #fff; background: rgba(255,255,255,0.8); margin: 0; }
+.leaflet-control-attribution,
+.leaflet-control-scale-line { padding: 0 5px; color: #333; line-height: 1.4; }
+.leaflet-control-attribution a { text-decoration: none; }
+.leaflet-control-attribution a:hover,
+.leaflet-control-attribution a:focus { text-decoration: underline; }
+.leaflet-attribution-flag { display: inline !important; vertical-align: baseline !important; width: 1em; height: 0.6669em; }
+.leaflet-left .leaflet-control-scale { margin-left: 5px; }
+.leaflet-bottom .leaflet-control-scale { margin-bottom: 5px; }
+.leaflet-control-scale-line { border: 2px solid #777; border-top: none; line-height: 1.1; padding: 2px 5px 1px; white-space: nowrap; box-sizing: border-box; background: rgba(255,255,255,0.8); text-shadow: 1px 1px #fff; }
+.leaflet-control-scale-line:not(:first-child) { border-top: 2px solid #777; border-bottom: none; margin-top: -2px; }
+.leaflet-control-scale-line:not(:first-child):not(:last-child) { border-bottom: 2px solid #777; }
+.leaflet-touch .leaflet-control-attribution,
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar { box-shadow: none; }
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar { border: 2px solid rgba(0,0,0,0.2); background-clip: padding-box; }
+.leaflet-popup { position: absolute; text-align: center; margin-bottom: 20px; }
+.leaflet-popup-content-wrapper { padding: 1px; text-align: left; border-radius: 12px; }
+.leaflet-popup-content { margin: 13px 24px 13px 20px; min-width: 1px; }
+.leaflet-popup-content p { margin: 17px 0; }
+.leaflet-popup-tip-container { width: 40px; height: 20px; position: absolute; left: 50%; margin-top: -1px; margin-left: -20px; overflow: hidden; pointer-events: none; }
+.leaflet-popup-tip { width: 17px; height: 17px; padding: 1px; margin: -10px auto 0; pointer-events: auto; transform: rotate(45deg); }
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip { background: white; color: #333; box-shadow: 0 3px 14px rgba(0,0,0,0.4); }
+.leaflet-container a.leaflet-popup-close-button { position: absolute; top: 0; right: 0; border: none; text-align: center; width: 24px; height: 24px; font: 16px/24px Tahoma, Verdana, sans-serif; color: #757575; text-decoration: none; background: transparent; }
+.leaflet-container a.leaflet-popup-close-button:hover,
+.leaflet-container a.leaflet-popup-close-button:focus { color: #585858; }
+.leaflet-popup-scrolled { overflow: auto; }
+.leaflet-oldie .leaflet-popup-content-wrapper { -ms-zoom: 1; }
+.leaflet-oldie .leaflet-popup-tip { width: 24px; margin: 0 auto; -ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)"; }
+.leaflet-oldie .leaflet-control-zoom,
+.leaflet-oldie .leaflet-control-layers,
+.leaflet-oldie .leaflet-popup-content-wrapper,
+.leaflet-oldie .leaflet-popup-tip { border: 1px solid #999; }
+.leaflet-div-icon { background: #fff; border: 1px solid #666; }
+.leaflet-tooltip { position: absolute; padding: 6px; background-color: #fff; border: 1px solid #fff; border-radius: 3px; color: #222; white-space: nowrap; user-select: none; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.leaflet-tooltip.leaflet-interactive { cursor: pointer; pointer-events: auto; }
+.leaflet-tooltip-top:before,
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before { position: absolute; pointer-events: none; border: 6px solid transparent; background: transparent; content: ""; }
+.leaflet-tooltip-bottom { margin-top: 6px; }
+.leaflet-tooltip-top { margin-top: -6px; }
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-top:before { left: 50%; margin-left: -6px; }
+.leaflet-tooltip-top:before { bottom: 0; margin-bottom: -12px; border-top-color: #fff; }
+.leaflet-tooltip-bottom:before { top: 0; margin-top: -12px; margin-left: -6px; border-bottom-color: #fff; }
+.leaflet-tooltip-left { margin-left: -6px; }
+.leaflet-tooltip-right { margin-left: 6px; }
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before { top: 50%; margin-top: -6px; }
+.leaflet-tooltip-left:before { right: 0; margin-right: -12px; border-left-color: #fff; }
+.leaflet-tooltip-right:before { left: 0; margin-left: -12px; border-right-color: #fff; }
+
+    :root {
+      --panel-width: 430px;
+      --border: #d6d6d6;
+      --text: #1f2933;
+      --muted: #5f6b7a;
+      --bg: #f7f8fb;
+      --card: #ffffff;
+      --danger: #b42318;
+      --warn: #a05a00;
+      --ok: #12653f;
+      --blue: #1455a3;
+    }
+    html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); }
+    body { display: grid; grid-template-rows: auto 1fr; }
+    header { padding: 12px 16px; background: #111827; color: white; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    header .sub { font-size: 13px; color: #d1d5db; }
+    header a { color: #bfdbfe; }
+    #app { display: grid; grid-template-columns: minmax(0, 1fr) var(--panel-width); min-height: 0; }
+    #map { min-height: 620px; }
+    #panel { overflow-y: auto; border-left: 1px solid var(--border); background: var(--bg); padding: 12px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04); padding: 12px; margin-bottom: 12px; }
+    .card h2, .card h3 { margin: 0 0 8px 0; }
+    .card h2 { font-size: 16px; }
+    .card h3 { font-size: 15px; }
+    .meta { color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .button-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    button, .btn { appearance: none; border: 1px solid #b8c2cc; background: white; color: #111827; padding: 7px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; text-decoration: none; display: inline-block; }
+    button.primary, .btn.primary { background: #1455a3; border-color: #1455a3; color: white; }
+    button:hover, .btn:hover { filter: brightness(.96); }
+    .status { font-size: 13px; line-height: 1.35; }
+    .status .good { color: var(--ok); font-weight: 700; }
+    .status .bad { color: var(--danger); font-weight: 700; }
+    .status .loading { color: var(--blue); font-weight: 700; }
+    .legend { font-size: 13px; line-height: 1.45; }
+    .legend-row { display:flex; align-items:center; gap:8px; margin: 5px 0; }
+    .swatch { width: 22px; height: 4px; border-radius: 4px; display:inline-block; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px; font-size: 12px; font-weight: 650; border: 1px solid transparent; white-space: nowrap; }
+    .badge.ok { color: var(--ok); background: #ecfdf3; border-color: #bbf7d0; }
+    .badge.warn { color: var(--warn); background: #fff7ed; border-color: #fed7aa; }
+    .badge.danger { color: var(--danger); background: #fef3f2; border-color: #fecaca; }
+    .day-card { border-left: 5px solid #999; }
+    .road-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .road-table th { text-align: left; color: #475467; font-size: 12px; border-bottom: 1px solid var(--border); padding: 5px 3px; }
+    .road-table td { vertical-align: top; border-bottom: 1px solid #eef0f3; padding: 6px 3px; }
+    details { margin-top: 8px; }
+    summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+    .steps { max-height: 220px; overflow: auto; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-top: 8px; }
+    .steps ol { padding-left: 20px; margin: 6px 0; }
+    .steps li { margin-bottom: 4px; }
+    .warning-list { margin: 8px 0 0 0; padding-left: 18px; }
+    .warning-list li { margin-bottom: 6px; }
+    .small { font-size: 12px; }
+    .source-list { margin: 6px 0 0 0; padding-left: 18px; font-size: 12px; }
+    .source-list li { margin-bottom: 5px; }
+    .popup-title { font-weight: 800; margin-bottom: 4px; }
+    .popup-note { font-size: 12px; color: #4b5563; }
+    .leaflet-popup-content { line-height: 1.35; }
+    .leaflet-control-layers { font-size: 13px; }
+    .route-label { background: rgba(255,255,255,.88); border: 1px solid #d1d5db; border-radius: 8px; padding: 3px 6px; font-size: 12px; font-weight: 700; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+    .road-label { background: rgba(255,255,255,.92); border: 1px solid #64748b; border-radius: 999px; padding: 2px 7px; font-size: 11.5px; font-weight: 800; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,.18); }
+    .warn-icon { background: #fef3c7; border: 2px solid #b45309; border-radius: 50%; width: 20px; height: 20px; text-align: center; line-height: 18px; font-weight: 900; color: #92400e; }
+    .stop-icon { background: #fff; border: 2px solid #1455a3; border-radius: 50%; width: 18px; height: 18px; text-align: center; line-height: 16px; font-size: 11px; font-weight: 800; color: #1455a3; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+    @media (max-width: 900px) {
+      #app { grid-template-columns: 1fr; grid-template-rows: 60vh auto; }
+      #panel { border-left: none; border-top: 1px solid var(--border); max-height: none; }
+      #map { min-height: 55vh; }
+    }
+  </style>
+
+  <style id="robust-map-preview-layout">
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body { overflow: hidden; }
+    header { box-sizing: border-box; min-height: 62px; }
+    #app { height: calc(100vh - 62px); min-height: 540px; overflow: hidden; }
+    #map { width: 100%; height: 100%; min-height: 0; position: relative; background: #dbe5eb; }
+    #panel { min-height: 0; }
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      #app { height: auto; min-height: 0; overflow: visible; grid-template-rows: 62vh auto; }
+      #map { height: 62vh; min-height: 420px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Iceland 8-day road-following route — fixed map v2</h1>
+      <div class="sub">Clockwise loop from Keflavík via Reykjavík first, then Grundarfjörður. Route geometry loads from OSRM/OpenStreetMap; Leaflet CSS is embedded to prevent tile-glitching.</div>
+    </div>
+    <div class="sub"><a href="https://umferdin.is/en" target="_blank" rel="noreferrer">Check live roads</a> · <a href="https://vegasja.vegagerdin.is/eng/" target="_blank" rel="noreferrer">Official paved/gravel surface map</a></div>
+  </header>
+  <main id="app">
+    <div id="map"></div>
+    <aside id="panel">
+      <div class="card">
+        <h2>Route loading</h2>
+        <div id="routeStatus" class="status"><span class="loading">Preparing road-following routes…</span></div>
+        <div class="button-row">
+          <button id="reloadRoutes" class="primary">Reload road-following routes</button>
+          <button id="fitAll">Fit whole route</button>
+          <button id="resetLayout">Reset map layout</button>
+        </div>
+        <p class="meta">Each coloured route is requested from OSRM in your browser, so it follows the road network rather than drawing straight lines. If the routing server is unavailable, the map keeps a dashed fallback line through the planned stops and still shows the road-number/type labels.</p>
+      </div>
+
+      <div class="card legend">
+        <h2>Road-type legend</h2>
+        <div class="legend-row"><span class="swatch" style="background:#111827"></span> Paved / main roads used heavily on this route</div>
+        <div class="legend-row"><span class="swatch" style="background:#a05a00"></span> Ordinary gravel or condition-dependent roads/accesses</div>
+        <div class="legend-row"><span class="swatch" style="background:#b42318"></span> F-road / highland continuation warning — not part of this plan</div>
+        <p class="meta"><b>Important:</b> F-roads are not “off-road”; they are marked mountain roads/tracks. Driving outside marked roads or tracks is off-road driving and is not part of this plan.</p>
+      </div>
+
+      <div class="card">
+        <h2>High-risk roads intentionally avoided</h2>
+        <ul id="warningList" class="warning-list"></ul>
+      </div>
+
+      <div id="dayCards"></div>
+
+      <div class="card">
+        <h2>Source links used in this planning map</h2>
+        <ul class="source-list" id="sourceList"></ul>
+      </div>
+    </aside>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const DAYS = [{"id": 1, "title": "Day 1 — Keflavík pickup → Reykjavík → Grundarfjörður/Kirkjufell", "overnight": "Grundarfjörður / Snæfellsnes campsite area", "color": "#1f77b4", "stops": [{"name": "Keflavík International Airport / car pickup", "lat": 63.985, "lon": -22.6056, "note": "Start: collect the Land Cruiser."}, {"name": "Reykjavík stop", "lat": 64.1466, "lon": -21.9426, "note": "City visit on the way through."}, {"name": "Borgarnes", "lat": 64.5383, "lon": -21.9206, "note": "Useful services/fuel before Snæfellsnes."}, {"name": "Kirkjufell / Grundarfjörður", "lat": 64.9263, "lon": -23.3067, "note": "First overnight area."}], "roads": [{"road": "41 Reykjanesbraut", "type": "Paved main road / highway", "froad": "No", "surface": "Paved", "notes": "Airport/Keflavík to Reykjavík."}, {"road": "Reykjavík urban roads / 49 where routed", "type": "Urban/arterial roads", "froad": "No", "surface": "Paved", "notes": "City driving and exit toward Route 1."}, {"road": "1 Hringvegur / Ring Road", "type": "National main road", "froad": "No", "surface": "Paved", "notes": "Toward Borgarnes; normally via Hvalfjörður tunnel."}, {"road": "54 Snæfellsnesvegur + 56 Vatnaleið + 54", "type": "Standard numbered roads", "froad": "No", "surface": "Mostly paved / check surface layer", "notes": "Pass/weather exposure on 56; no F-road planned."}]}, {"id": 2, "title": "Day 2 — Snæfellsnes coast loop → Hvammstangi", "overnight": "Hvammstangi campsite area", "color": "#ff7f0e", "stops": [{"name": "Grundarfjörður / Kirkjufell", "lat": 64.9263, "lon": -23.3067, "note": "Start day 2."}, {"name": "Ólafsvík", "lat": 64.8955, "lon": -23.7101, "note": "North Snæfellsnes services."}, {"name": "Djúpalónssandur", "lat": 64.7532, "lon": -23.9036, "note": "Beach stop; use signed parking/roads."}, {"name": "Lóndrangar", "lat": 64.7355, "lon": -23.775, "note": "Coastal viewpoint."}, {"name": "Arnarstapi", "lat": 64.7668, "lon": -23.6278, "note": "Cliffs and village stop."}, {"name": "Búðakirkja / Búðir", "lat": 64.821, "lon": -23.3843, "note": "Photo stop."}, {"name": "Borgarnes", "lat": 64.5383, "lon": -21.9206, "note": "Fuel/services before northbound Route 1."}, {"name": "Hvammstangi", "lat": 65.3976, "lon": -20.9436, "note": "Overnight area."}], "roads": [{"road": "54 Snæfellsnesvegur", "type": "Standard numbered road", "froad": "No", "surface": "Paved / ordinary road", "notes": "North side of Snæfellsnes."}, {"road": "574 Útnesvegur", "type": "Standard scenic coastal road", "froad": "No", "surface": "Ordinary road; possible narrow/gravel sections", "notes": "Loops around Snæfellsjökull; avoids F570."}, {"road": "54 Snæfellsnesvegur", "type": "Standard numbered road", "froad": "No", "surface": "Paved / ordinary road", "notes": "South/east return toward Borgarnes."}, {"road": "1 Hringvegur + 72 Hvammstangavegur", "type": "Main road + town access", "froad": "No", "surface": "Paved / standard", "notes": "Route 72 into Hvammstangi."}]}, {"id": 3, "title": "Day 3 — Hvammstangi → Hvítserkur → Akureyri → Goðafoss → Mývatn", "overnight": "Mývatn / Reykjahlíð campsite area", "color": "#2ca02c", "stops": [{"name": "Hvammstangi", "lat": 65.3976, "lon": -20.9436, "note": "Start day 3."}, {"name": "Hvítserkur viewpoint area", "lat": 65.607, "lon": -20.6357, "note": "Vatnsnes peninsula; expect slower roads."}, {"name": "Blönduós", "lat": 65.6604, "lon": -20.2809, "note": "Fuel/services."}, {"name": "Akureyri", "lat": 65.6835, "lon": -18.1105, "note": "Major services/fuel."}, {"name": "Goðafoss", "lat": 65.6829, "lon": -17.5498, "note": "Waterfall stop on Route 1."}, {"name": "Reykjahlíð / Mývatn", "lat": 65.6428, "lon": -16.9138, "note": "Overnight area."}], "roads": [{"road": "72 Hvammstangavegur", "type": "Town/access road", "froad": "No", "surface": "Paved / standard", "notes": "Out of Hvammstangi."}, {"road": "711 Vatnsnesvegur", "type": "Ordinary rural road", "froad": "No", "surface": "Known/likely gravel sections", "notes": "Slow down for gravel, animals, blind crests."}, {"road": "1 Hringvegur / Ring Road", "type": "National main road", "froad": "No", "surface": "Paved", "notes": "Blönduós → Akureyri → Goðafoss → Mývatn."}, {"road": "Akureyri urban roads", "type": "Urban roads", "froad": "No", "surface": "Paved", "notes": "Town stop only."}]}, {"id": 4, "title": "Day 4 — Mývatn sights → Dettifoss west side → Egilsstaðir → Seyðisfjörður", "overnight": "Seyðisfjörður or Egilsstaðir campsite area", "color": "#d62728", "stops": [{"name": "Reykjahlíð / Mývatn", "lat": 65.6428, "lon": -16.9138, "note": "Start day 4."}, {"name": "Dimmuborgir", "lat": 65.5914, "lon": -16.9127, "note": "Mývatn lava formations."}, {"name": "Hverir geothermal area", "lat": 65.6417, "lon": -16.808, "note": "Stay on marked paths."}, {"name": "Krafla / Víti", "lat": 65.7173, "lon": -16.7579, "note": "Krafla access road; check weather."}, {"name": "Dettifoss west-side car park", "lat": 65.8156, "lon": -16.3847, "note": "Planned via Road 862, not 864."}, {"name": "Egilsstaðir", "lat": 65.2669, "lon": -14.3948, "note": "Fuel/services before Seyðisfjörður pass."}, {"name": "Seyðisfjörður", "lat": 65.2602, "lon": -14.0096, "note": "Overnight area."}], "roads": [{"road": "848 Mývatn local loop / access roads", "type": "Standard local road", "froad": "No", "surface": "Paved / standard", "notes": "Mývatn sights."}, {"road": "1 Hringvegur / Ring Road", "type": "National main road", "froad": "No", "surface": "Paved", "notes": "Main eastbound spine."}, {"road": "863 Krafla access", "type": "Access road", "froad": "No", "surface": "Standard access road", "notes": "Not a highland F-road."}, {"road": "862 Dettifossvegur", "type": "Dettifoss access road", "froad": "No", "surface": "Standard road; check current condition", "notes": "Use west side. Avoid 864 if conditions are poor."}, {"road": "93 Seyðisfjarðarvegur / Fjarðarheiði", "type": "Mountain pass road", "froad": "No", "surface": "Paved / standard but exposed", "notes": "Can get snow/ice/wind; check road.is/umferdin.is."}]}, {"id": 5, "title": "Day 5 — Seyðisfjörður → Eastfjords → Djúpivogur → Höfn/Stokksnes", "overnight": "Höfn campsite area", "color": "#9467bd", "stops": [{"name": "Seyðisfjörður", "lat": 65.2602, "lon": -14.0096, "note": "Start day 5."}, {"name": "Egilsstaðir", "lat": 65.2669, "lon": -14.3948, "note": "Back over the pass."}, {"name": "Reyðarfjörður", "lat": 65.0328, "lon": -14.2185, "note": "Fjord route; avoids Öxi shortcut."}, {"name": "Fáskrúðsfjörður", "lat": 64.9298, "lon": -14.0191, "note": "Eastfjords town stop."}, {"name": "Stöðvarfjörður", "lat": 64.8343, "lon": -13.8748, "note": "Scenic fjord drive."}, {"name": "Breiðdalsvík", "lat": 64.7938, "lon": -14.0071, "note": "Services depending on season."}, {"name": "Djúpivogur", "lat": 64.6571, "lon": -14.285, "note": "Harbour town stop."}, {"name": "Höfn", "lat": 64.2539, "lon": -15.2082, "note": "Fuel/services and overnight area."}, {"name": "Stokksnes / Vestrahorn", "lat": 64.2446, "lon": -14.9697, "note": "Optional paid/private-access viewpoint."}, {"name": "Höfn overnight", "lat": 64.2539, "lon": -15.2082, "note": "Return to Höfn."}], "roads": [{"road": "93 Seyðisfjarðarvegur", "type": "Mountain pass road", "froad": "No", "surface": "Paved / exposed", "notes": "Return to Egilsstaðir."}, {"road": "1 Hringvegur through Eastfjords", "type": "National main road", "froad": "No", "surface": "Paved / standard", "notes": "Scenic fjord route; this plan avoids Road 939 Öxi shortcut."}, {"road": "Local Stokksnes/Vestrahorn access", "type": "Private/local access", "froad": "No", "surface": "Standard access; may be gravel/private fee", "notes": "Only if open and permitted; return to Höfn."}]}, {"id": 6, "title": "Day 6 — Höfn → Jökulsárlón → Skaftafell → Fjaðrárgljúfur → Vík", "overnight": "Vík campsite area", "color": "#8c564b", "stops": [{"name": "Höfn", "lat": 64.2539, "lon": -15.2082, "note": "Start day 6."}, {"name": "Jökulsárlón", "lat": 64.0477, "lon": -16.179, "note": "Glacier lagoon."}, {"name": "Skaftafell visitor centre", "lat": 64.0157, "lon": -16.9667, "note": "Vatnajökull National Park access."}, {"name": "Fjaðrárgljúfur car park", "lat": 63.7717, "lon": -18.1721, "note": "Stop here; do not continue into F206/Laki unless deliberately planned and open."}, {"name": "Vík", "lat": 63.419, "lon": -19.0065, "note": "Overnight area."}], "roads": [{"road": "1 Hringvegur / Ring Road", "type": "National main road", "froad": "No", "surface": "Paved", "notes": "Main south-coast route."}, {"road": "998 Skaftafell access", "type": "National park/access road", "froad": "No", "surface": "Standard access road", "notes": "Visitor centre access."}, {"road": "206 to Fjaðrárgljúfur", "type": "Ordinary access road at canyon", "froad": "No to canyon car park", "surface": "Standard/gravel possible", "notes": "Beyond this area, Lakagígar/Laki is F206 highland road — not part of this plan."}]}, {"id": 7, "title": "Day 7 — Vík → Reynisfjara/Dyrhólaey → waterfalls → Geysir area", "overnight": "Geysir / Haukadalur campsite area", "color": "#e377c2", "stops": [{"name": "Vík", "lat": 63.419, "lon": -19.0065, "note": "Start day 7."}, {"name": "Reynisfjara beach", "lat": 63.4044, "lon": -19.0447, "note": "Sneaker-wave hazard; keep far back from surf."}, {"name": "Dyrhólaey", "lat": 63.4028, "lon": -19.13, "note": "Clifftop viewpoint; check seasonal closures."}, {"name": "Skógafoss", "lat": 63.5321, "lon": -19.5114, "note": "Waterfall stop."}, {"name": "Seljalandsfoss", "lat": 63.6156, "lon": -19.9886, "note": "Falls access; do not continue to Þórsmörk/F249."}, {"name": "Selfoss", "lat": 63.9335, "lon": -20.997, "note": "Services/fuel."}, {"name": "Geysir / Haukadalur", "lat": 64.3136, "lon": -20.2997, "note": "Overnight area."}], "roads": [{"road": "215 Reynisfjara access", "type": "Access road", "froad": "No", "surface": "Standard road", "notes": "Beach access."}, {"road": "218 Dyrhólaey access", "type": "Access road", "froad": "No", "surface": "Standard/gravel possible", "notes": "Viewpoint access; can close for weather/birds."}, {"road": "1 Hringvegur / Ring Road", "type": "National main road", "froad": "No", "surface": "Paved", "notes": "South-coast waterfall corridor."}, {"road": "249 Seljalandsfoss access", "type": "Access road at falls", "froad": "No at falls", "surface": "Standard", "notes": "Do not continue inland toward Þórsmörk/F249 river crossings."}, {"road": "35 Biskupstungnabraut toward Geysir", "type": "Golden Circle road", "froad": "No for this section", "surface": "Paved / standard", "notes": "This plan stops at Geysir area."}]}, {"id": 8, "title": "Day 8 — Geysir → Gullfoss → Laugarvatn → Þingvellir → Keflavík return", "overnight": "Return car", "color": "#17becf", "stops": [{"name": "Geysir / Haukadalur", "lat": 64.3136, "lon": -20.2997, "note": "Start day 8."}, {"name": "Gullfoss", "lat": 64.3271, "lon": -20.1199, "note": "Golden Circle waterfall."}, {"name": "Laugarvatn", "lat": 64.217, "lon": -20.733, "note": "Lake town stop."}, {"name": "Þingvellir visitor centre", "lat": 64.2559, "lon": -21.13, "note": "National park stop."}, {"name": "Reykjavík optional final stop", "lat": 64.1466, "lon": -21.9426, "note": "Optional if timing allows."}, {"name": "Keflavík International Airport / car return", "lat": 63.985, "lon": -22.6056, "note": "Finish."}], "roads": [{"road": "35 Geysir/Gullfoss section", "type": "Golden Circle road", "froad": "No on this section", "surface": "Paved / standard", "notes": "Do not continue into the highland 35/Kjölur route without checking conditions."}, {"road": "37 Laugarvatnsvegur + 365 Lyngdalsheiði where routed", "type": "Standard numbered roads", "froad": "No", "surface": "Paved/standard; verify surface and weather", "notes": "Connects toward Þingvellir."}, {"road": "36 Þingvallavegur", "type": "National park / main access road", "froad": "No", "surface": "Paved / standard", "notes": "Þingvellir to Reykjavík/Route 1."}, {"road": "1 Hringvegur + 41 Reykjanesbraut", "type": "Main road / highway", "froad": "No", "surface": "Paved", "notes": "Return to Keflavík."}]}];
+    const WARNINGS = [{"name": "F570 Jökulhálsleið — NOT on route", "lat": 64.83, "lon": -23.65, "severity": "F-road", "note": "Tempting Snæfellsnes shortcut over/near Snæfellsjökull. This plan uses 574 around the coast instead."}, {"name": "Road 939 Öxi — avoided", "lat": 64.811, "lon": -14.536, "severity": "Gravel/mountain shortcut", "note": "This plan follows Route 1 through the Eastfjords rather than taking the steep/gravel Öxi shortcut."}, {"name": "864 Dettifoss east side — avoided", "lat": 65.815, "lon": -16.35, "severity": "Gravel/condition dependent", "note": "This plan uses Road 862 to the west-side Dettifoss car park. Check current status before using 864."}, {"name": "F206 Lakagígar/Laki — NOT on route", "lat": 63.768, "lon": -18.21, "severity": "F-road continuation", "note": "Stop at Fjaðrárgljúfur. Continuing inland toward Lakagígar/Laki becomes F206 highland driving."}, {"name": "F249 Þórsmörk — NOT on route", "lat": 63.65, "lon": -20.08, "severity": "F-road / river crossings", "note": "Seljalandsfoss is on the plan; continuing into Þórsmörk/F249 involves serious river crossings."}, {"name": "Highland continuation of Road 35/Kjölur — NOT on route", "lat": 64.39, "lon": -19.845, "severity": "Remote highland road", "note": "The route uses Road 35 only for the Golden Circle section near Geysir/Gullfoss."}];
+    const TYPE_SEGMENTS = [{"name": "574 Útnesvegur — Snæfellsnes coastal loop", "category": "condition", "latlngs": [[64.8955, -23.7101], [64.7532, -23.9036], [64.7355, -23.775], [64.7668, -23.6278], [64.821, -23.3843]], "note": "No F-road. Scenic ordinary road; may be narrow/condition-dependent in places. Use this instead of F570."}, {"name": "711 Vatnsnesvegur — Hvítserkur access", "category": "condition", "latlngs": [[65.3976, -20.9436], [65.607, -20.6357], [65.6604, -20.2809]], "note": "No F-road. Ordinary rural road with gravel/slow sections likely; drive for conditions."}, {"name": "862 Dettifossvegur — west-side Dettifoss", "category": "condition", "latlngs": [[65.6417, -16.808], [65.8156, -16.3847]], "note": "No F-road on the planned west-side Dettifoss access, but always check current road status."}, {"name": "206 Fjaðrárgljúfur access", "category": "condition", "latlngs": [[63.7717, -18.1721], [63.768, -18.21]], "note": "Use only the canyon access. Beyond here toward Lakagígar/Laki becomes F206 and is not included."}, {"name": "218 Dyrhólaey access", "category": "condition", "latlngs": [[63.419, -19.0065], [63.4028, -19.13]], "note": "No F-road. Access road can be condition/season dependent."}, {"name": "249 Seljalandsfoss access", "category": "condition", "latlngs": [[63.6156, -19.9886], [63.65, -20.08]], "note": "Planned stop is Seljalandsfoss/Gljúfrabúi only. Continuing inland toward Þórsmörk/F249 is not included."}, {"name": "365 Lyngdalsheiði / Golden Circle connector", "category": "condition", "latlngs": [[64.217, -20.733], [64.2559, -21.13]], "note": "No F-road. Standard numbered connector; verify current conditions before driving."}, {"name": "Local Stokksnes/Vestrahorn access", "category": "condition", "latlngs": [[64.2539, -15.2082], [64.2446, -14.9697]], "note": "No F-road. Local/private access; may involve fee and gravel."}, {"name": "F570 Jökulhálsleið — not used", "category": "froad", "latlngs": [[64.8955, -23.7101], [64.83, -23.65], [64.7668, -23.6278]], "note": "F-road/highland route near Snæfellsjökull. This plan avoids it."}, {"name": "F206 Lakagígar/Laki — not used", "category": "froad", "latlngs": [[63.768, -18.21], [63.918, -18.48]], "note": "Highland F-road continuation beyond the canyon area; not part of the route."}, {"name": "F249 Þórsmörk — not used", "category": "froad", "latlngs": [[63.65, -20.08], [63.68, -20.23]], "note": "Highland road with river crossings toward Þórsmörk; not part of the route."}, {"name": "939 Öxi shortcut — avoided", "category": "condition", "latlngs": [[64.811, -14.536], [64.6571, -14.285]], "note": "Gravel/mountain shortcut avoided; the plan uses Route 1 through the Eastfjords."}];
+    const SOURCES = [{"name": "IRCA / Vegagerðin — official road system, road classes and mountain roads", "url": "https://www.vegagerdin.is/en/the-transportation-system/the-road-system/roads"}, {"name": "IRCA / Vegagerðin — Icelandic Highland Interior and F-road definition", "url": "https://www.vegagerdin.is/en/home/the-icelandic-highland-interior"}, {"name": "IRCA / Vegasjá surface map — paved roads, gravel, path layers", "url": "https://vegasja.vegagerdin.is/eng/"}, {"name": "Umferðin / road.is live traffic and road notifications", "url": "https://umferdin.is/en"}, {"name": "SafeTravel — highland/F-road driving and river-crossing warnings", "url": "https://safetravel.is/driving/summer/highland-driving/"}, {"name": "Environment Agency of Iceland — off-road driving rules", "url": "https://ust.is/english/visiting-iceland/travel-information/driving-in-uninhabited-areas/"}, {"name": "OSRM API — browser route geometry and step instructions", "url": "https://project-osrm.org/docs/v5.24.0/api/"}];
+
+    const ROAD_LABELS = [
+      {label:'41 Reykjanesbraut', lat:64.02, lon:-22.34, type:'Paved main road from Keflavík toward Reykjavík'},
+      {label:'1 Ring Road', lat:64.43, lon:-21.86, type:'Paved national main road'},
+      {label:'54 Snæfellsnesvegur', lat:64.78, lon:-22.55, type:'Standard numbered road on Snæfellsnes'},
+      {label:'56 Vatnaleið', lat:64.91, lon:-22.83, type:'Standard numbered pass/connector; check weather'},
+      {label:'574 Útnesvegur', lat:64.77, lon:-23.76, type:'Scenic coastal road; not an F-road, but check surface/conditions'},
+      {label:'72 Hvammstangavegur', lat:65.33, lon:-20.94, type:'Town/access road'},
+      {label:'711 Vatnsnesvegur', lat:65.57, lon:-20.65, type:'Rural road; gravel/slow sections likely'},
+      {label:'1 Ring Road', lat:65.62, lon:-19.30, type:'Paved national main road across North Iceland'},
+      {label:'848 Mývatn loop', lat:65.60, lon:-16.93, type:'Local loop/access road'},
+      {label:'862 Dettifossvegur', lat:65.74, lon:-16.55, type:'Dettifoss west-side access; check current condition'},
+      {label:'863 Krafla access', lat:65.70, lon:-16.77, type:'Access road to Krafla/Víti'},
+      {label:'93 Seyðisfjarðarvegur', lat:65.27, lon:-14.20, type:'Exposed mountain pass road; not an F-road'},
+      {label:'1 Eastfjords / Ring Road', lat:64.75, lon:-14.22, type:'Paved national main road; Öxi shortcut avoided'},
+      {label:'1 South Coast / Ring Road', lat:63.95, lon:-17.10, type:'Paved national main road along the south coast'},
+      {label:'998 Skaftafell access', lat:64.02, lon:-16.95, type:'National park/access road'},
+      {label:'206 Fjaðrárgljúfur access', lat:63.78, lon:-18.15, type:'Access to canyon only; do not continue onto F206'},
+      {label:'215 Reynisfjara access', lat:63.41, lon:-19.05, type:'Beach access road'},
+      {label:'218 Dyrhólaey access', lat:63.41, lon:-19.12, type:'Access; condition/closure dependent'},
+      {label:'249 Seljalandsfoss access', lat:63.62, lon:-19.99, type:'Falls access only; avoid F249 onward'},
+      {label:'35 Golden Circle', lat:64.13, lon:-20.55, type:'Paved/standard for this planned section'},
+      {label:'37 / 365 connector', lat:64.22, lon:-20.78, type:'Standard numbered roads toward Þingvellir'},
+      {label:'36 Þingvallavegur', lat:64.24, lon:-21.32, type:'National park/main access road'}
+    ];
+
+    const OSRM_SERVICES = [
+      'https://router.project-osrm.org',
+      'https://routing.openstreetmap.de/routed-car'
+    ];
+
+    const map = L.map('map', { preferCanvas: true }).setView([64.75, -18.8], 6);
+    L.control.scale({ imperial: false, metric: true }).addTo(map);
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      maxZoom: 17,
+      attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap'
+    });
+
+    const allGroup = L.featureGroup();
+    const warningsGroup = L.featureGroup().addTo(map);
+    const roadTypeGroup = L.featureGroup().addTo(map);
+    const roadLabelGroup = L.featureGroup().addTo(map);
+    const dayGroups = {};
+    const routeLayers = {};
+    const fallbackLayers = {};
+    const routeStepSummaries = {};
+    let layerControl;
+
+    function gmapsStopLink(lat, lon) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lat + ',' + lon)}`;
+    }
+
+    function gmapsDayLink(day) {
+      const origin = `${day.stops[0].lat},${day.stops[0].lon}`;
+      const destination = `${day.stops[day.stops.length - 1].lat},${day.stops[day.stops.length - 1].lon}`;
+      const mids = day.stops.slice(1, -1).map(s => `${s.lat},${s.lon}`).join('|');
+      let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+      if (mids) url += `&waypoints=${encodeURIComponent(mids)}`;
+      return url;
+    }
+
+    function fmtKm(m) { return (m / 1000).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' km'; }
+    function fmtHours(s) {
+      const h = Math.floor(s / 3600);
+      const m = Math.round((s % 3600) / 60);
+      if (h <= 0) return `${m} min`;
+      return `${h} h ${m} min`;
+    }
+
+    function safeText(x) {
+      return String(x == null ? '' : x).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+    }
+
+    function roadBadge(road) {
+      const f = String(road.froad || '').toLowerCase();
+      const surface = String(road.surface || '').toLowerCase();
+      if (f.includes('yes') || f.includes('f206') || f.includes('f249') || f.includes('f-road')) return '<span class="badge danger">F-road warning</span>';
+      if (surface.includes('gravel') || surface.includes('possible') || surface.includes('check') || surface.includes('condition')) return '<span class="badge warn">Check surface</span>';
+      return '<span class="badge ok">No F-road</span>';
+    }
+
+    function dayRoadTable(day) {
+      const rows = day.roads.map(r => `
+        <tr>
+          <td><b>${safeText(r.road)}</b><br>${roadBadge(r)}</td>
+          <td>${safeText(r.type)}<br><span class="meta">Surface: ${safeText(r.surface)}</span></td>
+          <td>${safeText(r.notes)}</td>
+        </tr>`).join('');
+      return `<table class="road-table"><thead><tr><th>Road</th><th>Type/surface</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function renderPanel() {
+      document.getElementById('warningList').innerHTML = WARNINGS.map(w => `<li><b>${safeText(w.name)}</b><br><span class="meta">${safeText(w.severity)} — ${safeText(w.note)}</span></li>`).join('');
+      document.getElementById('sourceList').innerHTML = SOURCES.map(s => `<li><a target="_blank" rel="noreferrer" href="${s.url}">${safeText(s.name)}</a></li>`).join('');
+      const html = DAYS.map(day => `
+        <div class="card day-card" id="day-card-${day.id}" style="border-left-color:${day.color}">
+          <h2>${safeText(day.title)}</h2>
+          <div class="meta"><b>Overnight:</b> ${safeText(day.overnight)}</div>
+          <div class="button-row">
+            <a class="btn" target="_blank" rel="noreferrer" href="${gmapsDayLink(day)}">Open day in Google Maps</a>
+            <button onclick="zoomToDay(${day.id})">Zoom to day</button>
+          </div>
+          <details open>
+            <summary>Roads and road types planned</summary>
+            ${dayRoadTable(day)}
+          </details>
+          <details>
+            <summary>OSRM loaded road names / instructions</summary>
+            <div id="steps-${day.id}" class="steps meta">Route not loaded yet.</div>
+          </details>
+        </div>`).join('');
+      document.getElementById('dayCards').innerHTML = html;
+    }
+
+    function addStopMarkers(day) {
+      day.stops.forEach((s, idx) => {
+        const icon = L.divIcon({ className: '', html: `<div class="stop-icon">${day.id}</div>`, iconSize: [22,22], iconAnchor: [11,11] });
+        const marker = L.marker([s.lat, s.lon], { icon }).bindPopup(`
+          <div class="popup-title">Day ${day.id}: ${safeText(s.name)}</div>
+          <div class="popup-note">${safeText(s.note)}</div>
+          <div style="margin-top:6px"><a href="${gmapsStopLink(s.lat, s.lon)}" target="_blank" rel="noreferrer">Open this place in Google Maps</a></div>
+        `);
+        marker.addTo(dayGroups[day.id]);
+        marker.addTo(allGroup);
+      });
+    }
+
+    function addFallback(day) {
+      const latlngs = day.stops.map(s => [s.lat, s.lon]);
+      const line = L.polyline(latlngs, { color: day.color, weight: 3, opacity: 0.55, dashArray: '7,7' })
+        .bindPopup(`<b>${safeText(day.title)}</b><br>Fallback line through planned stops. Reload for road-following OSRM geometry.`);
+      line.addTo(dayGroups[day.id]);
+      line.addTo(allGroup);
+      fallbackLayers[day.id] = line;
+    }
+
+    function addDayLabel(day) {
+      const mid = day.stops[Math.floor(day.stops.length / 2)];
+      const icon = L.divIcon({ className: '', html: `<div class="route-label" style="border-color:${day.color}">Day ${day.id}</div>`, iconSize: [60,22], iconAnchor: [30,11] });
+      L.marker([mid.lat, mid.lon], { icon, interactive: false }).addTo(dayGroups[day.id]);
+    }
+
+    function addWarnings() {
+      WARNINGS.forEach(w => {
+        const icon = L.divIcon({ className: '', html: '<div class="warn-icon">!</div>', iconSize: [24,24], iconAnchor: [12,12] });
+        L.marker([w.lat, w.lon], { icon }).bindPopup(`
+          <div class="popup-title">${safeText(w.name)}</div>
+          <div class="popup-note"><b>${safeText(w.severity)}</b><br>${safeText(w.note)}</div>
+        `).addTo(warningsGroup).addTo(allGroup);
+      });
+      warningsGroup.addTo(map);
+    }
+
+
+    function addTypeSegments() {
+      TYPE_SEGMENTS.forEach(seg => {
+        const color = seg.category === 'froad' ? '#b42318' : '#a05a00';
+        const dashArray = seg.category === 'froad' ? '3,8' : '8,6';
+        const line = L.polyline(seg.latlngs, { color, weight: 5, opacity: 0.85, dashArray })
+          .bindPopup(`<div class="popup-title">${safeText(seg.name)}</div><div class="popup-note">${safeText(seg.note)}</div>`);
+        line.addTo(roadTypeGroup).addTo(allGroup);
+        const mid = seg.latlngs[Math.floor(seg.latlngs.length / 2)];
+        const label = L.divIcon({ className: '', html: `<div class="route-label" style="border-color:${color}; color:${color};">${safeText(seg.name.split('—')[0].trim())}</div>`, iconSize: [120,22], iconAnchor: [60,11] });
+        L.marker(mid, { icon: label, interactive: false }).addTo(roadTypeGroup);
+      });
+      roadTypeGroup.addTo(map);
+    }
+
+
+    function addRoadLabels() {
+      ROAD_LABELS.forEach(r => {
+        const icon = L.divIcon({ className: '', html: `<div class="road-label">${safeText(r.label)}</div>`, iconSize: [150, 22], iconAnchor: [75, 11] });
+        L.marker([r.lat, r.lon], { icon }).bindPopup(`<div class="popup-title">${safeText(r.label)}</div><div class="popup-note">${safeText(r.type)}</div>`).addTo(roadLabelGroup).addTo(allGroup);
+      });
+      roadLabelGroup.addTo(map);
+    }
+
+    function setupMap() {
+      renderPanel();
+      DAYS.forEach(day => {
+        dayGroups[day.id] = L.featureGroup().addTo(map);
+        addFallback(day);
+        addStopMarkers(day);
+        addDayLabel(day);
+      });
+      addWarnings();
+      addTypeSegments();
+      addRoadLabels();
+      layerControl = L.control.layers({ 'OpenStreetMap': osm, 'OpenTopoMap': topo }, {}, { collapsed: false }).addTo(map);
+      DAYS.forEach(day => layerControl.addOverlay(dayGroups[day.id], `Day ${day.id} route`));
+      layerControl.addOverlay(warningsGroup, 'F-road / gravel warning pins');
+      layerControl.addOverlay(roadTypeGroup, 'Road-type highlights');
+      layerControl.addOverlay(roadLabelGroup, 'Road number/name labels');
+      fitAll();
+    }
+
+    async function fetchRoute(day) {
+      const coords = day.stops.map(s => `${s.lon},${s.lat}`).join(';');
+      const query = `${coords}?overview=full&geometries=geojson&steps=true&annotations=true&continue_straight=false&alternatives=false`;
+      let lastError;
+      for (const service of OSRM_SERVICES) {
+        const url = `${service}/route/v1/driving/${query}`;
+        try {
+          const res = await fetch(url, { mode: 'cors' });
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const json = await res.json();
+          if (!json.routes || !json.routes.length) throw new Error(json.message || 'No route returned');
+          return { json, service };
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      throw lastError || new Error('No routing service available');
+    }
+
+    function extractStepSummary(route) {
+      const aggregate = new Map();
+      const instructions = [];
+      route.legs.forEach((leg, legIdx) => {
+        leg.steps.forEach(step => {
+          const road = [step.ref, step.name].filter(Boolean).join(' — ') || 'unnamed/connector road';
+          const key = road;
+          const prev = aggregate.get(key) || { distance: 0, duration: 0 };
+          prev.distance += step.distance || 0;
+          prev.duration += step.duration || 0;
+          aggregate.set(key, prev);
+          if ((step.distance || 0) > 250 || instructions.length < 14) {
+            instructions.push({ road, distance: step.distance || 0, maneuver: step.maneuver?.type || '' });
+          }
+        });
+      });
+      const roads = [...aggregate.entries()].sort((a,b)=>b[1].distance-a[1].distance).slice(0, 18);
+      return { roads, instructions };
+    }
+
+    function renderSteps(day, route, service) {
+      const summary = extractStepSummary(route);
+      const roadItems = summary.roads.map(([road, data]) => `<li><b>${safeText(road)}</b> — ${fmtKm(data.distance)}</li>`).join('');
+      const instr = summary.instructions.slice(0, 30).map(s => `<li>${safeText(s.road)} <span class="meta">(${fmtKm(s.distance)})</span></li>`).join('');
+      const el = document.getElementById(`steps-${day.id}`);
+      if (el) {
+        el.innerHTML = `
+          <div><b>Calculated:</b> ${fmtKm(route.distance)} · ${fmtHours(route.duration)} · service: ${safeText(service.replace('https://',''))}</div>
+          <p class="small">Longest OSRM road-name segments:</p>
+          <ol>${roadItems || '<li>No named roads returned by OSRM.</li>'}</ol>
+          <p class="small">Instruction preview:</p>
+          <ol>${instr || '<li>No instructions returned by OSRM.</li>'}</ol>
+        `;
+      }
+      return { distance: route.distance, duration: route.duration };
+    }
+
+    async function loadDayRoute(day) {
+      const { json, service } = await fetchRoute(day);
+      const route = json.routes[0];
+      const latlngs = route.geometry.coordinates.map(c => [c[1], c[0]]);
+      if (routeLayers[day.id]) {
+        dayGroups[day.id].removeLayer(routeLayers[day.id]);
+        allGroup.removeLayer(routeLayers[day.id]);
+      }
+      const line = L.polyline(latlngs, { color: day.color, weight: 6, opacity: 0.9 })
+        .bindPopup(`<b>${safeText(day.title)}</b><br>Road-following route: ${fmtKm(route.distance)} · ${fmtHours(route.duration)}<br>Generated from OSRM/OpenStreetMap.`);
+      line.addTo(dayGroups[day.id]);
+      line.addTo(allGroup);
+      routeLayers[day.id] = line;
+      if (fallbackLayers[day.id]) fallbackLayers[day.id].setStyle({ opacity: 0.12 });
+      return renderSteps(day, route, service);
+    }
+
+    async function loadAllRoutes() {
+      const status = document.getElementById('routeStatus');
+      status.innerHTML = '<span class="loading">Loading road-following route geometry…</span>';
+      let ok = 0, failed = 0, totalKm = 0, totalSec = 0;
+      const failures = [];
+      for (const day of DAYS) {
+        try {
+          const res = await loadDayRoute(day);
+          ok += 1;
+          totalKm += res.distance / 1000;
+          totalSec += res.duration;
+          status.innerHTML = `<span class="loading">Loaded ${ok}/${DAYS.length} days…</span>`;
+        } catch (err) {
+          failed += 1;
+          failures.push(`Day ${day.id}: ${err.message}`);
+          const el = document.getElementById(`steps-${day.id}`);
+          if (el) el.innerHTML = `<span class="bad">Could not load OSRM route.</span><br>${safeText(err.message)}<br>Dashed fallback line remains visible.`;
+        }
+      }
+      if (failed === 0) {
+        status.innerHTML = `<span class="good">All ${ok} road-following routes loaded.</span><br>Total calculated drive: <b>${Math.round(totalKm).toLocaleString()} km</b> · <b>${fmtHours(totalSec)}</b>.`;
+      } else {
+        status.innerHTML = `<span class="bad">${failed} day(s) could not load road-following geometry.</span><br>${ok} day(s) loaded. Total loaded distance: <b>${Math.round(totalKm).toLocaleString()} km</b>.<br><span class="small">${safeText(failures.join(' | '))}</span>`;
+      }
+      fitAll();
+    }
+
+    function fitAll() {
+      try { map.fitBounds(allGroup.getBounds().pad(0.08)); } catch (e) { map.setView([64.75,-18.8], 6); }
+    }
+
+    window.zoomToDay = function(id) {
+      const group = dayGroups[id];
+      if (group) map.fitBounds(group.getBounds().pad(0.12));
+      const card = document.getElementById(`day-card-${id}`);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.getElementById('reloadRoutes').addEventListener('click', loadAllRoutes);
+    document.getElementById('fitAll').addEventListener('click', fitAll);
+
+    function resetMapLayout() {
+      map.invalidateSize(true);
+      fitAll();
+      setTimeout(() => { map.invalidateSize(true); fitAll(); }, 250);
+      setTimeout(() => { map.invalidateSize(true); fitAll(); }, 900);
+    }
+    if (window.ResizeObserver) {
+      const observer = new ResizeObserver(() => {
+        clearTimeout(window.__icelandMapResizeTimer);
+        window.__icelandMapResizeTimer = setTimeout(() => map.invalidateSize(true), 150);
+      });
+      observer.observe(document.getElementById('map'));
+    }
+    document.getElementById('resetLayout').addEventListener('click', resetMapLayout);
+    window.addEventListener('load', () => setTimeout(resetMapLayout, 350));
+
+    setupMap();
+    // Fix rendering in sandboxed/file viewers where the map container is sized after Leaflet starts.
+    window.setTimeout(() => { map.invalidateSize(); fitAll(); }, 100);
+    window.setTimeout(() => { map.invalidateSize(); fitAll(); }, 600);
+    window.addEventListener('resize', () => { map.invalidateSize(); });
+    // Give Leaflet a moment to initialise before remote routing calls.
+    window.setTimeout(resetMapLayout, 1200);
+    window.setTimeout(loadAllRoutes, 800);
+  </script>
+</body>
+</html>
