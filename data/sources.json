@@ -1,0 +1,30 @@
+[
+  {
+    "name": "IRCA / Vegagerðin — official road system, road classes and mountain roads",
+    "url": "https://www.vegagerdin.is/en/the-transportation-system/the-road-system/roads"
+  },
+  {
+    "name": "IRCA / Vegagerðin — Icelandic Highland Interior and F-road definition",
+    "url": "https://www.vegagerdin.is/en/home/the-icelandic-highland-interior"
+  },
+  {
+    "name": "IRCA / Vegasjá surface map — paved roads, gravel, path layers",
+    "url": "https://vegasja.vegagerdin.is/eng/"
+  },
+  {
+    "name": "Umferðin / road.is live traffic and road notifications",
+    "url": "https://umferdin.is/en"
+  },
+  {
+    "name": "SafeTravel — highland/F-road driving and river-crossing warnings",
+    "url": "https://safetravel.is/driving/summer/highland-driving/"
+  },
+  {
+    "name": "Environment Agency of Iceland — off-road driving rules",
+    "url": "https://ust.is/english/visiting-iceland/travel-information/driving-in-uninhabited-areas/"
+  },
+  {
+    "name": "OSRM API — browser route geometry and step instructions",
+    "url": "https://project-osrm.org/docs/v5.24.0/api/"
+  }
+]

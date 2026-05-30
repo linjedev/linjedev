@@ -1,0 +1,202 @@
+[
+  {
+    "name": "574 Útnesvegur — Snæfellsnes coastal loop",
+    "category": "condition",
+    "latlngs": [
+      [
+        64.8955,
+        -23.7101
+      ],
+      [
+        64.7532,
+        -23.9036
+      ],
+      [
+        64.7355,
+        -23.775
+      ],
+      [
+        64.7668,
+        -23.6278
+      ],
+      [
+        64.821,
+        -23.3843
+      ]
+    ],
+    "note": "No F-road. Scenic ordinary road; may be narrow/condition-dependent in places. Use this instead of F570."
+  },
+  {
+    "name": "711 Vatnsnesvegur — Hvítserkur access",
+    "category": "condition",
+    "latlngs": [
+      [
+        65.3976,
+        -20.9436
+      ],
+      [
+        65.607,
+        -20.6357
+      ],
+      [
+        65.6604,
+        -20.2809
+      ]
+    ],
+    "note": "No F-road. Ordinary rural road with gravel/slow sections likely; drive for conditions."
+  },
+  {
+    "name": "862 Dettifossvegur — west-side Dettifoss",
+    "category": "condition",
+    "latlngs": [
+      [
+        65.6417,
+        -16.808
+      ],
+      [
+        65.8156,
+        -16.3847
+      ]
+    ],
+    "note": "No F-road on the planned west-side Dettifoss access, but always check current road status."
+  },
+  {
+    "name": "206 Fjaðrárgljúfur access",
+    "category": "condition",
+    "latlngs": [
+      [
+        63.7717,
+        -18.1721
+      ],
+      [
+        63.768,
+        -18.21
+      ]
+    ],
+    "note": "Use only the canyon access. Beyond here toward Lakagígar/Laki becomes F206 and is not included."
+  },
+  {
+    "name": "218 Dyrhólaey access",
+    "category": "condition",
+    "latlngs": [
+      [
+        63.419,
+        -19.0065
+      ],
+      [
+        63.4028,
+        -19.13
+      ]
+    ],
+    "note": "No F-road. Access road can be condition/season dependent."
+  },
+  {
+    "name": "249 Seljalandsfoss access",
+    "category": "condition",
+    "latlngs": [
+      [
+        63.6156,
+        -19.9886
+      ],
+      [
+        63.65,
+        -20.08
+      ]
+    ],
+    "note": "Planned stop is Seljalandsfoss/Gljúfrabúi only. Continuing inland toward Þórsmörk/F249 is not included."
+  },
+  {
+    "name": "365 Lyngdalsheiði / Golden Circle connector",
+    "category": "condition",
+    "latlngs": [
+      [
+        64.217,
+        -20.733
+      ],
+      [
+        64.2559,
+        -21.13
+      ]
+    ],
+    "note": "No F-road. Standard numbered connector; verify current conditions before driving."
+  },
+  {
+    "name": "Local Stokksnes/Vestrahorn access",
+    "category": "condition",
+    "latlngs": [
+      [
+        64.2539,
+        -15.2082
+      ],
+      [
+        64.2446,
+        -14.9697
+      ]
+    ],
+    "note": "No F-road. Local/private access; may involve fee and gravel."
+  },
+  {
+    "name": "F570 Jökulhálsleið — not used",
+    "category": "froad",
+    "latlngs": [
+      [
+        64.8955,
+        -23.7101
+      ],
+      [
+        64.83,
+        -23.65
+      ],
+      [
+        64.7668,
+        -23.6278
+      ]
+    ],
+    "note": "F-road/highland route near Snæfellsjökull. This plan avoids it."
+  },
+  {
+    "name": "F206 Lakagígar/Laki — not used",
+    "category": "froad",
+    "latlngs": [
+      [
+        63.768,
+        -18.21
+      ],
+      [
+        63.918,
+        -18.48
+      ]
+    ],
+    "note": "Highland F-road continuation beyond the canyon area; not part of the route."
+  },
+  {
+    "name": "F249 Þórsmörk — not used",
+    "category": "froad",
+    "latlngs": [
+      [
+        63.65,
+        -20.08
+      ],
+      [
+        63.68,
+        -20.23
+      ]
+    ],
+    "note": "Highland road with river crossings toward Þórsmörk; not part of the route."
+  },
+  {
+    "name": "939 Öxi shortcut — avoided",
+    "category": "condition",
+    "latlngs": [
+      [
+        64.811,
+        -14.536
+      ],
+      [
+        64.6571,
+        -14.285
+      ]
+    ],
+    "note": "Gravel/mountain shortcut avoided; the plan uses Route 1 through the Eastfjords."
+  }
+]

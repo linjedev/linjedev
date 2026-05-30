@@ -1,0 +1,44 @@
+[
+  {
+    "name": "F570 Jökulhálsleið — NOT on route",
+    "lat": 64.83,
+    "lon": -23.65,
+    "severity": "F-road",
+    "note": "Tempting Snæfellsnes shortcut over/near Snæfellsjökull. This plan uses 574 around the coast instead."
+  },
+  {
+    "name": "Road 939 Öxi — avoided",
+    "lat": 64.811,
+    "lon": -14.536,
+    "severity": "Gravel/mountain shortcut",
+    "note": "This plan follows Route 1 through the Eastfjords rather than taking the steep/gravel Öxi shortcut."
+  },
+  {
+    "name": "864 Dettifoss east side — avoided",
+    "lat": 65.815,
+    "lon": -16.35,
+    "severity": "Gravel/condition dependent",
+    "note": "This plan uses Road 862 to the west-side Dettifoss car park. Check current status before using 864."
+  },
+  {
+    "name": "F206 Lakagígar/Laki — NOT on route",
+    "lat": 63.768,
+    "lon": -18.21,
+    "severity": "F-road continuation",
+    "note": "Stop at Fjaðrárgljúfur. Continuing inland toward Lakagígar/Laki becomes F206 highland driving."
+  },
+  {
+    "name": "F249 Þórsmörk — NOT on route",
+    "lat": 63.65,
+    "lon": -20.08,
+    "severity": "F-road / river crossings",
+    "note": "Seljalandsfoss is on the plan; continuing into Þórsmörk/F249 involves serious river crossings."
+  },
+  {
+    "name": "Highland continuation of Road 35/Kjölur — NOT on route",
+    "lat": 64.39,
+    "lon": -19.845,
+    "severity": "Remote highland road",
+    "note": "The route uses Road 35 only for the Golden Circle section near Geysir/Gullfoss."
+  }
+]

@@ -1,0 +1,134 @@
+[
+  {
+    "label": "41 Reykjanesbraut",
+    "lat": 64.02,
+    "lon": -22.34,
+    "type": "Paved main road from Keflavík toward Reykjavík"
+  },
+  {
+    "label": "1 Ring Road",
+    "lat": 64.43,
+    "lon": -21.86,
+    "type": "Paved national main road"
+  },
+  {
+    "label": "54 Snæfellsnesvegur",
+    "lat": 64.78,
+    "lon": -22.55,
+    "type": "Standard numbered road on Snæfellsnes"
+  },
+  {
+    "label": "56 Vatnaleið",
+    "lat": 64.91,
+    "lon": -22.83,
+    "type": "Standard numbered pass/connector; check weather"
+  },
+  {
+    "label": "574 Útnesvegur",
+    "lat": 64.77,
+    "lon": -23.76,
+    "type": "Scenic coastal road; not an F-road, but check surface/conditions"
+  },
+  {
+    "label": "72 Hvammstangavegur",
+    "lat": 65.33,
+    "lon": -20.94,
+    "type": "Town/access road"
+  },
+  {
+    "label": "711 Vatnsnesvegur",
+    "lat": 65.57,
+    "lon": -20.65,
+    "type": "Rural road; gravel/slow sections likely"
+  },
+  {
+    "label": "1 Ring Road",
+    "lat": 65.62,
+    "lon": -19.3,
+    "type": "Paved national main road across North Iceland"
+  },
+  {
+    "label": "848 Mývatn loop",
+    "lat": 65.6,
+    "lon": -16.93,
+    "type": "Local loop/access road"
+  },
+  {
+    "label": "862 Dettifossvegur",
+    "lat": 65.74,
+    "lon": -16.55,
+    "type": "Dettifoss west-side access; check current condition"
+  },
+  {
+    "label": "863 Krafla access",
+    "lat": 65.7,
+    "lon": -16.77,
+    "type": "Access road to Krafla/Víti"
+  },
+  {
+    "label": "93 Seyðisfjarðarvegur",
+    "lat": 65.27,
+    "lon": -14.2,
+    "type": "Exposed mountain pass road; not an F-road"
+  },
+  {
+    "label": "1 Eastfjords / Ring Road",
+    "lat": 64.75,
+    "lon": -14.22,
+    "type": "Paved national main road; Öxi shortcut avoided"
+  },
+  {
+    "label": "1 South Coast / Ring Road",
+    "lat": 63.95,
+    "lon": -17.1,
+    "type": "Paved national main road along the south coast"
+  },
+  {
+    "label": "998 Skaftafell access",
+    "lat": 64.02,
+    "lon": -16.95,
+    "type": "National park/access road"
+  },
+  {
+    "label": "206 Fjaðrárgljúfur access",
+    "lat": 63.78,
+    "lon": -18.15,
+    "type": "Access to canyon only; do not continue onto F206"
+  },
+  {
+    "label": "215 Reynisfjara access",
+    "lat": 63.41,
+    "lon": -19.05,
+    "type": "Beach access road"
+  },
+  {
+    "label": "218 Dyrhólaey access",
+    "lat": 63.41,
+    "lon": -19.12,
+    "type": "Access; condition/closure dependent"
+  },
+  {
+    "label": "249 Seljalandsfoss access",
+    "lat": 63.62,
+    "lon": -19.99,
+    "type": "Falls access only; avoid F249 onward"
+  },
+  {
+    "label": "35 Golden Circle",
+    "lat": 64.13,
+    "lon": -20.55,
+    "type": "Paved/standard for this planned section"
+  },
+  {
+    "label": "37 / 365 connector",
+    "lat": 64.22,
+    "lon": -20.78,
+    "type": "Standard numbered roads toward Þingvellir"
+  },
+  {
+    "label": "36 Þingvallavegur",
+    "lat": 64.24,
+    "lon": -21.32,
+    "type": "National park/main access road"
+  }
+]
