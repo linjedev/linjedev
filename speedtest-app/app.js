@@ -24,6 +24,50 @@ const TRANSFER_CHUNKS = {
 const STORAGE_KEY = "linje-speed-history-v1";
 const GITHUB_COMMITS_URL = "/api/github/commits";
 const PROFILE_STORAGE_KEY = "linje-profile-v1";
+const GAME_SERVICE_TARGETS = [
+  {
+    id: "fortnite",
+    name: "Fortnite",
+    network: "Epic Games",
+    region: "Global",
+    url: "https://status.epicgames.com"
+  },
+  {
+    id: "valorant",
+    name: "Valorant",
+    network: "Riot Games",
+    region: "Global",
+    url: "https://status.riotgames.com"
+  },
+  {
+    id: "steam",
+    name: "Steam",
+    network: "Valve",
+    region: "Global",
+    url: "https://store.steampowered.com"
+  },
+  {
+    id: "roblox",
+    name: "Roblox",
+    network: "Roblox",
+    region: "Global",
+    url: "https://status.roblox.com"
+  },
+  {
+    id: "minecraft",
+    name: "Minecraft",
+    network: "Mojang",
+    region: "Global",
+    url: "https://sessionserver.mojang.com"
+  },
+  {
+    id: "xbox",
+    name: "Xbox Network",
+    network: "Microsoft",
+    region: "Global",
+    url: "https://support.xbox.com/xbox-live-status"
+  }
+];
 const state = {
   running: false,
   controller: null,
@@ -32,7 +76,8 @@ const state = {
   servers: DEFAULT_SERVERS,
   blockedServerIds: new Set(),
   user: null,
-  githubCommitsLoaded: false
+  githubCommitsLoaded: false,
+  gameServersLoaded: false
 };
 
 const els = {
@@ -52,6 +97,9 @@ const els = {
   authStatus: document.querySelector("#authStatus"),
   visitorIp: document.querySelector("#visitorIp"),
   visitorUserAgent: document.querySelector("#visitorUserAgent"),
+  toolsButton: document.querySelector("#toolsButton"),
+  toolsMenu: document.querySelector("#toolsMenu"),
+  toolLinks: document.querySelectorAll("[data-tool-link]"),
   accountButton: document.querySelector("#accountButton"),
   accountMenu: document.querySelector("#accountMenu"),
   profileMenuButton: document.querySelector("#profileMenuButton"),
@@ -82,6 +130,13 @@ const els = {
   visitUsername: document.querySelector("#visitUsername"),
   publicProfileResult: document.querySelector("#publicProfileResult"),
   speedView: document.querySelector("#speed"),
+  serverPingView: document.querySelector("#server-ping"),
+  refreshGameServers: document.querySelector("#refreshGameServers"),
+  gameServerStatus: document.querySelector("#gameServerStatus"),
+  gameServerList: document.querySelector("#gameServerList"),
+  gameServersOnline: document.querySelector("#gameServersOnline"),
+  gameServersFastest: document.querySelector("#gameServersFastest"),
+  gameServersChecked: document.querySelector("#gameServersChecked"),
   viewLinks: document.querySelectorAll("[data-view-link]"),
   refreshServers: document.querySelector("#refreshServers"),
   serverCheckStatus: document.querySelector("#serverCheckStatus"),
@@ -116,8 +171,23 @@ els.authTabs.forEach((tab) => {
 });
 els.registerForm.addEventListener("submit", register);
 els.loginForm.addEventListener("submit", login);
+els.toolsButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleToolsMenu();
+});
+els.toolLinks.forEach((link) => {
+  link.addEventListener("click", () => {
+    closeToolsMenu();
+    if (link.dataset.toolLink === "server-ping") {
+      showServerPingView();
+    } else {
+      showSpeedView();
+    }
+  });
+});
 els.accountButton.addEventListener("click", (event) => {
   event.stopPropagation();
+  closeToolsMenu();
   toggleAccountMenu();
 });
 els.profileMenuButton.addEventListener("click", () => {
@@ -135,6 +205,7 @@ els.emailResetForm.addEventListener("submit", requestEmailReset);
 els.visitProfileForm.addEventListener("submit", visitProfile);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
 els.refreshServers.addEventListener("click", () => checkAllServers());
+els.refreshGameServers.addEventListener("click", () => checkGameServers());
 els.start.addEventListener("click", runTest);
 els.stop.addEventListener("click", stopTest);
 els.clear.addEventListener("click", clearHistory);
@@ -150,6 +221,13 @@ els.viewLinks.forEach((link) => {
   });
 });
 document.addEventListener("click", (event) => {
+  if (
+    !els.toolsMenu.hidden
+    && !event.target.closest("#toolsButton")
+    && !event.target.closest("#toolsMenu")
+  ) {
+    closeToolsMenu();
+  }
   if (
     !els.accountMenu.hidden
     && !event.target.closest("#accountButton")
@@ -1116,6 +1194,8 @@ function applyRoute() {
     showAdminView(false);
   } else if (window.location.hash === "#profile") {
     showProfileView(false);
+  } else if (window.location.hash === "#server-ping") {
+    showServerPingView(false);
   } else if (window.location.hash === "#speed" || window.location.hash === "#ranking") {
     showSpeedView(false);
   } else {
@@ -1170,21 +1250,25 @@ function animateView(view) {
   });
 }
 
-function animateAccountMenuOpen() {
-  animate(els.accountMenu, {
+function animateMenuOpen(menu) {
+  animate(menu, {
     opacity: [0, 1],
     translateY: [-8, 0],
     scale: [.96, 1],
     duration: 260,
     easing: "easeOutCubic"
   });
-  animate([...els.accountMenu.querySelectorAll("button")], {
+  animate([...menu.querySelectorAll("button")], {
     opacity: [0, 1],
     translateY: [-4, 0],
     duration: 240,
     delay: window.anime ? window.anime.stagger(35) : 0,
     easing: "easeOutCubic"
   });
+}
+
+function animateAccountMenuOpen() {
+  animateMenuOpen(els.accountMenu);
 }
 
 function animateMetricPulse(target) {
@@ -1198,9 +1282,11 @@ function animateMetricPulse(target) {
 function showSpeedView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = false;
+  els.serverPingView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = true;
   closeAccountMenu();
+  closeToolsMenu();
   if (updateHash) history.pushState(null, "", "#speed");
   window.scrollTo({ top: 0 });
   animateView(els.speedView);
@@ -1209,20 +1295,38 @@ function showSpeedView(updateHash = true) {
 function showHomeView(updateHash = true) {
   els.home.hidden = false;
   els.speedView.hidden = true;
+  els.serverPingView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = true;
   closeAccountMenu();
+  closeToolsMenu();
   if (updateHash) history.pushState(null, "", "#home");
   window.scrollTo({ top: 0 });
   animateView(els.home);
 }
 
+function showServerPingView(updateHash = true) {
+  els.home.hidden = true;
+  els.speedView.hidden = true;
+  els.serverPingView.hidden = false;
+  els.profileView.hidden = true;
+  els.adminView.hidden = true;
+  closeAccountMenu();
+  closeToolsMenu();
+  if (updateHash) history.pushState(null, "", "#server-ping");
+  window.scrollTo({ top: 0 });
+  animateView(els.serverPingView);
+  if (!state.gameServersLoaded) checkGameServers();
+}
+
 function showProfileView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
+  els.serverPingView.hidden = true;
   els.profileView.hidden = false;
   els.adminView.hidden = true;
   closeAccountMenu();
+  closeToolsMenu();
   loadProfile();
   if (updateHash) history.pushState(null, "", "#profile");
   window.scrollTo({ top: 0 });
@@ -1237,9 +1341,11 @@ function showAdminView(updateHash = true) {
 
   els.home.hidden = true;
   els.speedView.hidden = true;
+  els.serverPingView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = false;
   closeAccountMenu();
+  closeToolsMenu();
   if (updateHash) history.pushState(null, "", "#admin");
   window.scrollTo({ top: 0 });
   loadAdminEvents();
@@ -1251,6 +1357,22 @@ function toggleAccountMenu() {
   els.accountMenu.hidden = !open;
   els.accountButton.setAttribute("aria-expanded", String(open));
   if (open) animateAccountMenuOpen();
+}
+
+function toggleToolsMenu() {
+  const open = els.toolsMenu.hidden;
+  els.toolsMenu.hidden = !open;
+  els.toolsButton.setAttribute("aria-expanded", String(open));
+  if (open) {
+    closeAccountMenu();
+    animateMenuOpen(els.toolsMenu);
+  }
+}
+
+function closeToolsMenu() {
+  if (!els.toolsMenu) return;
+  els.toolsMenu.hidden = true;
+  els.toolsButton.setAttribute("aria-expanded", "false");
 }
 
 function closeAccountMenu() {
@@ -1503,6 +1625,97 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replace(/`/g, "&#96;");
+}
+
+async function checkGameServers() {
+  if (!els.gameServerList || !els.gameServerStatus) return;
+
+  state.gameServersLoaded = true;
+  els.refreshGameServers.disabled = true;
+  els.gameServerStatus.textContent = `Checking ${GAME_SERVICE_TARGETS.length} game services from this browser...`;
+  els.gameServersOnline.textContent = "--";
+  els.gameServersFastest.textContent = "--";
+  els.gameServersChecked.textContent = String(GAME_SERVICE_TARGETS.length);
+  renderGameServers(GAME_SERVICE_TARGETS.map((target) => ({ target, status: "checking" })));
+
+  const results = await Promise.all(GAME_SERVICE_TARGETS.map(checkGameServer));
+  const online = results.filter((result) => result.status === "online");
+  const fastest = online.length ? Math.min(...online.map((result) => result.ping)) : null;
+
+  renderGameServers(results);
+  els.gameServersOnline.textContent = String(online.length);
+  els.gameServersFastest.textContent = fastest === null ? "--" : formatNumber(fastest, 0);
+  els.gameServersChecked.textContent = String(results.length);
+  els.gameServerStatus.textContent = online.length
+    ? `${online.length} of ${results.length} services responded. Fastest: ${online.sort((a, b) => a.ping - b.ping)[0].target.name}.`
+    : "No game services responded from this browser. Try again from another network.";
+  els.refreshGameServers.disabled = false;
+}
+
+async function checkGameServer(target) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6500);
+  const started = performance.now();
+
+  try {
+    await fetch(`${target.url}${target.url.includes("?") ? "&" : "?"}linje=${Date.now()}`, {
+      cache: "no-store",
+      mode: "no-cors",
+      signal: controller.signal
+    });
+    return {
+      target,
+      status: "online",
+      ping: performance.now() - started,
+      checkedAt: new Date().toISOString()
+    };
+  } catch {
+    return {
+      target,
+      status: "offline",
+      ping: Number.POSITIVE_INFINITY,
+      checkedAt: new Date().toISOString()
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function renderGameServers(results) {
+  els.gameServerList.innerHTML = "";
+  results.forEach((result) => {
+    const card = document.createElement("article");
+    card.className = `game-server-card ${result.status}`;
+    const ping = result.status === "checking"
+      ? "..."
+      : result.status === "online"
+        ? `${formatNumber(result.ping, 0)} ms`
+        : "Offline";
+    const label = result.status === "checking"
+      ? "Checking"
+      : result.status === "online"
+        ? "Online"
+        : "Check failed";
+    card.innerHTML = `
+      <div>
+        <span>${escapeHtml(result.target.network)}</span>
+        <strong>${escapeHtml(result.target.name)}</strong>
+        <small>${escapeHtml(result.target.region)}</small>
+      </div>
+      <div>
+        <b>${escapeHtml(ping)}</b>
+        <em>${escapeHtml(label)}</em>
+      </div>
+    `;
+    els.gameServerList.append(card);
+  });
+  animate(els.gameServerList.querySelectorAll(".game-server-card"), {
+    opacity: [0, 1],
+    translateY: [10, 0],
+    duration: 320,
+    delay: window.anime ? window.anime.stagger(38) : 0,
+    easing: "easeOutCubic"
+  });
 }
 
 async function loadServers() {

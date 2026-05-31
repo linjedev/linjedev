@@ -82,7 +82,13 @@
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="#home" data-view-link="home">Home</a>
-        <a href="#speed" data-view-link="speed">Speed</a>
+        <div class="nav-dropdown">
+          <button id="toolsButton" class="nav-button" type="button" aria-expanded="false" aria-controls="toolsMenu">Tools</button>
+          <div id="toolsMenu" class="nav-menu" hidden>
+            <button type="button" data-tool-link="speed">Speed</button>
+            <button type="button" data-tool-link="server-ping">Server Ping</button>
+          </div>
+        </div>
         <button id="accountButton" class="account-button" type="button" aria-expanded="false" aria-controls="accountMenu">@user</button>
       </nav>
       <div id="accountMenu" class="account-menu" hidden>
@@ -331,6 +337,38 @@
       </section>
       </div>
 
+      <section id="server-ping" class="server-ping-view tool-shell" aria-labelledby="server-ping-title" hidden>
+        <div class="tool-hero">
+          <div>
+            <p class="eyebrow">Server Ping</p>
+            <h2 id="server-ping-title">Check game services.</h2>
+            <p>Measure browser reachability and response timing for popular game networks from your connection.</p>
+          </div>
+          <button id="refreshGameServers" class="run-button" type="button">Run checks</button>
+        </div>
+
+        <section class="server-ping-summary" aria-label="Server ping summary">
+          <article>
+            <span>Online</span>
+            <strong id="gameServersOnline">--</strong>
+            <small>services</small>
+          </article>
+          <article>
+            <span>Fastest</span>
+            <strong id="gameServersFastest">--</strong>
+            <small>ms</small>
+          </article>
+          <article>
+            <span>Checked</span>
+            <strong id="gameServersChecked">--</strong>
+            <small>total</small>
+          </article>
+        </section>
+
+        <p id="gameServerStatus" class="status">Run checks to test game service reachability.</p>
+        <div id="gameServerList" class="game-server-list" aria-live="polite"></div>
+      </section>
+
       <section id="admin" class="admin-view" aria-labelledby="admin-title" hidden>
         <div class="admin-head">
           <div>
@@ -360,6 +398,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=profile3" defer></script>
+    <script src="app.js?v=tools1" defer></script>
   </body>
 </html>
