@@ -9,8 +9,62 @@
     <link rel="manifest" href="site.webmanifest">
     <link rel="stylesheet" href="styles.css">
   </head>
-  <body>
-    <header class="site-header">
+  <body data-auth="checking">
+    <section id="auth" class="auth-view" aria-labelledby="auth-title">
+      <div class="auth-panel">
+        <a class="site-brand auth-brand" href="#register" aria-label="Linje.dev">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <strong>Linje.dev</strong>
+        </a>
+
+        <div class="auth-copy">
+          <p class="eyebrow">Private beta</p>
+          <h1 id="auth-title">Create your Linje account.</h1>
+          <p>Clean tools for everyday use, kept behind a simple account so your workspace starts quiet and stays yours.</p>
+        </div>
+
+        <div class="auth-card">
+          <div class="auth-tabs" role="tablist" aria-label="Account access">
+            <button id="registerTab" type="button" class="auth-tab active" data-auth-mode="register">Register</button>
+            <button id="loginTab" type="button" class="auth-tab" data-auth-mode="login">Login</button>
+          </div>
+
+          <form id="registerForm" class="auth-form" autocomplete="on">
+            <label>
+              Username
+              <input id="registerUsername" name="username" type="text" autocomplete="username" required minlength="3" maxlength="25" pattern="@?[A-Za-z0-9_]{3,24}" placeholder="@linje">
+            </label>
+            <label>
+              Password
+              <input id="registerPassword" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8 characters minimum">
+            </label>
+            <button class="run-button auth-submit" type="submit">
+              <span class="run-dot" aria-hidden="true"></span>
+              Create account
+            </button>
+          </form>
+
+          <form id="loginForm" class="auth-form" autocomplete="on" hidden>
+            <label>
+              Username
+              <input id="loginUsername" name="username" type="text" autocomplete="username" required placeholder="@linje">
+            </label>
+            <label>
+              Password
+              <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <button class="run-button auth-submit" type="submit">
+              <span class="run-dot" aria-hidden="true"></span>
+              Login
+            </button>
+          </form>
+
+          <p id="authStatus" class="auth-status" role="status">Checking session...</p>
+        </div>
+      </div>
+    </section>
+
+    <header class="site-header app-only" hidden>
       <a class="site-brand" href="#home" aria-label="Linje.dev home">
         <span class="brand-mark" aria-hidden="true"></span>
         <strong>Linje.dev</strong>
@@ -18,10 +72,11 @@
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="#home">Home</a>
         <a href="#speed" data-view-link="speed">Speed</a>
+        <button id="logoutButton" class="nav-button" type="button">Logout</button>
       </nav>
     </header>
 
-    <main>
+    <main id="app" class="app-only" hidden>
       <section id="home" class="site-intro" aria-labelledby="site-title">
         <p class="eyebrow">Linje.dev</p>
         <h1 id="site-title">Clean tools for everyday use.</h1>

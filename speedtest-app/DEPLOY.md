@@ -26,6 +26,40 @@ Cloudflare nameservers assigned for `linje.dev`:
 
 When the zone is active, add `linje.dev` as the Pages custom domain. Cloudflare will provision HTTPS automatically.
 
+## Login/Register Database
+
+Linje.dev uses Cloudflare Pages Functions and a D1 database binding named `DB`.
+
+1. In Cloudflare, open **Workers & Pages > D1 SQL Database**.
+2. Create a database named `linje-auth`.
+3. Open that database console and run the SQL from:
+   - `migrations/0001_linje_auth.sql`
+4. Open **Workers & Pages > Pages > icelandtrip-travelnformation > Settings > Functions > D1 database bindings**.
+5. Add a binding:
+   - Variable name: `DB`
+   - D1 database: `linje-auth`
+6. Redeploy the latest Pages deployment.
+
+The auth endpoints live in the repository root `functions/` directory:
+
+- `POST /api/register`
+- `POST /api/login`
+- `GET /api/session`
+- `POST /api/logout`
+
+Passwords are salted and hashed with PBKDF2 before they are stored. Sessions are stored in D1 and sent to the browser as HttpOnly cookies.
+
+Registration and login do not collect email addresses. The `auth_events` table stores security audit records for register/login attempts:
+
+- username
+- success/failure and failure reason
+- IP address from Cloudflare/request headers
+- user agent
+- Cloudflare country, colo, ASN, and Ray ID when available
+- browser-provided language, timezone, screen size, viewport, and platform
+
+Use this for account security and abuse investigation, and disclose it in a privacy notice before launch.
+
 ## Email Routing
 
 After the zone is active:

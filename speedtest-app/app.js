@@ -26,10 +26,24 @@ const state = {
   running: false,
   controller: null,
   history: loadHistory(),
-  servers: DEFAULT_SERVERS
+  servers: DEFAULT_SERVERS,
+  user: null
 };
 
 const els = {
+  body: document.body,
+  auth: document.querySelector("#auth"),
+  app: document.querySelector("#app"),
+  appOnly: document.querySelectorAll(".app-only"),
+  authTabs: document.querySelectorAll("[data-auth-mode]"),
+  registerForm: document.querySelector("#registerForm"),
+  loginForm: document.querySelector("#loginForm"),
+  registerUsername: document.querySelector("#registerUsername"),
+  registerPassword: document.querySelector("#registerPassword"),
+  loginUsername: document.querySelector("#loginUsername"),
+  loginPassword: document.querySelector("#loginPassword"),
+  authStatus: document.querySelector("#authStatus"),
+  logout: document.querySelector("#logoutButton"),
   home: document.querySelector("#home"),
   speedView: document.querySelector("#speed"),
   viewLinks: document.querySelectorAll("[data-view-link='speed']"),
@@ -58,6 +72,12 @@ const els = {
   exportCsv: document.querySelector("#exportCsv")
 };
 
+els.authTabs.forEach((tab) => {
+  tab.addEventListener("click", () => setAuthMode(tab.dataset.authMode));
+});
+els.registerForm.addEventListener("submit", register);
+els.loginForm.addEventListener("submit", login);
+els.logout.addEventListener("click", logout);
 els.start.addEventListener("click", runTest);
 els.stop.addEventListener("click", stopTest);
 els.clear.addEventListener("click", clearHistory);
@@ -71,6 +91,77 @@ els.viewLinks.forEach((link) => {
 window.addEventListener("hashchange", applyRoute);
 
 initialize();
+
+async function register(event) {
+  event.preventDefault();
+  setAuthStatus("Creating account...");
+  setAuthBusy(true);
+
+  try {
+    const user = await authRequest("/api/register", {
+      username: normalizeUsername(els.registerUsername.value),
+      password: els.registerPassword.value,
+      client: getClientContext()
+    });
+    await enterApp(user);
+  } catch (error) {
+    setAuthStatus(error.message || "Registration failed.", "error");
+  } finally {
+    setAuthBusy(false);
+  }
+}
+
+async function login(event) {
+  event.preventDefault();
+  setAuthStatus("Logging in...");
+  setAuthBusy(true);
+
+  try {
+    const user = await authRequest("/api/login", {
+      username: normalizeUsername(els.loginUsername.value),
+      password: els.loginPassword.value,
+      client: getClientContext()
+    });
+    await enterApp(user);
+  } catch (error) {
+    setAuthStatus(error.message || "Login failed.", "error");
+  } finally {
+    setAuthBusy(false);
+  }
+}
+
+async function logout() {
+  if (state.running) stopTest();
+
+  try {
+    await fetch("/api/logout", { method: "POST" });
+  } catch {
+    // The interface still returns to auth if the network drops during logout.
+  }
+
+  state.user = null;
+  els.body.dataset.auth = "guest";
+  els.appOnly.forEach((node) => {
+    node.hidden = true;
+  });
+  els.auth.hidden = false;
+  setAuthMode("login");
+  setAuthStatus("Logged out.");
+}
+
+async function restoreSession() {
+  try {
+    const response = await fetch("/api/session", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.authenticated ? data.user : null;
+  } catch {
+    return null;
+  }
+}
 
 async function runTest() {
   if (state.running) return;
@@ -154,10 +245,91 @@ function getSelectedDuration() {
 }
 
 async function initialize() {
+  const user = await restoreSession();
+  if (user) {
+    await enterApp(user);
+  } else {
+    showAuth();
+  }
+}
+
+async function enterApp(user) {
+  state.user = user;
+  els.body.dataset.auth = "authenticated";
+  els.auth.hidden = true;
+  els.appOnly.forEach((node) => {
+    node.hidden = false;
+  });
+  setAuthStatus(`Signed in as @${user.username || "user"}.`, "success");
+
   state.servers = await loadServers();
   populateServerSelect();
   renderHistory();
   applyRoute();
+}
+
+function showAuth() {
+  els.body.dataset.auth = "guest";
+  els.appOnly.forEach((node) => {
+    node.hidden = true;
+  });
+  els.auth.hidden = false;
+  setAuthMode("register");
+  setAuthStatus("Register to enter Linje.dev.");
+}
+
+function setAuthMode(mode) {
+  const isRegister = mode === "register";
+  els.registerForm.hidden = !isRegister;
+  els.loginForm.hidden = isRegister;
+  els.authTabs.forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.authMode === mode);
+  });
+  setAuthStatus(isRegister ? "Choose a clean @username and create your account." : "Welcome back.");
+}
+
+function setAuthBusy(busy) {
+  [...els.registerForm.elements, ...els.loginForm.elements, ...els.authTabs].forEach((element) => {
+    element.disabled = busy;
+  });
+}
+
+function setAuthStatus(message, tone = "") {
+  els.authStatus.textContent = message;
+  if (tone) {
+    els.authStatus.dataset.tone = tone;
+  } else {
+    delete els.authStatus.dataset.tone;
+  }
+}
+
+async function authRequest(path, body) {
+  const response = await fetch(path, {
+    body: JSON.stringify(body),
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    method: "POST"
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Account service is not available yet.");
+  }
+  return data.user;
+}
+
+function normalizeUsername(value) {
+  return String(value || "").trim().replace(/^@+/, "").toLowerCase();
+}
+
+function getClientContext() {
+  return {
+    language: navigator.language || "",
+    languages: Array.isArray(navigator.languages) ? navigator.languages.slice(0, 5) : [],
+    platform: navigator.platform || "",
+    screen: window.screen ? `${window.screen.width}x${window.screen.height}` : "",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+    viewport: `${window.innerWidth}x${window.innerHeight}`
+  };
 }
 
 function applyRoute() {
