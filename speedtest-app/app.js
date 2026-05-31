@@ -416,6 +416,9 @@ function renderAdminEvents(events) {
 
   events.forEach((event) => {
     const client = event.metadata && event.metadata.client ? event.metadata.client : {};
+    const ipDisplay = event.ipLookupUrl
+      ? `<a href="${escapeAttribute(event.ipLookupUrl)}" target="_blank" rel="noreferrer">${escapeHtml(event.ipAddress || "--")}</a>`
+      : escapeHtml(event.ipAddress || "--");
     const card = document.createElement("article");
     card.className = `admin-event ${event.success ? "success" : "failed"}`;
     card.innerHTML = `
@@ -427,12 +430,14 @@ function renderAdminEvents(events) {
         <span>${event.success ? "Success" : "Failed"}</span>
       </div>
       <dl>
-        <div><dt>IP</dt><dd>${escapeHtml(event.ipAddress || "--")}</dd></div>
+        <div><dt>IP</dt><dd>${ipDisplay}</dd></div>
         <div><dt>Reason</dt><dd>${escapeHtml(event.failureReason || "--")}</dd></div>
         <div><dt>Country</dt><dd>${escapeHtml(event.country || "--")}</dd></div>
+        <div><dt>Region</dt><dd>${escapeHtml(compactLocation(event.metadata))}</dd></div>
         <div><dt>Colo</dt><dd>${escapeHtml(event.colo || "--")}</dd></div>
         <div><dt>ASN</dt><dd>${escapeHtml(event.asn || "--")}</dd></div>
         <div><dt>Ray</dt><dd>${escapeHtml((event.metadata && event.metadata.cfRay) || "--")}</dd></div>
+        <div><dt>CF Timezone</dt><dd>${escapeHtml((event.metadata && event.metadata.timezone) || "--")}</dd></div>
         <div><dt>Language</dt><dd>${escapeHtml(client.language || (event.metadata && event.metadata.acceptLanguage) || "--")}</dd></div>
         <div><dt>Languages</dt><dd>${escapeHtml(Array.isArray(client.languages) ? client.languages.join(", ") : "--")}</dd></div>
         <div><dt>Timezone</dt><dd>${escapeHtml(client.timezone || "--")}</dd></div>
@@ -444,6 +449,17 @@ function renderAdminEvents(events) {
     `;
     els.adminEvents.append(card);
   });
+}
+
+function compactLocation(metadata = {}) {
+  const parts = [
+    metadata.city,
+    metadata.regionCode || metadata.region,
+    metadata.postalCode
+  ].filter(Boolean);
+  const coords = metadata.latitude && metadata.longitude ? `${metadata.latitude}, ${metadata.longitude}` : "";
+  if (coords) parts.push(coords);
+  return parts.length ? parts.join(" / ") : "--";
 }
 
 function formatDateTime(iso) {
@@ -462,6 +478,10 @@ function escapeHtml(value) {
     "\"": "&quot;",
     "'": "&#39;"
   })[char]);
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replace(/`/g, "&#96;");
 }
 
 async function loadServers() {

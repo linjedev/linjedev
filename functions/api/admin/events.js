@@ -36,6 +36,7 @@ export async function onRequestGet({ request, env }) {
       asn: event.asn || "",
       metadata: parseMetadata(event.metadata),
       failureReason: event.failure_reason || "",
+      ipLookupUrl: event.ip_address ? `https://ipinfo.io/${encodeURIComponent(event.ip_address)}` : "",
       createdAt: event.created_at
     }))
   });

@@ -160,6 +160,14 @@ export async function logAuthEvent({ request, env, userId = "", username = "", e
   const metadata = {
     acceptLanguage: request.headers.get("accept-language") || "",
     cfRay: request.headers.get("cf-ray") || "",
+    city: request.cf && request.cf.city ? String(request.cf.city) : "",
+    continent: request.cf && request.cf.continent ? String(request.cf.continent) : "",
+    latitude: request.cf && request.cf.latitude ? String(request.cf.latitude) : "",
+    longitude: request.cf && request.cf.longitude ? String(request.cf.longitude) : "",
+    postalCode: request.cf && request.cf.postalCode ? String(request.cf.postalCode) : "",
+    region: request.cf && request.cf.region ? String(request.cf.region) : "",
+    regionCode: request.cf && request.cf.regionCode ? String(request.cf.regionCode) : "",
+    timezone: request.cf && request.cf.timezone ? String(request.cf.timezone) : "",
     client
   };
 
@@ -175,7 +183,7 @@ export async function logAuthEvent({ request, env, userId = "", username = "", e
     success ? 1 : 0,
     getClientIp(request),
     request.headers.get("user-agent") || "",
-    request.headers.get("cf-ipcountry") || "",
+    request.headers.get("cf-ipcountry") || (request.cf && request.cf.country ? String(request.cf.country) : ""),
     request.cf && request.cf.colo ? String(request.cf.colo) : "",
     request.cf && request.cf.asn ? String(request.cf.asn) : "",
     JSON.stringify(metadata),
@@ -186,8 +194,13 @@ export async function logAuthEvent({ request, env, userId = "", username = "", e
 
 export function getClientIp(request) {
   return request.headers.get("cf-connecting-ip")
-    || request.headers.get("x-forwarded-for")
+    || firstForwardedIp(request.headers.get("x-forwarded-for"))
+    || request.headers.get("x-real-ip")
     || "";
+}
+
+function firstForwardedIp(value) {
+  return String(value || "").split(",")[0].trim();
 }
 
 function getCookie(request, name) {

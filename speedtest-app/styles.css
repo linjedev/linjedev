@@ -413,6 +413,12 @@ body[data-auth="authenticated"] .auth-view {
   overflow-wrap: anywhere;
 }
 
+.admin-event dd a {
+  color: var(--paper);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;

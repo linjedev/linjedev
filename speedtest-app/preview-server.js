@@ -201,7 +201,7 @@ function logPreviewAuthEvent(request, { event, userId = "", username = "", succe
     username,
     success,
     failureReason,
-    ipAddress: request.socket.remoteAddress || "",
+    ipAddress: normalizePreviewIp(request.socket.remoteAddress || ""),
     userAgent: request.headers["user-agent"] || "",
     country: "local",
     colo: "local",
@@ -209,12 +209,28 @@ function logPreviewAuthEvent(request, { event, userId = "", username = "", succe
     metadata: {
       acceptLanguage: request.headers["accept-language"] || "",
       cfRay: "",
+      city: "local",
+      continent: "",
+      latitude: "",
+      longitude: "",
+      postalCode: "",
+      region: "local",
+      regionCode: "",
+      timezone: "",
       client
     },
+    ipLookupUrl: "",
     createdAt: new Date().toISOString()
   };
   authEvents.unshift(record);
   console.log(JSON.stringify(record));
+}
+
+function normalizePreviewIp(value) {
+  if (value === "::1" || value === "::ffff:127.0.0.1" || value === "127.0.0.1") {
+    return "localhost";
+  }
+  return value;
 }
 
 function getCookie(request, name) {
