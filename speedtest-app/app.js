@@ -301,7 +301,10 @@ const state = {
   blockedServerIds: new Set(),
   user: null,
   githubCommitsLoaded: false,
-  gameServersLoaded: false
+  gameServersLoaded: false,
+  arcadeClicks: 0,
+  arcadeClickTimer: 0,
+  arcade: null
 };
 
 const els = {
@@ -311,6 +314,7 @@ const els = {
   siteCanvas: document.querySelector("#siteCanvas"),
   app: document.querySelector("#app"),
   appOnly: document.querySelectorAll(".app-only"),
+  secretBrand: document.querySelector("#secretBrand"),
   authTabs: document.querySelectorAll("[data-auth-mode]"),
   registerForm: document.querySelector("#registerForm"),
   loginForm: document.querySelector("#loginForm"),
@@ -369,6 +373,15 @@ const els = {
   gameServersOnline: document.querySelector("#gameServersOnline"),
   gameServersFastest: document.querySelector("#gameServersFastest"),
   gameServersChecked: document.querySelector("#gameServersChecked"),
+  arcadeView: document.querySelector("#arcade"),
+  arcadeCanvas: document.querySelector("#arcadeCanvas"),
+  arcadeScore: document.querySelector("#arcadeScore"),
+  arcadeLives: document.querySelector("#arcadeLives"),
+  arcadeStatus: document.querySelector("#arcadeStatus"),
+  arcadeLeft: document.querySelector("#arcadeLeft"),
+  arcadeRight: document.querySelector("#arcadeRight"),
+  arcadeFire: document.querySelector("#arcadeFire"),
+  arcadeRestart: document.querySelector("#arcadeRestart"),
   viewLinks: document.querySelectorAll("[data-view-link]"),
   refreshServers: document.querySelector("#refreshServers"),
   serverCheckStatus: document.querySelector("#serverCheckStatus"),
@@ -403,6 +416,7 @@ els.authTabs.forEach((tab) => {
 });
 els.registerForm.addEventListener("submit", register);
 els.loginForm.addEventListener("submit", login);
+els.secretBrand.addEventListener("click", handleSecretBrandClick);
 els.refreshRegisterCaptcha.addEventListener("click", () => loadCaptcha("register"));
 els.refreshLoginCaptcha.addEventListener("click", () => loadCaptcha("login"));
 els.toolsButton.addEventListener("click", (event) => {
@@ -440,6 +454,16 @@ els.visitProfileForm.addEventListener("submit", visitProfile);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
 els.refreshServers.addEventListener("click", () => checkAllServers());
 els.refreshGameServers.addEventListener("click", () => checkGameServers());
+els.arcadeRestart.addEventListener("click", resetArcadeGame);
+els.arcadeLeft.addEventListener("pointerdown", () => setArcadeDirection(-1));
+els.arcadeRight.addEventListener("pointerdown", () => setArcadeDirection(1));
+els.arcadeLeft.addEventListener("pointerup", () => setArcadeDirection(0));
+els.arcadeRight.addEventListener("pointerup", () => setArcadeDirection(0));
+els.arcadeLeft.addEventListener("pointerleave", () => setArcadeDirection(0));
+els.arcadeRight.addEventListener("pointerleave", () => setArcadeDirection(0));
+els.arcadeFire.addEventListener("click", fireArcadeShot);
+window.addEventListener("keydown", handleArcadeKeyDown);
+window.addEventListener("keyup", handleArcadeKeyUp);
 els.start.addEventListener("click", runTest);
 els.stop.addEventListener("click", stopTest);
 els.clear.addEventListener("click", clearHistory);
@@ -1462,6 +1486,8 @@ function applyRoute() {
     showProfileView(false);
   } else if (window.location.hash === "#server-ping") {
     showServerPingView(false);
+  } else if (window.location.hash === "#arcade") {
+    showArcadeView(false);
   } else if (window.location.hash === "#speed" || window.location.hash === "#ranking") {
     showSpeedView(false);
   } else {
@@ -1549,6 +1575,7 @@ function showSpeedView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = false;
   els.serverPingView.hidden = true;
+  els.arcadeView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = true;
   closeAccountMenu();
@@ -1562,6 +1589,7 @@ function showHomeView(updateHash = true) {
   els.home.hidden = false;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.arcadeView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = true;
   closeAccountMenu();
@@ -1575,6 +1603,7 @@ function showServerPingView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = false;
+  els.arcadeView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = true;
   closeAccountMenu();
@@ -1585,10 +1614,26 @@ function showServerPingView(updateHash = true) {
   if (!state.gameServersLoaded) checkGameServers();
 }
 
+function showArcadeView(updateHash = true) {
+  els.home.hidden = true;
+  els.speedView.hidden = true;
+  els.serverPingView.hidden = true;
+  els.arcadeView.hidden = false;
+  els.profileView.hidden = true;
+  els.adminView.hidden = true;
+  closeAccountMenu();
+  closeToolsMenu();
+  if (updateHash) history.pushState(null, "", "#arcade");
+  window.scrollTo({ top: 0 });
+  animateView(els.arcadeView);
+  startArcadeGame();
+}
+
 function showProfileView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.arcadeView.hidden = true;
   els.profileView.hidden = false;
   els.adminView.hidden = true;
   closeAccountMenu();
@@ -1608,6 +1653,7 @@ function showAdminView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.arcadeView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = false;
   closeAccountMenu();
@@ -1645,6 +1691,256 @@ function closeAccountMenu() {
   if (!els.accountMenu) return;
   els.accountMenu.hidden = true;
   els.accountButton.setAttribute("aria-expanded", "false");
+}
+
+function handleSecretBrandClick(event) {
+  if (!state.user) return;
+  event.preventDefault();
+
+  window.clearTimeout(state.arcadeClickTimer);
+  state.arcadeClicks += 1;
+  state.arcadeClickTimer = window.setTimeout(() => {
+    state.arcadeClicks = 0;
+  }, 1800);
+
+  if (state.arcadeClicks >= 6) {
+    state.arcadeClicks = 0;
+    showArcadeView();
+    return;
+  }
+
+  showHomeView();
+}
+
+function startArcadeGame() {
+  if (!state.arcade) {
+    resetArcadeGame();
+    window.requestAnimationFrame(tickArcadeGame);
+    return;
+  }
+  state.arcade.running = true;
+  drawArcadeGame();
+}
+
+function resetArcadeGame() {
+  const canvas = els.arcadeCanvas;
+  if (!canvas) return;
+
+  const enemies = [];
+  for (let row = 0; row < 4; row += 1) {
+    for (let col = 0; col < 10; col += 1) {
+      enemies.push({
+        alive: true,
+        x: 96 + col * 70,
+        y: 70 + row * 42
+      });
+    }
+  }
+
+  state.arcade = {
+    bullets: [],
+    direction: 1,
+    enemyBullets: [],
+    enemies,
+    enemyStep: 0,
+    fireCooldown: 0,
+    keys: { left: false, right: false },
+    last: performance.now(),
+    lives: 3,
+    over: false,
+    playerX: canvas.width / 2,
+    running: true,
+    score: 0,
+    status: "Move with arrows or buttons. Fire with space."
+  };
+  updateArcadeHud();
+  drawArcadeGame();
+}
+
+function tickArcadeGame(now = performance.now()) {
+  const game = state.arcade;
+  if (game && game.running && !els.arcadeView.hidden) {
+    const delta = Math.min(32, now - game.last) / 16.67;
+    game.last = now;
+    updateArcadeGame(delta);
+    drawArcadeGame();
+  }
+  window.requestAnimationFrame(tickArcadeGame);
+}
+
+function updateArcadeGame(delta) {
+  const game = state.arcade;
+  if (!game || game.over) return;
+  const canvas = els.arcadeCanvas;
+  const speed = 6.2 * delta;
+
+  if (game.keys.left) game.playerX -= speed;
+  if (game.keys.right) game.playerX += speed;
+  game.playerX = Math.max(36, Math.min(canvas.width - 36, game.playerX));
+
+  game.fireCooldown = Math.max(0, game.fireCooldown - delta);
+  game.bullets.forEach((bullet) => {
+    bullet.y -= 9 * delta;
+  });
+  game.enemyBullets.forEach((bullet) => {
+    bullet.y += 5 * delta;
+  });
+
+  game.enemyStep += delta;
+  if (game.enemyStep >= 18) {
+    game.enemyStep = 0;
+    const alive = game.enemies.filter((enemy) => enemy.alive);
+    const edge = alive.some((enemy) => enemy.x < 42 || enemy.x > canvas.width - 42);
+    if (edge) {
+      game.direction *= -1;
+      alive.forEach((enemy) => {
+        enemy.y += 18;
+      });
+    } else {
+      alive.forEach((enemy) => {
+        enemy.x += 12 * game.direction;
+      });
+    }
+    if (alive.length && Math.random() < .55) {
+      const shooter = alive[Math.floor(Math.random() * alive.length)];
+      game.enemyBullets.push({ x: shooter.x, y: shooter.y + 16 });
+    }
+  }
+
+  game.bullets.forEach((bullet) => {
+    game.enemies.forEach((enemy) => {
+      if (!enemy.alive || bullet.dead) return;
+      if (Math.abs(bullet.x - enemy.x) < 22 && Math.abs(bullet.y - enemy.y) < 18) {
+        enemy.alive = false;
+        bullet.dead = true;
+        game.score += 25;
+      }
+    });
+  });
+
+  game.enemyBullets.forEach((bullet) => {
+    if (bullet.dead) return;
+    if (Math.abs(bullet.x - game.playerX) < 28 && Math.abs(bullet.y - 456) < 18) {
+      bullet.dead = true;
+      game.lives -= 1;
+      game.status = game.lives ? "Hull hit. Keep moving." : "Game over. Restart to try again.";
+    }
+  });
+
+  game.bullets = game.bullets.filter((bullet) => !bullet.dead && bullet.y > -20);
+  game.enemyBullets = game.enemyBullets.filter((bullet) => !bullet.dead && bullet.y < canvas.height + 20);
+
+  if (!game.enemies.some((enemy) => enemy.alive)) {
+    game.over = true;
+    game.status = "Wave cleared. Nice.";
+  } else if (game.lives <= 0 || game.enemies.some((enemy) => enemy.alive && enemy.y > 420)) {
+    game.over = true;
+    game.status = "Game over. Restart to try again.";
+  }
+
+  updateArcadeHud();
+}
+
+function drawArcadeGame() {
+  const game = state.arcade;
+  const canvas = els.arcadeCanvas;
+  if (!game || !canvas) return;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+
+  const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#050505");
+  gradient.addColorStop(1, "#101010");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  context.strokeStyle = "rgba(247,247,242,.08)";
+  for (let x = 0; x < canvas.width; x += 60) {
+    context.beginPath();
+    context.moveTo(x, 0);
+    context.lineTo(x - 90, canvas.height);
+    context.stroke();
+  }
+
+  context.fillStyle = "#f7f7f2";
+  context.beginPath();
+  context.moveTo(game.playerX, 438);
+  context.lineTo(game.playerX - 34, 476);
+  context.lineTo(game.playerX + 34, 476);
+  context.closePath();
+  context.fill();
+
+  game.enemies.forEach((enemy) => {
+    if (!enemy.alive) return;
+    context.fillStyle = "#42e06f";
+    context.fillRect(enemy.x - 20, enemy.y - 12, 40, 24);
+    context.fillStyle = "#050505";
+    context.fillRect(enemy.x - 10, enemy.y - 3, 6, 6);
+    context.fillRect(enemy.x + 4, enemy.y - 3, 6, 6);
+  });
+
+  context.fillStyle = "#f7f7f2";
+  game.bullets.forEach((bullet) => {
+    context.fillRect(bullet.x - 2, bullet.y - 12, 4, 18);
+  });
+  context.fillStyle = "#f1b8b8";
+  game.enemyBullets.forEach((bullet) => {
+    context.fillRect(bullet.x - 3, bullet.y - 4, 6, 14);
+  });
+
+  if (game.over) {
+    context.fillStyle = "rgba(5,5,5,.68)";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#f7f7f2";
+    context.font = "700 42px system-ui, sans-serif";
+    context.textAlign = "center";
+    context.fillText(game.status, canvas.width / 2, canvas.height / 2);
+  }
+}
+
+function fireArcadeShot() {
+  const game = state.arcade;
+  if (!game || game.over || els.arcadeView.hidden || game.fireCooldown > 0) return;
+  game.bullets.push({ x: game.playerX, y: 432 });
+  game.fireCooldown = 12;
+}
+
+function setArcadeDirection(direction) {
+  const game = state.arcade;
+  if (!game) return;
+  game.keys.left = direction < 0;
+  game.keys.right = direction > 0;
+}
+
+function handleArcadeKeyDown(event) {
+  if (!state.arcade || els.arcadeView.hidden) return;
+  if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+    event.preventDefault();
+    state.arcade.keys.left = true;
+  } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+    event.preventDefault();
+    state.arcade.keys.right = true;
+  } else if (event.code === "Space") {
+    event.preventDefault();
+    fireArcadeShot();
+  }
+}
+
+function handleArcadeKeyUp(event) {
+  if (!state.arcade) return;
+  if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+    state.arcade.keys.left = false;
+  } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+    state.arcade.keys.right = false;
+  }
+}
+
+function updateArcadeHud() {
+  const game = state.arcade;
+  if (!game) return;
+  els.arcadeScore.textContent = String(game.score);
+  els.arcadeLives.textContent = String(Math.max(0, game.lives));
+  els.arcadeStatus.textContent = game.status;
 }
 
 async function loadProfile() {

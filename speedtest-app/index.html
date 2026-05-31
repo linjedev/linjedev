@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=captcha1">
+    <link rel="stylesheet" href="styles.css?v=arcade1">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -101,7 +101,7 @@
     </section>
 
     <header class="site-header app-only" hidden>
-      <a class="site-brand" href="#home" aria-label="Linje.dev home">
+      <a id="secretBrand" class="site-brand" href="#home" aria-label="Linje.dev home">
         <strong>Linje.dev</strong>
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
@@ -395,6 +395,29 @@
         <div id="gameServerList" class="game-server-list" aria-live="polite"></div>
       </section>
 
+      <section id="arcade" class="arcade-view tool-shell" aria-labelledby="arcade-title" hidden>
+        <div class="arcade-panel">
+          <div class="arcade-head">
+            <div>
+              <p class="eyebrow">Hidden</p>
+              <h2 id="arcade-title">Linje Invaders</h2>
+            </div>
+            <div class="arcade-scoreboard">
+              <span>Score <strong id="arcadeScore">0</strong></span>
+              <span>Lives <strong id="arcadeLives">3</strong></span>
+            </div>
+          </div>
+          <canvas id="arcadeCanvas" width="900" height="520" aria-label="Linje Invaders game"></canvas>
+          <div class="arcade-actions">
+            <button id="arcadeLeft" class="ghost-button" type="button">Left</button>
+            <button id="arcadeFire" class="run-button" type="button">Fire</button>
+            <button id="arcadeRight" class="ghost-button" type="button">Right</button>
+            <button id="arcadeRestart" class="ghost-button" type="button">Restart</button>
+          </div>
+          <p id="arcadeStatus" class="status">Move with arrows or buttons. Fire with space.</p>
+        </div>
+      </section>
+
       <section id="admin" class="admin-view" aria-labelledby="admin-title" hidden>
         <div class="admin-head">
           <div>
@@ -424,6 +447,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=games1" defer></script>
+    <script src="app.js?v=arcade1" defer></script>
   </body>
 </html>
