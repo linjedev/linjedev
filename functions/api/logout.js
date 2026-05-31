@@ -1,6 +1,9 @@
-import { clearSessionCookie, deleteSession, hasDatabase, json } from "../_auth.js";
+import { clearSessionCookie, deleteSession, hasDatabase, json, requireSameOrigin } from "../_auth.js";
 
 export async function onRequestPost({ request, env }) {
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
+
   if (hasDatabase(env)) {
     await deleteSession({ request, env });
   }

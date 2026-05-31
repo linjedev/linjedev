@@ -4,10 +4,14 @@ import {
   hasDatabase,
   json,
   readJson,
-  timingSafeEqual
+  requireSameOrigin,
+  verifyPassword
 } from "../../_auth.js";
 
 export async function onRequestPost({ request, env }) {
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
+
   if (!hasDatabase(env)) {
     return json({ error: "Account storage is not configured." }, { status: 503 });
   }
@@ -24,15 +28,14 @@ export async function onRequestPost({ request, env }) {
   }
 
   const user = await env.DB.prepare(
-    `SELECT id, password_hash, password_salt
+    `SELECT id, password_hash, password_salt, password_iterations
      FROM users
      WHERE id = ?`
   ).bind(sessionUser.id).first();
 
   if (!user) return json({ error: "Login required." }, { status: 401 });
 
-  const candidate = await hashPassword(currentPassword, user.password_salt);
-  if (!timingSafeEqual(candidate.hash, user.password_hash)) {
+  if (!await verifyPassword(currentPassword, user)) {
     return json({ error: "Current password is wrong." }, { status: 401 });
   }
 

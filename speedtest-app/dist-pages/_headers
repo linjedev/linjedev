@@ -1,14 +1,14 @@
 /*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self' https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 /app.js
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=60
 
 /styles.css
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=60
 
 /servers.json
   Cache-Control: public, max-age=300
-

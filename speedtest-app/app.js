@@ -492,7 +492,8 @@ const state = {
   arcadeClickTimer: 0,
   arcadeGame: "invaders",
   arcadeUnlocked: false,
-  arcade: null
+  arcade: null,
+  secureMessageViewedToken: ""
 };
 
 const els = {
@@ -555,6 +556,19 @@ const els = {
   publicProfileResult: document.querySelector("#publicProfileResult"),
   speedView: document.querySelector("#speed"),
   serverPingView: document.querySelector("#server-ping"),
+  secureMessageView: document.querySelector("#secure-message"),
+  secureMessageForm: document.querySelector("#secureMessageForm"),
+  secureMessageInput: document.querySelector("#secureMessageInput"),
+  secureLinkPanel: document.querySelector("#secureLinkPanel"),
+  secureLinkOutput: document.querySelector("#secureLinkOutput"),
+  secureCopyLink: document.querySelector("#secureCopyLink"),
+  secureClear: document.querySelector("#secureClear"),
+  secureReadPanel: document.querySelector("#secureReadPanel"),
+  secureReadOutput: document.querySelector("#secureReadOutput"),
+  secureBurn: document.querySelector("#secureBurn"),
+  secureMessageStatus: document.querySelector("#secureMessageStatus"),
+  secureCipherCanvas: document.querySelector("#secureCipherCanvas"),
+  secureViewState: document.querySelector("#secureViewState"),
   refreshGameServers: document.querySelector("#refreshGameServers"),
   gameServerStatus: document.querySelector("#gameServerStatus"),
   gameServerList: document.querySelector("#gameServerList"),
@@ -621,6 +635,8 @@ els.toolLinks.forEach((link) => {
     closeToolsMenu();
     if (link.dataset.toolLink === "server-ping") {
       showServerPingView();
+    } else if (link.dataset.toolLink === "secure-message") {
+      showSecureMessageView();
     } else {
       showSpeedView();
     }
@@ -645,6 +661,10 @@ els.passwordForm.addEventListener("submit", updatePassword);
 els.emailResetForm.addEventListener("submit", requestEmailReset);
 els.visitProfileForm.addEventListener("submit", visitProfile);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
+els.secureMessageForm.addEventListener("submit", createSecureMessageLink);
+els.secureCopyLink.addEventListener("click", copySecureMessageLink);
+els.secureClear.addEventListener("click", clearSecureMessageComposer);
+els.secureBurn.addEventListener("click", burnSecureMessage);
 els.refreshServers.addEventListener("click", () => checkAllServers());
 els.refreshGameServers.addEventListener("click", () => checkGameServers());
 els.arcadeGameButtons.forEach((button) => {
@@ -701,6 +721,7 @@ window.addEventListener("hashchange", applyRoute);
 initialize();
 initAuthBackground();
 initSiteBackground();
+initSecureCipherCanvas();
 initUiAnimations();
 
 async function register(event) {
@@ -1683,6 +1704,98 @@ function initAuthBackground() {
   }
 }
 
+function initSecureCipherCanvas() {
+  const canvas = els.secureCipherCanvas;
+  if (!canvas) return;
+  const context = canvas.getContext("2d");
+  const streams = Array.from({ length: 18 }, (_, index) => ({
+    depth: .3 + (index % 5) * .12,
+    offset: Math.random() * 400,
+    phase: Math.random() * Math.PI * 2,
+    speed: .3 + Math.random() * .45,
+    y: (index + .5) / 18
+  }));
+  const nodes = Array.from({ length: 42 }, () => ({
+    x: Math.random(),
+    y: Math.random(),
+    phase: Math.random() * Math.PI * 2,
+    speed: .15 + Math.random() * .3
+  }));
+
+  function draw(now) {
+    const time = now / 1000;
+    const width = canvas.width;
+    const height = canvas.height;
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = "#050505";
+    context.fillRect(0, 0, width, height);
+
+    context.save();
+    context.globalAlpha = .16;
+    context.strokeStyle = "#f7f7f2";
+    context.lineWidth = 1;
+    for (let x = -80; x < width + 80; x += 56) {
+      context.beginPath();
+      context.moveTo(x + Math.sin(time * .35) * 18, 0);
+      context.lineTo(x - 120 + Math.sin(time * .35) * 18, height);
+      context.stroke();
+    }
+    context.restore();
+
+    streams.forEach((stream, streamIndex) => {
+      context.save();
+      context.globalAlpha = .16 + stream.depth * .22;
+      context.strokeStyle = "#f7f7f2";
+      context.lineWidth = streamIndex % 3 === 0 ? 1.8 : 1;
+      context.beginPath();
+      for (let x = -60; x <= width + 60; x += 18) {
+        const y = height * stream.y
+          + Math.sin(x * .018 + stream.phase + time * stream.speed) * (18 + stream.depth * 26)
+          + Math.cos(x * .006 - time * stream.speed) * 12;
+        if (x === -60) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      }
+      context.stroke();
+      context.restore();
+    });
+
+    nodes.forEach((node, index) => {
+      const x = ((node.x * width) + Math.sin(time * node.speed + node.phase) * 18 + width) % width;
+      const y = ((node.y * height) + Math.cos(time * node.speed * 1.4 + node.phase) * 20 + height) % height;
+      const pulse = (Math.sin(time * 2.6 + index) + 1) / 2;
+      context.save();
+      context.globalAlpha = .18 + pulse * .44;
+      context.fillStyle = "#f7f7f2";
+      context.beginPath();
+      context.arc(x, y, 1.5 + pulse * 2.2, 0, Math.PI * 2);
+      context.fill();
+      if (index % 4 === 0) {
+        context.globalAlpha = .1 + pulse * .18;
+        context.strokeStyle = "#f7f7f2";
+        context.beginPath();
+        context.arc(x, y, 12 + pulse * 18, 0, Math.PI * 2);
+        context.stroke();
+      }
+      context.restore();
+    });
+
+    context.save();
+    context.globalAlpha = .78;
+    context.strokeStyle = "#f7f7f2";
+    context.lineWidth = 2;
+    const scan = (time * 96) % (height + 80) - 40;
+    context.beginPath();
+    context.moveTo(0, scan);
+    context.lineTo(width, scan + Math.sin(time * 2) * 18);
+    context.stroke();
+    context.restore();
+
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
+}
+
 function applyRoute() {
   if (window.location.hash === "#admin") {
     showAdminView(false);
@@ -1690,6 +1803,8 @@ function applyRoute() {
     showProfileView(false);
   } else if (window.location.hash === "#server-ping") {
     showServerPingView(false);
+  } else if (window.location.hash === "#secure-message" || window.location.hash.startsWith("#message=")) {
+    showSecureMessageView(false);
   } else if (window.location.hash === "#arcade") {
     showArcadeView(false);
   } else if (window.location.hash === "#speed" || window.location.hash === "#ranking") {
@@ -1779,6 +1894,7 @@ function showSpeedView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = false;
   els.serverPingView.hidden = true;
+  els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = true;
@@ -1793,6 +1909,7 @@ function showHomeView(updateHash = true) {
   els.home.hidden = false;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = true;
@@ -1807,6 +1924,7 @@ function showServerPingView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = false;
+  els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = true;
@@ -1818,6 +1936,22 @@ function showServerPingView(updateHash = true) {
   if (!state.gameServersLoaded) checkGameServers();
 }
 
+function showSecureMessageView(updateHash = true) {
+  els.home.hidden = true;
+  els.speedView.hidden = true;
+  els.serverPingView.hidden = true;
+  els.secureMessageView.hidden = false;
+  els.arcadeView.hidden = true;
+  els.profileView.hidden = true;
+  els.adminView.hidden = true;
+  closeAccountMenu();
+  closeToolsMenu();
+  if (updateHash) history.pushState(null, "", "#secure-message");
+  window.scrollTo({ top: 0 });
+  animateView(els.secureMessageView);
+  decryptSecureMessageFromHash();
+}
+
 function showArcadeView(updateHash = true) {
   if (!state.arcadeUnlocked) {
     showHomeView(updateHash);
@@ -1827,6 +1961,7 @@ function showArcadeView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.secureMessageView.hidden = true;
   els.arcadeView.hidden = false;
   els.profileView.hidden = true;
   els.adminView.hidden = true;
@@ -1843,6 +1978,7 @@ function showProfileView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = false;
   els.adminView.hidden = true;
@@ -1863,6 +1999,7 @@ function showAdminView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = true;
   els.adminView.hidden = false;
@@ -1872,6 +2009,148 @@ function showAdminView(updateHash = true) {
   window.scrollTo({ top: 0 });
   loadAdminEvents();
   animateView(els.adminView);
+}
+
+async function createSecureMessageLink(event) {
+  event.preventDefault();
+  const message = els.secureMessageInput.value;
+  if (!message.trim()) {
+    setSecureMessageStatus("Write a message first.");
+    return;
+  }
+
+  if (!window.crypto || !window.crypto.subtle) {
+    setSecureMessageStatus("Web Crypto is not available in this browser.");
+    return;
+  }
+
+  try {
+    setSecureMessageStatus("Encrypting in browser...");
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const key = await window.crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+    const ciphertext = await window.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      new TextEncoder().encode(message)
+    );
+    const rawKey = await window.crypto.subtle.exportKey("raw", key);
+    const payload = base64UrlEncodeBytes(new TextEncoder().encode(JSON.stringify({
+      v: 1,
+      iv: base64UrlEncodeBytes(iv),
+      ct: base64UrlEncodeBytes(new Uint8Array(ciphertext))
+    })));
+    const token = `${payload}.${base64UrlEncodeBytes(new Uint8Array(rawKey))}`;
+    const link = `${window.location.origin}${window.location.pathname}${window.location.search}#message=${token}`;
+
+    els.secureLinkOutput.value = link;
+    els.secureLinkPanel.hidden = false;
+    els.secureReadPanel.hidden = true;
+    els.secureViewState.textContent = "sealed";
+    setSecureMessageStatus("Link sealed. The key stays in the URL fragment.");
+    animateMetricPulse(els.secureLinkPanel);
+  } catch {
+    setSecureMessageStatus("Could not encrypt this message.");
+  }
+}
+
+async function decryptSecureMessageFromHash() {
+  if (!window.location.hash.startsWith("#message=")) return;
+  if (!window.crypto || !window.crypto.subtle) {
+    setSecureMessageStatus("Web Crypto is not available in this browser.");
+    return;
+  }
+
+  try {
+    const token = window.location.hash.slice("#message=".length);
+    if (token === state.secureMessageViewedToken) return;
+    const [payloadPart, keyPart] = token.split(".");
+    if (!payloadPart || !keyPart) throw new Error("Bad token");
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecodeBytes(payloadPart)));
+    if (payload.v !== 1 || !payload.iv || !payload.ct) throw new Error("Bad payload");
+
+    const key = await window.crypto.subtle.importKey(
+      "raw",
+      base64UrlDecodeBytes(keyPart),
+      { name: "AES-GCM" },
+      false,
+      ["decrypt"]
+    );
+    const plaintext = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: base64UrlDecodeBytes(payload.iv) },
+      key,
+      base64UrlDecodeBytes(payload.ct)
+    );
+
+    state.secureMessageViewedToken = token;
+    history.replaceState(null, "", "#secure-message");
+    els.secureMessageInput.value = "";
+    els.secureLinkOutput.value = "";
+    els.secureReadOutput.textContent = new TextDecoder().decode(plaintext);
+    els.secureReadPanel.hidden = false;
+    els.secureLinkPanel.hidden = true;
+    els.secureViewState.textContent = "viewed";
+    setSecureMessageStatus("Fragment cleared. The link cannot reopen this message from this page.");
+    animateMetricPulse(els.secureReadPanel);
+  } catch {
+    history.replaceState(null, "", "#secure-message");
+    setSecureMessageStatus("Message link is invalid or already stripped.");
+  }
+}
+
+async function copySecureMessageLink() {
+  const link = els.secureLinkOutput.value;
+  if (!link) return;
+  try {
+    await navigator.clipboard.writeText(link);
+    setSecureMessageStatus("Copied.");
+  } catch {
+    els.secureLinkOutput.select();
+    document.execCommand("copy");
+    setSecureMessageStatus("Copied.");
+  }
+}
+
+function clearSecureMessageComposer() {
+  els.secureMessageInput.value = "";
+  els.secureLinkOutput.value = "";
+  els.secureLinkPanel.hidden = true;
+  state.secureMessageViewedToken = "";
+  els.secureViewState.textContent = "armed";
+  setSecureMessageStatus("Ready. Nothing leaves this browser.");
+}
+
+function burnSecureMessage() {
+  els.secureReadOutput.textContent = "";
+  els.secureReadPanel.hidden = true;
+  els.secureViewState.textContent = "burned";
+  setSecureMessageStatus("Message burned from this view.");
+}
+
+function setSecureMessageStatus(message) {
+  els.secureMessageStatus.textContent = message;
+}
+
+function base64UrlEncodeBytes(bytes) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlDecodeBytes(value) {
+  const base64 = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
 }
 
 function toggleAccountMenu() {

@@ -1,4 +1,4 @@
-import { getSessionUser, hasDatabase, json, readJson } from "../_auth.js";
+import { getSessionUser, hasDatabase, json, readJson, requireSameOrigin } from "../_auth.js";
 
 export async function onRequestGet({ request, env }) {
   if (!hasDatabase(env)) {
@@ -14,6 +14,9 @@ export async function onRequestGet({ request, env }) {
 }
 
 export async function onRequestPost({ request, env }) {
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
+
   if (!hasDatabase(env)) {
     return json({ error: "Profile storage is not configured." }, { status: 503 });
   }
@@ -22,7 +25,7 @@ export async function onRequestPost({ request, env }) {
   if (!user) return json({ error: "Login required." }, { status: 401 });
 
   const input = await readJson(request);
-  const avatarUrl = String(input.avatarUrl || "").trim().slice(0, 2000);
+  const avatarUrl = normalizeAvatarUrl(input.avatarUrl);
   const about = String(input.about || "").trim().slice(0, 280);
   const updatedAt = new Date().toISOString();
 
@@ -45,6 +48,18 @@ export async function onRequestPost({ request, env }) {
       updatedAt
     }
   });
+}
+
+function normalizeAvatarUrl(value) {
+  const input = String(value || "").trim().slice(0, 2000);
+  if (!input) return "";
+
+  try {
+    const url = new URL(input);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 export function onRequest() {

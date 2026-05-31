@@ -2,6 +2,9 @@ const encoder = new TextEncoder();
 const SESSION_COOKIE = "linje_session";
 const SESSION_DAYS = 30;
 const CAPTCHA_TTL_MS = 5 * 60 * 1000;
+const PASSWORD_ALGORITHM = "PBKDF2-SHA-256";
+const PASSWORD_ITERATIONS = 100000;
+const PASSWORD_SALT_BYTES = 16;
 const BLOCKED_USERNAME_TERMS = [
   "6b6b6b",
   "6e617a69",
@@ -121,7 +124,59 @@ function normalizeForModeration(value) {
 }
 
 export async function hashPassword(password, saltBase64 = "") {
-  const salt = saltBase64 ? base64ToBytes(saltBase64) : crypto.getRandomValues(new Uint8Array(16));
+  return derivePasswordHash(password, {
+    iterations: PASSWORD_ITERATIONS,
+    saltBase64
+  });
+}
+
+export async function verifyPassword(password, user) {
+  const iterations = Number(user.password_iterations) || 1;
+  const candidate = await derivePasswordHash(password, {
+    iterations,
+    saltBase64: user.password_salt
+  });
+
+  return timingSafeEqual(candidate.hash, user.password_hash);
+}
+
+export function shouldUpgradePasswordHash(user) {
+  return (Number(user.password_iterations) || 1) < PASSWORD_ITERATIONS;
+}
+
+async function derivePasswordHash(password, { iterations, saltBase64 = "" }) {
+  const salt = saltBase64 ? base64ToBytes(saltBase64) : crypto.getRandomValues(new Uint8Array(PASSWORD_SALT_BYTES));
+  if (iterations <= 1) {
+    return legacySha256PasswordHash(password, salt);
+  }
+
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(String(password || "")),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt,
+      iterations
+    },
+    keyMaterial,
+    256
+  );
+
+  return {
+    algorithm: PASSWORD_ALGORITHM,
+    hash: bytesToBase64(new Uint8Array(bits)),
+    salt: bytesToBase64(salt),
+    iterations
+  };
+}
+
+async function legacySha256PasswordHash(password, salt) {
   const material = new Uint8Array(salt.length + encoder.encode(password).length);
   material.set(salt, 0);
   material.set(encoder.encode(password), salt.length);
@@ -196,6 +251,37 @@ export function publicUser(user) {
 
 export function hasDatabase(env) {
   return Boolean(env && env.DB && typeof env.DB.prepare === "function");
+}
+
+export function requireSameOrigin(request) {
+  const requestUrl = new URL(request.url);
+  const origin = request.headers.get("origin");
+  if (origin) {
+    return origin === requestUrl.origin
+      ? null
+      : json({ error: "Cross-site request blocked." }, { status: 403 });
+  }
+
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).origin === requestUrl.origin
+        ? null
+        : json({ error: "Cross-site request blocked." }, { status: 403 });
+    } catch {
+      return json({ error: "Cross-site request blocked." }, { status: 403 });
+    }
+  }
+
+  return json({ error: "Missing origin header." }, { status: 403 });
+}
+
+export function isAdminUser(user, env) {
+  const admins = String((env && env.ADMIN_USERS) || "")
+    .split(",")
+    .map((item) => normalizeUsername(item))
+    .filter(Boolean);
+  return Boolean(user && admins.includes(normalizeUsername(user.username)));
 }
 
 export async function logAuthEvent({ request, env, userId = "", username = "", event, success, client = {}, failureReason = "" }) {
@@ -273,7 +359,11 @@ function randomInt(min, max) {
 }
 
 async function signCaptcha(body, env) {
-  const secret = encoder.encode((env && env.CAPTCHA_SECRET) || "linje-dev-captcha-v1");
+  const secretValue = env && env.CAPTCHA_SECRET ? String(env.CAPTCHA_SECRET) : "";
+  if (secretValue.length < 32) {
+    throw new Error("CAPTCHA_SECRET must be configured with at least 32 characters.");
+  }
+  const secret = encoder.encode(secretValue);
   const key = await crypto.subtle.importKey(
     "raw",
     secret,

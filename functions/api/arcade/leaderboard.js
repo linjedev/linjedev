@@ -1,4 +1,4 @@
-import { getSessionUser, hasDatabase, json, readJson } from "../../_auth.js";
+import { getSessionUser, hasDatabase, json, readJson, requireSameOrigin } from "../../_auth.js";
 
 export async function onRequestGet({ env }) {
   if (!hasDatabase(env)) {
@@ -10,6 +10,9 @@ export async function onRequestGet({ env }) {
 }
 
 export async function onRequestPost({ request, env }) {
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
+
   if (!hasDatabase(env)) {
     return json({ error: "Leaderboard storage is not configured." }, { status: 503 });
   }

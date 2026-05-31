@@ -7,12 +7,17 @@ import {
   normalizeUsername,
   publicUser,
   readJson,
-  timingSafeEqual,
+  requireSameOrigin,
+  shouldUpgradePasswordHash,
+  verifyPassword,
   verifyCaptcha
 } from "../_auth.js";
 
 export async function onRequestPost({ request, env }) {
   try {
+    const originError = requireSameOrigin(request);
+    if (originError) return originError;
+
     if (!hasDatabase(env)) {
       return json({ error: "D1 database binding DB is not configured." }, { status: 503 });
     }
@@ -27,7 +32,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     const user = await env.DB.prepare(
-      `SELECT id, username, password_hash, password_salt, created_at
+      `SELECT id, username, password_hash, password_salt, password_iterations, created_at
        FROM users
        WHERE username = ?`
     ).bind(username).first();
@@ -37,10 +42,18 @@ export async function onRequestPost({ request, env }) {
       return json({ error: "Username or password is wrong." }, { status: 401 });
     }
 
-    const candidate = await hashPassword(password, user.password_salt);
-    if (!timingSafeEqual(candidate.hash, user.password_hash)) {
+    if (!await verifyPassword(password, user)) {
       await logAuthEvent({ request, env, userId: user.id, username, event: "login", success: false, client: input.client, failureReason: "bad_password" });
       return json({ error: "Username or password is wrong." }, { status: 401 });
+    }
+
+    if (shouldUpgradePasswordHash(user)) {
+      const next = await hashPassword(password);
+      await env.DB.prepare(
+        `UPDATE users
+         SET password_hash = ?, password_salt = ?, password_iterations = ?
+         WHERE id = ?`
+      ).bind(next.hash, next.salt, next.iterations, user.id).run();
     }
 
     const cookie = await createSession({ request, env, userId: user.id });

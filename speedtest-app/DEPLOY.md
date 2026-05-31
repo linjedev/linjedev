@@ -38,7 +38,10 @@ Linje.dev uses Cloudflare Pages Functions and a D1 database binding named `DB`.
 5. Add a binding:
    - Variable name: `DB`
    - D1 database: `linje-auth`
-6. Redeploy the latest Pages deployment.
+6. Add Pages environment variables:
+   - `CAPTCHA_SECRET`: at least 32 random characters, used to sign captcha tokens.
+   - `ADMIN_USERS`: comma-separated usernames that can read `/api/admin/events`, for example `seb`.
+7. Redeploy the latest Pages deployment.
 
 The auth endpoints live in the repository root `functions/` directory:
 
@@ -47,7 +50,7 @@ The auth endpoints live in the repository root `functions/` directory:
 - `GET /api/session`
 - `POST /api/logout`
 
-Passwords are salted and hashed before they are stored. Sessions are stored in D1 and sent to the browser as HttpOnly cookies.
+Passwords are salted and hashed with PBKDF2-SHA-256 before they are stored. Sessions are stored in D1 and sent to the browser as HttpOnly cookies.
 
 Registration and login do not collect email addresses. The `auth_events` table stores security audit records for register/login attempts:
 

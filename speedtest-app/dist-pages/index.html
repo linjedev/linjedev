@@ -6,30 +6,226 @@
     <title>Linje.dev</title>
     <meta name="description" content="Linje.dev provides clean everyday network tools, starting with a focused speed test for latency, download, upload, and local rankings.">
     <meta name="theme-color" content="#050505">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=games3">
   </head>
-  <body>
-    <header class="site-header">
-      <a class="site-brand" href="#home" aria-label="Linje.dev home">
-        <span class="brand-mark" aria-hidden="true"></span>
+  <body data-auth="checking">
+    <section id="auth" class="auth-view" aria-labelledby="auth-title">
+      <canvas id="authCanvas" class="auth-canvas" aria-hidden="true"></canvas>
+      <div class="auth-panel">
+        <a class="site-brand auth-brand" href="#register" aria-label="Linje.dev">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <strong>Linje.dev</strong>
+        </a>
+
+        <div class="auth-copy">
+          <p class="eyebrow">Private beta</p>
+          <h1 id="auth-title">Create your Linje account.</h1>
+          <p>Security-minded tools for everyday use, built for private access and clear diagnostics.</p>
+        </div>
+
+        <div class="auth-card">
+          <div class="auth-tabs" role="tablist" aria-label="Account access">
+            <button id="registerTab" type="button" class="auth-tab active" data-auth-mode="register">Register</button>
+            <button id="loginTab" type="button" class="auth-tab" data-auth-mode="login">Login</button>
+          </div>
+
+          <form id="registerForm" class="auth-form" autocomplete="on">
+            <label>
+              Username
+              <input id="registerUsername" name="username" type="text" autocomplete="username" required minlength="1" maxlength="25" pattern="@?[A-Za-z0-9_]{1,24}" placeholder="@linje">
+            </label>
+            <label>
+              Password
+              <input id="registerPassword" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8 characters minimum">
+            </label>
+            <div class="captcha-box">
+              <div>
+                <span>Linje check</span>
+                <strong id="registerCaptchaQuestion">Loading...</strong>
+              </div>
+              <button id="refreshRegisterCaptcha" class="captcha-refresh" type="button" aria-label="Refresh register captcha">Refresh</button>
+              <input id="registerCaptchaToken" type="hidden">
+              <label>
+                Answer
+                <input id="registerCaptchaAnswer" name="captcha" type="text" inputmode="numeric" autocomplete="off" required placeholder="Result">
+              </label>
+            </div>
+            <button class="run-button auth-submit" type="submit">
+              <span class="run-dot" aria-hidden="true"></span>
+              Create account
+            </button>
+          </form>
+
+          <form id="loginForm" class="auth-form" autocomplete="on" hidden>
+            <label>
+              Username
+              <input id="loginUsername" name="username" type="text" autocomplete="username" required placeholder="@linje">
+            </label>
+            <label>
+              Password
+              <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <div class="captcha-box">
+              <div>
+                <span>Linje check</span>
+                <strong id="loginCaptchaQuestion">Loading...</strong>
+              </div>
+              <button id="refreshLoginCaptcha" class="captcha-refresh" type="button" aria-label="Refresh login captcha">Refresh</button>
+              <input id="loginCaptchaToken" type="hidden">
+              <label>
+                Answer
+                <input id="loginCaptchaAnswer" name="captcha" type="text" inputmode="numeric" autocomplete="off" required placeholder="Result">
+              </label>
+            </div>
+            <button class="run-button auth-submit" type="submit">
+              <span class="run-dot" aria-hidden="true"></span>
+              Login
+            </button>
+          </form>
+
+          <p id="authStatus" class="auth-status" role="status">Checking session...</p>
+        </div>
+
+        <p class="auth-disclosure" aria-label="Visitor logging notice">
+          <span class="auth-disclosure-note">
+            <span class="auth-disclosure-wide">Login and registration activity is <strong>logged</strong> for account security.</span>
+            <span class="auth-disclosure-compact">Activity <strong>logged</strong>.</span>
+          </span>
+          <span><strong>IP</strong> <span id="visitorIp">Checking...</span></span>
+          <span><strong>User agent</strong> <span id="visitorUserAgent">Checking...</span></span>
+        </p>
+      </div>
+    </section>
+
+    <header class="site-header app-only" hidden>
+      <a id="secretBrand" class="site-brand" href="#home" aria-label="Linje.dev home">
         <strong>Linje.dev</strong>
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
-        <a href="#home">Home</a>
-        <a href="#speed" data-view-link="speed">Speed</a>
+        <a href="#home" data-view-link="home">Home</a>
+        <div class="nav-dropdown">
+          <button id="toolsButton" class="nav-button" type="button" aria-expanded="false" aria-controls="toolsMenu">Tools</button>
+          <div id="toolsMenu" class="nav-menu" hidden>
+            <button type="button" data-tool-link="speed">Speed</button>
+            <button type="button" data-tool-link="server-ping">Server Ping</button>
+            <button type="button" data-tool-link="secure-message">Secure Message</button>
+          </div>
+        </div>
+        <div class="account-dropdown">
+          <button id="accountButton" class="account-button" type="button" aria-expanded="false" aria-controls="accountMenu">@user</button>
+          <div id="accountMenu" class="account-menu" hidden>
+            <button id="profileMenuButton" type="button">Profile</button>
+            <button id="adminLink" type="button" hidden>Admin</button>
+            <button id="logoutButton" type="button">Logout</button>
+          </div>
+        </div>
       </nav>
     </header>
 
-    <main>
-      <section id="home" class="site-intro" aria-labelledby="site-title">
-        <p class="eyebrow">Linje.dev</p>
-        <h1 id="site-title">Clean tools for everyday use.</h1>
-        <p>Minimal diagnostics for the network you actually use, starting with a focused speed test for latency, upload, download, and local rankings.</p>
-        <button class="run-button intro-action" type="button" data-view-link="speed">
-          <span class="run-dot" aria-hidden="true"></span>
-          Open Speed
-        </button>
+    <canvas id="siteCanvas" class="site-canvas app-only" aria-hidden="true" hidden></canvas>
+
+    <main id="app" class="app-only" hidden>
+      <section id="home" class="home-view" aria-labelledby="site-title">
+        <div class="home-hero">
+          <div>
+            <p class="eyebrow">Linje.dev</p>
+            <h1 id="site-title">Your private workspace.</h1>
+            <p>Tools for everyday tasks, only with Linje.</p>
+          </div>
+        </div>
+
+        <section class="commit-tracker" aria-labelledby="commit-tracker-title">
+          <div>
+            <p class="eyebrow">GitHub</p>
+            <h2 id="commit-tracker-title">linje.dev commits</h2>
+          </div>
+          <div class="commit-total" aria-live="polite">
+            <span id="githubCommitTotal">--</span>
+            <small>Total commits</small>
+          </div>
+          <div class="commit-heatmap" id="githubCommitHeatmap" aria-label="Commits by hour"></div>
+          <p id="githubCommitStatus">Loading commits for linjedev...</p>
+        </section>
+      </section>
+
+      <section id="profile" class="profile-view" aria-labelledby="profile-title" hidden>
+        <div class="profile-layout">
+          <aside class="profile-showcase">
+            <div class="profile-avatar" id="profileAvatarPreview" aria-hidden="true">@</div>
+            <p class="eyebrow">Profile</p>
+            <h2 id="profile-title">@user</h2>
+            <p id="profileStatus">Manage your Linje.dev profile.</p>
+            <div class="profile-preview">
+              <span>About me</span>
+              <p id="profileAboutPreview">No about me yet.</p>
+            </div>
+          </aside>
+
+          <div class="profile-workspace">
+            <form id="profileForm" class="profile-panel profile-panel-main">
+              <div>
+                <p class="eyebrow">Public</p>
+                <h3>Profile details</h3>
+              </div>
+              <label>
+                Profile picture
+                <input id="profileAvatar" type="url" placeholder="https://example.com/avatar.png">
+              </label>
+              <label>
+                About me
+                <textarea id="profileAbout" maxlength="280" rows="5" placeholder="Write a short public intro."></textarea>
+              </label>
+              <button class="run-button" type="submit">Save profile</button>
+            </form>
+
+            <div class="profile-panel-group">
+              <form id="passwordForm" class="profile-panel">
+                <div>
+                  <p class="eyebrow">Security</p>
+                  <h3>Password</h3>
+                </div>
+                <label>
+                  Current password
+                  <input id="currentPassword" type="password" autocomplete="current-password">
+                </label>
+                <label>
+                  New password
+                  <input id="newPassword" type="password" autocomplete="new-password" minlength="8">
+                </label>
+                <button class="run-button" type="submit">Update password</button>
+              </form>
+
+              <form id="emailResetForm" class="profile-panel">
+                <div>
+                  <p class="eyebrow">Email</p>
+                  <h3>Reset link</h3>
+                </div>
+                <label>
+                  Email address
+                  <input id="resetEmail" type="email" autocomplete="email" placeholder="you@example.com">
+                </label>
+                <button class="ghost-button" type="submit">Send reset link</button>
+                <p id="emailResetStatus">Email delivery is not connected yet.</p>
+              </form>
+            </div>
+
+            <form id="visitProfileForm" class="profile-panel profile-lookup">
+              <div>
+                <p class="eyebrow">People</p>
+                <h3>Visit a profile</h3>
+              </div>
+              <label>
+                Username
+                <input id="visitUsername" type="text" placeholder="@linje">
+              </label>
+              <button class="ghost-button" type="submit">Open profile</button>
+              <div id="publicProfileResult" class="public-profile"></div>
+            </form>
+          </div>
+        </div>
       </section>
 
       <div id="speed" class="shell tool-shell" hidden>
@@ -154,7 +350,171 @@
           <span>Save local history</span>
         </label>
       </section>
+
+      <section class="server-checks" aria-labelledby="server-checks-title">
+        <div class="server-checks-head">
+          <div>
+            <p class="eyebrow">Server checks</p>
+            <h2 id="server-checks-title">Ping from your connection</h2>
+          </div>
+          <button id="refreshServers" class="ghost-button" type="button">Refresh</button>
+        </div>
+        <p id="serverCheckStatus" class="status">Checking configured servers...</p>
+        <div id="serverCheckList" class="server-check-list" aria-live="polite"></div>
+      </section>
       </div>
+
+      <section id="server-ping" class="server-ping-view tool-shell" aria-labelledby="server-ping-title" hidden>
+        <div class="tool-hero">
+          <div>
+            <p class="eyebrow">Server Ping</p>
+            <h2 id="server-ping-title">Check game services.</h2>
+            <p>Check response timing for popular game servers from your network connection.</p>
+          </div>
+          <button id="refreshGameServers" class="run-button" type="button">Run checks</button>
+        </div>
+
+        <section class="server-ping-summary" aria-label="Server ping summary">
+          <article>
+            <span>Online</span>
+            <strong id="gameServersOnline">--</strong>
+            <small>services</small>
+          </article>
+          <article>
+            <span>Fastest</span>
+            <strong id="gameServersFastest">--</strong>
+            <small>ms</small>
+          </article>
+          <article>
+            <span>Checked</span>
+            <strong id="gameServersChecked">--</strong>
+            <small>total</small>
+          </article>
+        </section>
+
+        <p id="gameServerStatus" class="status">Run checks to test game service reachability.</p>
+        <div id="gameServerList" class="game-server-list" aria-live="polite"></div>
+      </section>
+
+      <section id="secure-message" class="secure-message-view tool-shell" aria-labelledby="secure-message-title" hidden>
+        <div class="secure-message-grid">
+          <section class="secure-console" aria-labelledby="secure-message-title">
+            <div class="secure-head">
+              <div>
+                <p class="eyebrow">Secure Message</p>
+                <h2 id="secure-message-title">One-view link.</h2>
+              </div>
+              <span id="secureBadge" class="secure-badge">AES-GCM / local</span>
+            </div>
+
+            <form id="secureMessageForm" class="secure-message-form">
+              <label>
+                Message
+                <textarea id="secureMessageInput" maxlength="2000" rows="8" placeholder="Type the message here."></textarea>
+              </label>
+              <div class="secure-actions">
+                <button id="secureCreateLink" class="run-button" type="submit">
+                  <span class="run-dot" aria-hidden="true"></span>
+                  Encrypt link
+                </button>
+                <button id="secureClear" class="ghost-button" type="button">Clear</button>
+              </div>
+            </form>
+
+            <div id="secureLinkPanel" class="secure-link-panel" hidden>
+              <label>
+                Link
+                <input id="secureLinkOutput" type="text" readonly>
+              </label>
+              <button id="secureCopyLink" class="ghost-button" type="button">Copy</button>
+            </div>
+
+            <section id="secureReadPanel" class="secure-read-panel" hidden>
+              <div>
+                <p class="eyebrow">Opened once</p>
+                <h3>Message decrypted.</h3>
+              </div>
+              <p id="secureReadOutput"></p>
+              <button id="secureBurn" class="ghost-button" type="button">Burn</button>
+            </section>
+
+            <p id="secureMessageStatus" class="status">Ready. Nothing leaves this browser.</p>
+          </section>
+
+          <aside class="secure-telemetry" aria-label="Encryption telemetry">
+            <canvas id="secureCipherCanvas" width="720" height="520"></canvas>
+            <div class="secure-meter-grid">
+              <div>
+                <span>Mode</span>
+                <strong>Local</strong>
+              </div>
+              <div>
+                <span>Storage</span>
+                <strong>None</strong>
+              </div>
+              <div>
+                <span>View</span>
+                <strong id="secureViewState">armed</strong>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="arcade" class="arcade-view tool-shell" aria-labelledby="arcade-title" hidden>
+        <div class="arcade-panel">
+          <div class="arcade-head">
+            <div>
+              <p class="eyebrow">Hidden</p>
+              <h2 id="arcade-title">Linje Games</h2>
+              <p class="arcade-subtitle">Now playing: <strong id="arcadeCurrentGame">Linje Invaders</strong></p>
+            </div>
+            <div class="arcade-scoreboard">
+              <span>Score <strong id="arcadeScore">0</strong></span>
+              <span>Lives <strong id="arcadeLives">3</strong></span>
+            </div>
+          </div>
+          <div class="arcade-layout">
+            <canvas id="arcadeCanvas" width="900" height="520" aria-label="Linje Invaders game"></canvas>
+            <aside class="arcade-leaderboard" aria-labelledby="arcade-leaderboard-title">
+              <div>
+                <p class="eyebrow">Global</p>
+                <h3 id="arcade-leaderboard-title">Top 10</h3>
+              </div>
+              <ol id="arcadeLeaderboard" aria-live="polite">
+                <li>Loading scores...</li>
+              </ol>
+            </aside>
+          </div>
+          <div class="arcade-picker" aria-label="Linje Games selector">
+            <button class="active" type="button" data-arcade-game="invaders">Invaders</button>
+            <button type="button" data-arcade-game="snake">Signal Snake</button>
+            <button type="button" data-arcade-game="breaker">Glass Breaker</button>
+            <button type="button" data-arcade-game="dodge">Packet Dodge</button>
+          </div>
+          <div class="arcade-actions">
+            <button id="arcadeUp" class="ghost-button" type="button">Up</button>
+            <button id="arcadeLeft" class="ghost-button" type="button">Left</button>
+            <button id="arcadeFire" class="run-button" type="button">Fire</button>
+            <button id="arcadeRight" class="ghost-button" type="button">Right</button>
+            <button id="arcadeDown" class="ghost-button" type="button">Down</button>
+            <button id="arcadeRestart" class="ghost-button" type="button">Restart</button>
+          </div>
+          <p id="arcadeStatus" class="status">Move with arrows or buttons. Fire with space.</p>
+        </div>
+      </section>
+
+      <section id="admin" class="admin-view" aria-labelledby="admin-title" hidden>
+        <div class="admin-head">
+          <div>
+            <p class="eyebrow">Private</p>
+            <h2 id="admin-title">Moderation</h2>
+          </div>
+          <button id="refreshAdmin" class="ghost-button" type="button">Refresh</button>
+        </div>
+        <p id="adminStatus" class="status">Auth events load here for @seb.</p>
+        <div id="adminEvents" class="admin-events" aria-live="polite"></div>
+      </section>
     </main>
 
     <template id="historyItemTemplate">
@@ -172,6 +532,7 @@
       </li>
     </template>
 
-    <script src="app.js"></script>
+    <script src="anime.min.js?v=3.2.2" defer></script>
+    <script src="app.js?v=games3" defer></script>
   </body>
 </html>

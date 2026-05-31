@@ -7,12 +7,16 @@ import {
   normalizeUsername,
   publicUser,
   readJson,
+  requireSameOrigin,
   validateAccount,
   verifyCaptcha
 } from "../_auth.js";
 
 export async function onRequestPost({ request, env }) {
   try {
+    const originError = requireSameOrigin(request);
+    if (originError) return originError;
+
     if (!hasDatabase(env)) {
       return json({ error: "D1 database binding DB is not configured." }, { status: 503 });
     }

@@ -1,12 +1,16 @@
 import { createCaptchaChallenge, json } from "../_auth.js";
 
 export async function onRequestGet({ env }) {
-  const challenge = await createCaptchaChallenge(env);
-  return json(challenge, {
-    headers: {
-      "cache-control": "no-store"
-    }
-  });
+  try {
+    const challenge = await createCaptchaChallenge(env);
+    return json(challenge, {
+      headers: {
+        "cache-control": "no-store"
+      }
+    });
+  } catch {
+    return json({ error: "Captcha is not configured." }, { status: 503 });
+  }
 }
 
 export function onRequest() {

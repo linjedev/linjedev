@@ -111,6 +111,7 @@
           <div id="toolsMenu" class="nav-menu" hidden>
             <button type="button" data-tool-link="speed">Speed</button>
             <button type="button" data-tool-link="server-ping">Server Ping</button>
+            <button type="button" data-tool-link="secure-message">Secure Message</button>
           </div>
         </div>
         <div class="account-dropdown">
@@ -393,6 +394,71 @@
 
         <p id="gameServerStatus" class="status">Run checks to test game service reachability.</p>
         <div id="gameServerList" class="game-server-list" aria-live="polite"></div>
+      </section>
+
+      <section id="secure-message" class="secure-message-view tool-shell" aria-labelledby="secure-message-title" hidden>
+        <div class="secure-message-grid">
+          <section class="secure-console" aria-labelledby="secure-message-title">
+            <div class="secure-head">
+              <div>
+                <p class="eyebrow">Secure Message</p>
+                <h2 id="secure-message-title">One-view link.</h2>
+              </div>
+              <span id="secureBadge" class="secure-badge">AES-GCM / local</span>
+            </div>
+
+            <form id="secureMessageForm" class="secure-message-form">
+              <label>
+                Message
+                <textarea id="secureMessageInput" maxlength="2000" rows="8" placeholder="Type the message here."></textarea>
+              </label>
+              <div class="secure-actions">
+                <button id="secureCreateLink" class="run-button" type="submit">
+                  <span class="run-dot" aria-hidden="true"></span>
+                  Encrypt link
+                </button>
+                <button id="secureClear" class="ghost-button" type="button">Clear</button>
+              </div>
+            </form>
+
+            <div id="secureLinkPanel" class="secure-link-panel" hidden>
+              <label>
+                Link
+                <input id="secureLinkOutput" type="text" readonly>
+              </label>
+              <button id="secureCopyLink" class="ghost-button" type="button">Copy</button>
+            </div>
+
+            <section id="secureReadPanel" class="secure-read-panel" hidden>
+              <div>
+                <p class="eyebrow">Opened once</p>
+                <h3>Message decrypted.</h3>
+              </div>
+              <p id="secureReadOutput"></p>
+              <button id="secureBurn" class="ghost-button" type="button">Burn</button>
+            </section>
+
+            <p id="secureMessageStatus" class="status">Ready. Nothing leaves this browser.</p>
+          </section>
+
+          <aside class="secure-telemetry" aria-label="Encryption telemetry">
+            <canvas id="secureCipherCanvas" width="720" height="520"></canvas>
+            <div class="secure-meter-grid">
+              <div>
+                <span>Mode</span>
+                <strong>Local</strong>
+              </div>
+              <div>
+                <span>Storage</span>
+                <strong>None</strong>
+              </div>
+              <div>
+                <span>View</span>
+                <strong id="secureViewState">armed</strong>
+              </div>
+            </div>
+          </aside>
+        </div>
       </section>
 
       <section id="arcade" class="arcade-view tool-shell" aria-labelledby="arcade-title" hidden>

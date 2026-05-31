@@ -11,7 +11,8 @@ const profiles = new Map();
 const arcadeScores = new Map();
 const authEvents = [];
 const CAPTCHA_TTL_MS = 5 * 60 * 1000;
-const CAPTCHA_SECRET = "linje-dev-captcha-v1";
+const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || crypto.randomBytes(32).toString("hex");
+const PASSWORD_ITERATIONS = 100000;
 const blockedUsernameTerms = [
   "6b6b6b",
   "6e617a69",
@@ -138,7 +139,7 @@ async function handleApi(request, response, pathname) {
       sendJson(response, 401, { error: "Login required." });
       return;
     }
-    if (user.username !== "seb") {
+    if (!isPreviewAdmin(user)) {
       sendJson(response, 403, { error: "Admin access required." });
       return;
     }
@@ -165,7 +166,7 @@ async function handleApi(request, response, pathname) {
     const body = await readBody(request);
     const profile = {
       username: user.username,
-      avatarUrl: String(body.avatarUrl || "").trim().slice(0, 2000),
+      avatarUrl: normalizeAvatarUrl(body.avatarUrl),
       about: String(body.about || "").trim().slice(0, 280),
       updatedAt: new Date().toISOString()
     };
@@ -182,7 +183,7 @@ async function handleApi(request, response, pathname) {
     }
     const body = await readBody(request);
     const user = users.get(sessionUser.id);
-    if (!user || user.password !== String(body.currentPassword || "")) {
+    if (!user || !verifyPassword(String(body.currentPassword || ""), user.password)) {
       sendJson(response, 401, { error: "Current password is wrong." });
       return;
     }
@@ -191,7 +192,7 @@ async function handleApi(request, response, pathname) {
       sendJson(response, 400, { error: "Passwords need at least 8 characters." });
       return;
     }
-    user.password = nextPassword;
+    user.password = hashPassword(nextPassword);
     users.set(user.id, user);
     sendJson(response, 200, { updated: true });
     return;
@@ -246,7 +247,7 @@ async function handleApi(request, response, pathname) {
     const user = {
       id: crypto.randomUUID(),
       username,
-      password,
+      password: hashPassword(password),
       createdAt: new Date().toISOString()
     };
     users.set(user.id, user);
@@ -265,7 +266,7 @@ async function handleApi(request, response, pathname) {
       return;
     }
 
-    const user = [...users.values()].find((item) => item.username === username && item.password === password);
+    const user = [...users.values()].find((item) => item.username === username && verifyPassword(password, item.password));
 
     if (!user) {
       logPreviewAuthEvent(request, { event: "login", username, success: false, client: body.client, failureReason: "bad_credentials" });
@@ -320,8 +321,45 @@ function publicUser(user) {
   };
 }
 
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16);
+  const hash = crypto.pbkdf2Sync(String(password || ""), salt, PASSWORD_ITERATIONS, 32, "sha256");
+  return {
+    hash: hash.toString("base64"),
+    iterations: PASSWORD_ITERATIONS,
+    salt: salt.toString("base64")
+  };
+}
+
+function verifyPassword(password, stored) {
+  if (!stored || !stored.hash || !stored.salt) return false;
+  const salt = Buffer.from(stored.salt, "base64");
+  const hash = crypto.pbkdf2Sync(String(password || ""), salt, Number(stored.iterations) || 1, 32, "sha256");
+  const expected = Buffer.from(stored.hash, "base64");
+  return hash.length === expected.length && crypto.timingSafeEqual(hash, expected);
+}
+
 function normalizeUsername(username) {
   return String(username || "").trim().replace(/^@+/, "").toLowerCase();
+}
+
+function isPreviewAdmin(user) {
+  const admins = String(process.env.ADMIN_USERS || "seb")
+    .split(",")
+    .map((item) => normalizeUsername(item))
+    .filter(Boolean);
+  return Boolean(user && admins.includes(user.username));
+}
+
+function normalizeAvatarUrl(value) {
+  const input = String(value || "").trim().slice(0, 2000);
+  if (!input) return "";
+  try {
+    const url = new URL(input);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 function isBlockedUsername(username) {

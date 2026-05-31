@@ -1,4 +1,4 @@
-import { getSessionUser, hasDatabase, json } from "../../_auth.js";
+import { getSessionUser, hasDatabase, isAdminUser, json } from "../../_auth.js";
 
 export async function onRequestGet({ request, env }) {
   if (!hasDatabase(env)) {
@@ -10,7 +10,7 @@ export async function onRequestGet({ request, env }) {
     return json({ error: "Login required." }, { status: 401 });
   }
 
-  if (user.username !== "seb") {
+  if (!isAdminUser(user, env)) {
     return json({ error: "Admin access required." }, { status: 403 });
   }
 
