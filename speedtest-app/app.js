@@ -290,6 +290,174 @@ const GAME_SERVICE_TARGETS = [
     network: "Niantic",
     region: "Global",
     url: "https://niantic.helpshift.com"
+  },
+  {
+    id: "marvel-rivals",
+    name: "Marvel Rivals",
+    network: "NetEase",
+    region: "Global",
+    url: "https://www.marvelrivals.com"
+  },
+  {
+    id: "the-finals",
+    name: "The Finals",
+    network: "Embark",
+    region: "Global",
+    url: "https://www.reachthefinals.com"
+  },
+  {
+    id: "sea-of-thieves",
+    name: "Sea of Thieves",
+    network: "Microsoft",
+    region: "Global",
+    url: "https://www.seaofthieves.com"
+  },
+  {
+    id: "gta-online",
+    name: "GTA Online",
+    network: "Rockstar",
+    region: "Global",
+    url: "https://support.rockstargames.com/servicestatus"
+  },
+  {
+    id: "red-dead-online",
+    name: "Red Dead Online",
+    network: "Rockstar",
+    region: "Global",
+    url: "https://support.rockstargames.com/servicestatus"
+  },
+  {
+    id: "monster-hunter",
+    name: "Monster Hunter",
+    network: "Capcom",
+    region: "Global",
+    url: "https://www.monsterhunter.com"
+  },
+  {
+    id: "street-fighter",
+    name: "Street Fighter 6",
+    network: "Capcom",
+    region: "Global",
+    url: "https://www.streetfighter.com/6"
+  },
+  {
+    id: "tekken",
+    name: "Tekken 8",
+    network: "Bandai Namco",
+    region: "Global",
+    url: "https://tekken.com"
+  },
+  {
+    id: "elden-ring",
+    name: "Elden Ring",
+    network: "Bandai Namco",
+    region: "Global",
+    url: "https://en.bandainamcoent.eu/elden-ring"
+  },
+  {
+    id: "path-of-exile",
+    name: "Path of Exile",
+    network: "Grinding Gear",
+    region: "Global",
+    url: "https://www.pathofexile.com"
+  },
+  {
+    id: "eve-online",
+    name: "EVE Online",
+    network: "CCP Games",
+    region: "Global",
+    url: "https://www.eveonline.com"
+  },
+  {
+    id: "albion",
+    name: "Albion Online",
+    network: "Sandbox Interactive",
+    region: "Global",
+    url: "https://albiononline.com"
+  },
+  {
+    id: "war-thunder",
+    name: "War Thunder",
+    network: "Gaijin",
+    region: "Global",
+    url: "https://warthunder.com"
+  },
+  {
+    id: "world-of-tanks",
+    name: "World of Tanks",
+    network: "Wargaming",
+    region: "Global",
+    url: "https://worldoftanks.com"
+  },
+  {
+    id: "dead-by-daylight",
+    name: "Dead by Daylight",
+    network: "Behaviour",
+    region: "Global",
+    url: "https://deadbydaylight.com"
+  },
+  {
+    id: "smite",
+    name: "Smite",
+    network: "Hi-Rez",
+    region: "Global",
+    url: "https://www.smitegame.com"
+  },
+  {
+    id: "lost-ark",
+    name: "Lost Ark",
+    network: "Amazon Games",
+    region: "Global",
+    url: "https://www.playlostark.com"
+  },
+  {
+    id: "new-world",
+    name: "New World",
+    network: "Amazon Games",
+    region: "Global",
+    url: "https://www.newworld.com"
+  },
+  {
+    id: "among-us",
+    name: "Among Us",
+    network: "Innersloth",
+    region: "Global",
+    url: "https://www.innersloth.com/games/among-us/"
+  },
+  {
+    id: "vrchat",
+    name: "VRChat",
+    network: "VRChat",
+    region: "Global",
+    url: "https://status.vrchat.com"
+  },
+  {
+    id: "rec-room",
+    name: "Rec Room",
+    network: "Rec Room",
+    region: "Global",
+    url: "https://recroom.com"
+  },
+  {
+    id: "brawlhalla",
+    name: "Brawlhalla",
+    network: "Ubisoft",
+    region: "Global",
+    url: "https://www.brawlhalla.com"
+  },
+  {
+    id: "trackmania",
+    name: "Trackmania",
+    network: "Ubisoft",
+    region: "Global",
+    url: "https://www.trackmania.com"
+  },
+  {
+    id: "mortal-kombat",
+    name: "Mortal Kombat 1",
+    network: "Warner Bros",
+    region: "Global",
+    url: "https://www.mortalkombat.com"
   }
 ];
 const state = {

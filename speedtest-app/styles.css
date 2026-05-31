@@ -1639,6 +1639,16 @@ h1,
   line-height: .92;
 }
 
+.arcade-subtitle {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.arcade-subtitle strong {
+  color: var(--paper);
+}
+
 .arcade-scoreboard {
   display: flex;
   flex-wrap: wrap;
