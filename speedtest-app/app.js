@@ -27,7 +27,9 @@ const state = {
   running: false,
   controller: null,
   history: loadHistory(),
+  serverCatalog: DEFAULT_SERVERS,
   servers: DEFAULT_SERVERS,
+  blockedServerIds: new Set(),
   user: null,
   githubCommitsLoaded: false
 };
@@ -194,6 +196,7 @@ async function runTest() {
   const durationSeconds = getSelectedDuration();
   const pingCount = durationSeconds >= 45 ? 8 : 6;
   const controller = new AbortController();
+  let activeServer = null;
   state.running = true;
   state.controller = controller;
   setRunning(true);
@@ -201,6 +204,7 @@ async function runTest() {
 
   try {
     const server = await resolveSelectedServer(controller.signal);
+    activeServer = server;
 
     setPhase("Ping", 6, `Finding latency to ${server.name}`);
     const latency = await measurePing(server, pingCount, controller.signal);
@@ -251,6 +255,7 @@ async function runTest() {
       setPhase("Stopped", 0, "Test stopped before saving a result.");
     } else {
       setPhase("Offline", 0, "Test could not complete. Check the connection or CORS access to the selected endpoint.");
+      markServerUnavailable(activeServer);
       console.error(error);
     }
   } finally {
@@ -292,7 +297,8 @@ async function enterApp(user, { route = "home" } = {}) {
   els.adminLink.setAttribute("aria-hidden", String(!isAdmin));
   setAuthStatus(`Signed in as @${user.username || "user"}.`, "success");
 
-  state.servers = await loadServers();
+  state.serverCatalog = await loadServers();
+  state.servers = getFallbackServers();
   populateServerSelect();
   renderHistory();
   loadGitHubCommitTracker();
@@ -1198,34 +1204,76 @@ function populateServerSelect() {
 async function checkAllServers() {
   if (!els.serverCheckList || !els.serverCheckStatus) return;
 
-  const servers = state.servers.filter((server) => server.protocol !== "auto");
+  const servers = state.serverCatalog.filter((server) => server.protocol !== "auto");
   if (!servers.length) {
     els.serverCheckStatus.textContent = "No test servers configured.";
     els.serverCheckList.innerHTML = "";
+    state.servers = getFallbackServers();
+    populateServerSelect();
     return;
   }
 
   els.refreshServers.disabled = true;
-  els.serverCheckStatus.textContent = `Checking ${servers.length} servers from this browser...`;
+  els.serverCheckStatus.textContent = `Checking ${servers.length} free servers from this browser...`;
   els.serverCheckList.innerHTML = "";
   renderServerChecks(servers.map((server) => ({ server, status: "checking" })));
 
   const results = await Promise.all(servers.map(async (server) => {
     try {
-      const ping = await probeServerLatency(server, new AbortController().signal);
+      const ping = await probeServerCompatibility(server);
       return { ping, server, status: "online" };
     } catch {
       return { ping: Number.POSITIVE_INFINITY, server, status: "offline" };
     }
   }));
+  results.forEach((result) => {
+    if (state.blockedServerIds.has(result.server.id)) {
+      result.ping = Number.POSITIVE_INFINITY;
+      result.status = "offline";
+    }
+  });
 
   results.sort((a, b) => a.ping - b.ping);
   renderServerChecks(results);
   const online = results.filter((result) => result.status === "online");
+  state.servers = buildAvailableServers(online.map((result) => result.server));
+  populateServerSelect();
   els.serverCheckStatus.textContent = online.length
-    ? `${online.length} of ${results.length} servers responded. Fastest: ${online[0].server.name} at ${formatNumber(online[0].ping, 0)} ms.`
-    : "No configured servers responded from this browser.";
+    ? `${online.length} of ${results.length} servers passed browser checks. Fastest: ${online[0].server.name} at ${formatNumber(online[0].ping, 0)} ms.`
+    : "No extra servers passed browser checks. Cloudflare fallback is ready.";
   els.refreshServers.disabled = false;
+}
+
+function getFallbackServers() {
+  return buildAvailableServers([]);
+}
+
+function buildAvailableServers(onlineServers) {
+  const auto = state.serverCatalog.find((server) => server.protocol === "auto") || DEFAULT_SERVERS[0];
+  const cloudflare = state.serverCatalog.find((server) => server.id === "cloudflare-global") || DEFAULT_SERVERS[1];
+  const unique = new Map();
+  [auto, cloudflare, ...onlineServers].forEach((server) => {
+    if (server && !state.blockedServerIds.has(server.id)) unique.set(server.id, server);
+  });
+  return [...unique.values()];
+}
+
+function markServerUnavailable(server) {
+  if (!server || server.protocol === "auto" || server.protocol === "cloudflare") return;
+  state.blockedServerIds.add(server.id);
+  state.servers = state.servers.filter((candidate) => candidate.protocol === "auto" || candidate.id !== server.id);
+  populateServerSelect();
+  const checkItem = els.serverCheckList.querySelector(`[data-server-id="${CSS.escape(server.id)}"]`);
+  if (checkItem) {
+    checkItem.classList.remove("online", "checking");
+    checkItem.classList.add("offline");
+    const result = checkItem.querySelector("b");
+    if (result) result.textContent = "Failed";
+  }
+  if (els.serverCheckStatus) {
+    els.serverCheckStatus.textContent = `${server.name} failed a full run and was removed from current choices.`;
+  }
+  els.status.textContent = `${server.name} failed this run and was removed from current choices.`;
 }
 
 function renderServerChecks(results) {
@@ -1233,6 +1281,7 @@ function renderServerChecks(results) {
   results.forEach((result) => {
     const item = document.createElement("article");
     item.className = `server-check ${result.status}`;
+    item.dataset.serverId = result.server.id;
     const ping = result.status === "online" ? `${formatNumber(result.ping, 0)} ms` : result.status === "checking" ? "..." : "Failed";
     item.innerHTML = `
       <div>
@@ -1284,6 +1333,39 @@ async function probeServerLatency(server, outerSignal) {
   } finally {
     clearTimeout(timeout);
     outerSignal.removeEventListener("abort", onAbort);
+  }
+}
+
+async function probeServerCompatibility(server) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const start = performance.now();
+    await fetch(buildPingUrl(server, "compat"), {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    const ping = performance.now() - start;
+
+    const downloadResponse = await fetch(buildDownloadUrl(server, 5_000_000, "compat"), {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    if (!downloadResponse.ok) throw new Error("Download check failed");
+    await downloadResponse.arrayBuffer();
+
+    const uploadResponse = await fetch(buildUploadUrl(server, 1_000_000, "compat"), {
+      body: makePayload(1_000_000),
+      cache: "no-store",
+      method: "POST",
+      signal: controller.signal
+    });
+    if (!uploadResponse.ok) throw new Error("Upload check failed");
+
+    return ping;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
