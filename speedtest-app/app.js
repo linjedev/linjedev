@@ -33,6 +33,20 @@ const GAME_SERVICE_TARGETS = [
     url: "https://status.epicgames.com"
   },
   {
+    id: "rocket-league",
+    name: "Rocket League",
+    network: "Epic Games",
+    region: "Global",
+    url: "https://status.epicgames.com"
+  },
+  {
+    id: "fall-guys",
+    name: "Fall Guys",
+    network: "Epic Games",
+    region: "Global",
+    url: "https://status.epicgames.com"
+  },
+  {
     id: "valorant",
     name: "Valorant",
     network: "Riot Games",
@@ -40,8 +54,43 @@ const GAME_SERVICE_TARGETS = [
     url: "https://status.riotgames.com"
   },
   {
+    id: "league",
+    name: "League of Legends",
+    network: "Riot Games",
+    region: "Global",
+    url: "https://status.riotgames.com"
+  },
+  {
+    id: "tft",
+    name: "Teamfight Tactics",
+    network: "Riot Games",
+    region: "Global",
+    url: "https://status.riotgames.com"
+  },
+  {
+    id: "wild-rift",
+    name: "Wild Rift",
+    network: "Riot Games",
+    region: "Global",
+    url: "https://status.riotgames.com"
+  },
+  {
     id: "steam",
     name: "Steam",
+    network: "Valve",
+    region: "Global",
+    url: "https://store.steampowered.com"
+  },
+  {
+    id: "cs2",
+    name: "Counter-Strike 2",
+    network: "Valve",
+    region: "Global",
+    url: "https://store.steampowered.com"
+  },
+  {
+    id: "dota2",
+    name: "Dota 2",
     network: "Valve",
     region: "Global",
     url: "https://store.steampowered.com"
@@ -61,11 +110,186 @@ const GAME_SERVICE_TARGETS = [
     url: "https://sessionserver.mojang.com"
   },
   {
+    id: "apex",
+    name: "Apex Legends",
+    network: "EA",
+    region: "Global",
+    url: "https://www.ea.com/games/apex-legends"
+  },
+  {
+    id: "fc",
+    name: "EA Sports FC",
+    network: "EA",
+    region: "Global",
+    url: "https://www.ea.com/games/ea-sports-fc"
+  },
+  {
+    id: "battlefield",
+    name: "Battlefield",
+    network: "EA",
+    region: "Global",
+    url: "https://www.ea.com/games/battlefield"
+  },
+  {
+    id: "cod",
+    name: "Call of Duty",
+    network: "Activision",
+    region: "Global",
+    url: "https://support.activision.com/onlineservices"
+  },
+  {
+    id: "warzone",
+    name: "Warzone",
+    network: "Activision",
+    region: "Global",
+    url: "https://support.activision.com/onlineservices"
+  },
+  {
+    id: "overwatch",
+    name: "Overwatch 2",
+    network: "Battle.net",
+    region: "Global",
+    url: "https://overwatch.blizzard.com"
+  },
+  {
+    id: "wow",
+    name: "World of Warcraft",
+    network: "Battle.net",
+    region: "Global",
+    url: "https://worldofwarcraft.blizzard.com"
+  },
+  {
+    id: "diablo",
+    name: "Diablo",
+    network: "Battle.net",
+    region: "Global",
+    url: "https://diablo.blizzard.com"
+  },
+  {
+    id: "destiny",
+    name: "Destiny 2",
+    network: "Bungie",
+    region: "Global",
+    url: "https://www.bungie.net"
+  },
+  {
+    id: "r6",
+    name: "Rainbow Six Siege",
+    network: "Ubisoft",
+    region: "Global",
+    url: "https://www.ubisoft.com/en-us/game/rainbow-six/siege/status"
+  },
+  {
+    id: "the-division",
+    name: "The Division",
+    network: "Ubisoft",
+    region: "Global",
+    url: "https://www.ubisoft.com"
+  },
+  {
+    id: "pubg",
+    name: "PUBG",
+    network: "Krafton",
+    region: "Global",
+    url: "https://pubg.com"
+  },
+  {
+    id: "genshin",
+    name: "Genshin Impact",
+    network: "HoYoverse",
+    region: "Global",
+    url: "https://genshin.hoyoverse.com"
+  },
+  {
+    id: "star-rail",
+    name: "Honkai: Star Rail",
+    network: "HoYoverse",
+    region: "Global",
+    url: "https://hsr.hoyoverse.com"
+  },
+  {
+    id: "zzz",
+    name: "Zenless Zone Zero",
+    network: "HoYoverse",
+    region: "Global",
+    url: "https://zenless.hoyoverse.com"
+  },
+  {
+    id: "warframe",
+    name: "Warframe",
+    network: "Digital Extremes",
+    region: "Global",
+    url: "https://www.warframe.com"
+  },
+  {
+    id: "ffxiv",
+    name: "Final Fantasy XIV",
+    network: "Square Enix",
+    region: "Global",
+    url: "https://na.finalfantasyxiv.com/lodestone/worldstatus/"
+  },
+  {
+    id: "runescape",
+    name: "RuneScape",
+    network: "Jagex",
+    region: "Global",
+    url: "https://secure.runescape.com"
+  },
+  {
+    id: "osrs",
+    name: "Old School RuneScape",
+    network: "Jagex",
+    region: "Global",
+    url: "https://oldschool.runescape.com"
+  },
+  {
+    id: "tarkov",
+    name: "Escape from Tarkov",
+    network: "Battlestate",
+    region: "Global",
+    url: "https://status.escapefromtarkov.com"
+  },
+  {
+    id: "palworld",
+    name: "Palworld",
+    network: "Pocketpair",
+    region: "Global",
+    url: "https://www.pocketpair.jp/palworld"
+  },
+  {
+    id: "helldivers",
+    name: "Helldivers 2",
+    network: "Arrowhead",
+    region: "Global",
+    url: "https://www.arrowheadgamestudios.com"
+  },
+  {
+    id: "playstation",
+    name: "PlayStation Network",
+    network: "Sony",
+    region: "Global",
+    url: "https://status.playstation.com"
+  },
+  {
     id: "xbox",
     name: "Xbox Network",
     network: "Microsoft",
     region: "Global",
     url: "https://support.xbox.com/xbox-live-status"
+  },
+  {
+    id: "nintendo",
+    name: "Nintendo Network",
+    network: "Nintendo",
+    region: "Global",
+    url: "https://www.nintendo.com/consumer/network/en_na/network_status.jsp"
+  },
+  {
+    id: "pokemon-go",
+    name: "Pokemon GO",
+    network: "Niantic",
+    region: "Global",
+    url: "https://niantic.helpshift.com"
   }
 ];
 const state = {
