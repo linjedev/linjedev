@@ -1219,7 +1219,6 @@ async function checkAllServers() {
   els.refreshServers.disabled = true;
   els.serverCheckStatus.textContent = `Checking ${servers.length} free servers from this browser...`;
   els.serverCheckList.innerHTML = "";
-  renderServerChecks(servers.map((server) => ({ server, status: "checking" })));
 
   const results = await Promise.all(servers.map(async (server) => {
     try {
@@ -1237,12 +1236,12 @@ async function checkAllServers() {
   });
 
   results.sort((a, b) => a.ping - b.ping);
-  renderServerChecks(results);
   const online = results.filter((result) => result.status === "online");
+  renderServerChecks(online);
   state.servers = buildAvailableServers(online.map((result) => result.server));
   populateServerSelect();
   els.serverCheckStatus.textContent = online.length
-    ? `${online.length} of ${results.length} servers passed browser checks. Fastest: ${online[0].server.name} at ${formatNumber(online[0].ping, 0)} ms.`
+    ? `${online.length} of ${results.length} free candidates are available. Fastest: ${online[0].server.name} at ${formatNumber(online[0].ping, 0)} ms. Failed candidates are hidden.`
     : "No extra servers passed browser checks. Cloudflare fallback is ready.";
   els.refreshServers.disabled = false;
 }
