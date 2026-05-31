@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=games2">
+    <link rel="stylesheet" href="styles.css?v=games3">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -401,7 +401,7 @@
             <div>
               <p class="eyebrow">Hidden</p>
               <h2 id="arcade-title">Linje Games</h2>
-              <p class="arcade-subtitle">Now playing: <strong>Linje Invaders</strong></p>
+              <p class="arcade-subtitle">Now playing: <strong id="arcadeCurrentGame">Linje Invaders</strong></p>
             </div>
             <div class="arcade-scoreboard">
               <span>Score <strong id="arcadeScore">0</strong></span>
@@ -420,10 +420,18 @@
               </ol>
             </aside>
           </div>
+          <div class="arcade-picker" aria-label="Linje Games selector">
+            <button class="active" type="button" data-arcade-game="invaders">Invaders</button>
+            <button type="button" data-arcade-game="snake">Signal Snake</button>
+            <button type="button" data-arcade-game="breaker">Glass Breaker</button>
+            <button type="button" data-arcade-game="dodge">Packet Dodge</button>
+          </div>
           <div class="arcade-actions">
+            <button id="arcadeUp" class="ghost-button" type="button">Up</button>
             <button id="arcadeLeft" class="ghost-button" type="button">Left</button>
             <button id="arcadeFire" class="run-button" type="button">Fire</button>
             <button id="arcadeRight" class="ghost-button" type="button">Right</button>
+            <button id="arcadeDown" class="ghost-button" type="button">Down</button>
             <button id="arcadeRestart" class="ghost-button" type="button">Restart</button>
           </div>
           <p id="arcadeStatus" class="status">Move with arrows or buttons. Fire with space.</p>
@@ -459,6 +467,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=games2" defer></script>
+    <script src="app.js?v=games3" defer></script>
   </body>
 </html>

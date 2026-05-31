@@ -24,6 +24,24 @@ const TRANSFER_CHUNKS = {
 const STORAGE_KEY = "linje-speed-history-v1";
 const GITHUB_COMMITS_URL = "/api/github/commits";
 const PROFILE_STORAGE_KEY = "linje-profile-v1";
+const ARCADE_GAMES = {
+  breaker: {
+    label: "Glass Breaker",
+    status: "Break glass tiles. Move the paddle with arrows."
+  },
+  dodge: {
+    label: "Packet Dodge",
+    status: "Dodge falling packets. Survive as long as you can."
+  },
+  invaders: {
+    label: "Linje Invaders",
+    status: "Move with arrows or buttons. Fire with space."
+  },
+  snake: {
+    label: "Signal Snake",
+    status: "Collect signal nodes. Avoid walls and your own trail."
+  }
+};
 const GAME_SERVICE_TARGETS = [
   {
     id: "fortnite",
@@ -472,6 +490,7 @@ const state = {
   gameServersLoaded: false,
   arcadeClicks: 0,
   arcadeClickTimer: 0,
+  arcadeGame: "invaders",
   arcadeUnlocked: false,
   arcade: null
 };
@@ -544,10 +563,14 @@ const els = {
   gameServersChecked: document.querySelector("#gameServersChecked"),
   arcadeView: document.querySelector("#arcade"),
   arcadeCanvas: document.querySelector("#arcadeCanvas"),
+  arcadeCurrentGame: document.querySelector("#arcadeCurrentGame"),
+  arcadeGameButtons: document.querySelectorAll("[data-arcade-game]"),
   arcadeLeaderboard: document.querySelector("#arcadeLeaderboard"),
   arcadeScore: document.querySelector("#arcadeScore"),
   arcadeLives: document.querySelector("#arcadeLives"),
   arcadeStatus: document.querySelector("#arcadeStatus"),
+  arcadeUp: document.querySelector("#arcadeUp"),
+  arcadeDown: document.querySelector("#arcadeDown"),
   arcadeLeft: document.querySelector("#arcadeLeft"),
   arcadeRight: document.querySelector("#arcadeRight"),
   arcadeFire: document.querySelector("#arcadeFire"),
@@ -624,7 +647,16 @@ els.visitProfileForm.addEventListener("submit", visitProfile);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
 els.refreshServers.addEventListener("click", () => checkAllServers());
 els.refreshGameServers.addEventListener("click", () => checkGameServers());
+els.arcadeGameButtons.forEach((button) => {
+  button.addEventListener("click", () => selectArcadeGame(button.dataset.arcadeGame));
+});
 els.arcadeRestart.addEventListener("click", resetArcadeGame);
+els.arcadeUp.addEventListener("pointerdown", () => setArcadeVerticalDirection(-1));
+els.arcadeDown.addEventListener("pointerdown", () => setArcadeVerticalDirection(1));
+els.arcadeUp.addEventListener("pointerup", () => setArcadeVerticalDirection(0));
+els.arcadeDown.addEventListener("pointerup", () => setArcadeVerticalDirection(0));
+els.arcadeUp.addEventListener("pointerleave", () => setArcadeVerticalDirection(0));
+els.arcadeDown.addEventListener("pointerleave", () => setArcadeVerticalDirection(0));
 els.arcadeLeft.addEventListener("pointerdown", () => setArcadeDirection(-1));
 els.arcadeRight.addEventListener("pointerdown", () => setArcadeDirection(1));
 els.arcadeLeft.addEventListener("pointerup", () => setArcadeDirection(0));
@@ -1901,10 +1933,42 @@ function startArcadeGame() {
   drawArcadeGame();
 }
 
+function selectArcadeGame(gameId) {
+  if (!ARCADE_GAMES[gameId]) return;
+  state.arcadeGame = gameId;
+  state.arcade = null;
+  updateArcadeGameChrome();
+  resetArcadeGame();
+}
+
+function updateArcadeGameChrome() {
+  const game = ARCADE_GAMES[state.arcadeGame] || ARCADE_GAMES.invaders;
+  els.arcadeCurrentGame.textContent = game.label;
+  els.arcadeGameButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.arcadeGame === state.arcadeGame);
+  });
+}
+
 function resetArcadeGame() {
   const canvas = els.arcadeCanvas;
   if (!canvas) return;
+  updateArcadeGameChrome();
+  if (state.arcadeGame === "snake") {
+    resetSnakeGame(canvas);
+    return;
+  }
+  if (state.arcadeGame === "breaker") {
+    resetBreakerGame(canvas);
+    return;
+  }
+  if (state.arcadeGame === "dodge") {
+    resetDodgeGame(canvas);
+    return;
+  }
+  resetInvadersGame(canvas);
+}
 
+function resetInvadersGame(canvas) {
   const enemies = [];
   for (let row = 0; row < 4; row += 1) {
     for (let col = 0; col < 10; col += 1) {
@@ -1926,12 +1990,85 @@ function resetArcadeGame() {
     keys: { left: false, right: false },
     last: performance.now(),
     lives: 3,
+    mode: "invaders",
     over: false,
     playerX: canvas.width / 2,
     running: true,
     score: 0,
     submitted: false,
-    status: "Move with arrows or buttons. Fire with space."
+    status: ARCADE_GAMES.invaders.status
+  };
+  updateArcadeHud();
+  drawArcadeGame();
+}
+
+function resetSnakeGame(canvas) {
+  state.arcade = {
+    direction: "right",
+    food: { x: 17, y: 10 },
+    keys: { left: false, right: false, up: false, down: false },
+    last: performance.now(),
+    lives: 1,
+    mode: "snake",
+    nextDirection: "right",
+    over: false,
+    running: true,
+    score: 0,
+    snake: [
+      { x: 10, y: 10 },
+      { x: 9, y: 10 },
+      { x: 8, y: 10 }
+    ],
+    step: 0,
+    submitted: false,
+    status: ARCADE_GAMES.snake.status
+  };
+  placeSnakeFood(canvas);
+  updateArcadeHud();
+  drawArcadeGame();
+}
+
+function resetBreakerGame(canvas) {
+  const bricks = [];
+  for (let row = 0; row < 5; row += 1) {
+    for (let col = 0; col < 10; col += 1) {
+      bricks.push({ alive: true, x: 70 + col * 76, y: 66 + row * 32 });
+    }
+  }
+  state.arcade = {
+    ball: { dx: 4.2, dy: -4.8, x: canvas.width / 2, y: 398 },
+    bricks,
+    fireCooldown: 0,
+    keys: { left: false, right: false },
+    last: performance.now(),
+    lives: 3,
+    mode: "breaker",
+    over: false,
+    paddleX: canvas.width / 2,
+    running: true,
+    score: 0,
+    submitted: false,
+    status: ARCADE_GAMES.breaker.status
+  };
+  updateArcadeHud();
+  drawArcadeGame();
+}
+
+function resetDodgeGame(canvas) {
+  state.arcade = {
+    keys: { left: false, right: false },
+    last: performance.now(),
+    lives: 3,
+    mode: "dodge",
+    over: false,
+    packets: [],
+    playerX: canvas.width / 2,
+    running: true,
+    score: 0,
+    spawn: 0,
+    submitted: false,
+    survived: 0,
+    status: ARCADE_GAMES.dodge.status
   };
   updateArcadeHud();
   drawArcadeGame();
@@ -1949,6 +2086,24 @@ function tickArcadeGame(now = performance.now()) {
 }
 
 function updateArcadeGame(delta) {
+  const game = state.arcade;
+  if (!game || game.over) return;
+  if (game.mode === "snake") {
+    updateSnakeGame(delta);
+    return;
+  }
+  if (game.mode === "breaker") {
+    updateBreakerGame(delta);
+    return;
+  }
+  if (game.mode === "dodge") {
+    updateDodgeGame(delta);
+    return;
+  }
+  updateInvadersGame(delta);
+}
+
+function updateInvadersGame(delta) {
   const game = state.arcade;
   if (!game || game.over) return;
   const canvas = els.arcadeCanvas;
@@ -2026,10 +2181,141 @@ function updateArcadeGame(delta) {
   updateArcadeHud();
 }
 
+function updateSnakeGame(delta) {
+  const game = state.arcade;
+  const canvas = els.arcadeCanvas;
+  game.step += delta;
+  if (game.step < 8) return;
+  game.step = 0;
+  game.direction = game.nextDirection;
+  const head = { ...game.snake[0] };
+  if (game.direction === "left") head.x -= 1;
+  if (game.direction === "right") head.x += 1;
+  if (game.direction === "up") head.y -= 1;
+  if (game.direction === "down") head.y += 1;
+
+  const cols = 30;
+  const rows = 18;
+  const hitWall = head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows;
+  const hitSelf = game.snake.some((segment) => segment.x === head.x && segment.y === head.y);
+  if (hitWall || hitSelf) {
+    game.over = true;
+    game.status = "Signal lost. Restart to try again.";
+    submitFinishedArcadeScore(game);
+    updateArcadeHud();
+    return;
+  }
+
+  game.snake.unshift(head);
+  if (head.x === game.food.x && head.y === game.food.y) {
+    game.score += 35;
+    placeSnakeFood(canvas);
+  } else {
+    game.snake.pop();
+  }
+  updateArcadeHud();
+}
+
+function updateBreakerGame(delta) {
+  const game = state.arcade;
+  const canvas = els.arcadeCanvas;
+  const speed = 7 * delta;
+  if (game.keys.left) game.paddleX -= speed;
+  if (game.keys.right) game.paddleX += speed;
+  game.paddleX = Math.max(58, Math.min(canvas.width - 58, game.paddleX));
+
+  const ball = game.ball;
+  ball.x += ball.dx * delta;
+  ball.y += ball.dy * delta;
+  if (ball.x < 12 || ball.x > canvas.width - 12) ball.dx *= -1;
+  if (ball.y < 16) ball.dy = Math.abs(ball.dy);
+  if (Math.abs(ball.x - game.paddleX) < 62 && ball.y > 424 && ball.y < 452 && ball.dy > 0) {
+    ball.dy *= -1;
+    ball.dx += (ball.x - game.paddleX) / 28;
+  }
+
+  game.bricks.forEach((brick) => {
+    if (!brick.alive) return;
+    if (Math.abs(ball.x - brick.x) < 34 && Math.abs(ball.y - brick.y) < 14) {
+      brick.alive = false;
+      ball.dy *= -1;
+      game.score += 20;
+    }
+  });
+
+  if (ball.y > canvas.height + 10) {
+    game.lives -= 1;
+    if (game.lives <= 0) {
+      game.over = true;
+      game.status = "Glass shattered. Restart to try again.";
+      submitFinishedArcadeScore(game);
+    } else {
+      game.ball = { dx: 4.2, dy: -4.8, x: canvas.width / 2, y: 398 };
+      game.status = "Ball reset. Keep breaking.";
+    }
+  } else if (!game.bricks.some((brick) => brick.alive)) {
+    game.over = true;
+    game.status = "Board cleared. Clean.";
+    submitFinishedArcadeScore(game);
+  }
+  updateArcadeHud();
+}
+
+function updateDodgeGame(delta) {
+  const game = state.arcade;
+  const canvas = els.arcadeCanvas;
+  const speed = 7.2 * delta;
+  if (game.keys.left) game.playerX -= speed;
+  if (game.keys.right) game.playerX += speed;
+  game.playerX = Math.max(34, Math.min(canvas.width - 34, game.playerX));
+  game.survived += delta;
+  game.score = Math.floor(game.survived * 2);
+  game.spawn -= delta;
+  if (game.spawn <= 0) {
+    game.spawn = Math.max(7, 22 - game.survived / 18);
+    game.packets.push({
+      size: 16 + Math.random() * 18,
+      speed: 3.5 + Math.random() * 3.2 + game.survived / 160,
+      x: 32 + Math.random() * (canvas.width - 64),
+      y: -30
+    });
+  }
+  game.packets.forEach((packet) => {
+    packet.y += packet.speed * delta;
+    if (Math.abs(packet.x - game.playerX) < packet.size + 18 && Math.abs(packet.y - 452) < packet.size + 16) {
+      packet.hit = true;
+      game.lives -= 1;
+      game.status = game.lives ? "Packet clipped you. Keep dodging." : "Connection dropped. Restart to try again.";
+    }
+  });
+  game.packets = game.packets.filter((packet) => !packet.hit && packet.y < canvas.height + 40);
+  if (game.lives <= 0) {
+    game.over = true;
+    submitFinishedArcadeScore(game);
+  }
+  updateArcadeHud();
+}
+
 function drawArcadeGame() {
   const game = state.arcade;
   const canvas = els.arcadeCanvas;
   if (!game || !canvas) return;
+  if (game.mode === "snake") {
+    drawSnakeGame(game, canvas);
+    return;
+  }
+  if (game.mode === "breaker") {
+    drawBreakerGame(game, canvas);
+    return;
+  }
+  if (game.mode === "dodge") {
+    drawDodgeGame(game, canvas);
+    return;
+  }
+  drawInvadersGame(game, canvas);
+}
+
+function drawInvadersGame(game, canvas) {
   const context = canvas.getContext("2d");
   context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -2083,9 +2369,105 @@ function drawArcadeGame() {
   }
 }
 
+function drawSnakeGame(game, canvas) {
+  const context = canvas.getContext("2d");
+  drawArcadeBackground(context, canvas);
+  const cell = 26;
+  const offsetX = 60;
+  const offsetY = 28;
+  context.fillStyle = "#42e06f";
+  game.snake.forEach((segment, index) => {
+    context.globalAlpha = index ? .72 : 1;
+    roundRect(context, offsetX + segment.x * cell, offsetY + segment.y * cell, cell - 4, cell - 4, 7);
+    context.fill();
+  });
+  context.globalAlpha = 1;
+  context.fillStyle = "#f7f7f2";
+  roundRect(context, offsetX + game.food.x * cell, offsetY + game.food.y * cell, cell - 4, cell - 4, 8);
+  context.fill();
+  drawArcadeOverlayIfOver(context, canvas, game);
+}
+
+function drawBreakerGame(game, canvas) {
+  const context = canvas.getContext("2d");
+  drawArcadeBackground(context, canvas);
+  game.bricks.forEach((brick) => {
+    if (!brick.alive) return;
+    context.fillStyle = "#42e06f";
+    roundRect(context, brick.x - 32, brick.y - 11, 64, 22, 7);
+    context.fill();
+  });
+  context.fillStyle = "#f7f7f2";
+  roundRect(context, game.paddleX - 58, 446, 116, 14, 7);
+  context.fill();
+  context.beginPath();
+  context.arc(game.ball.x, game.ball.y, 10, 0, Math.PI * 2);
+  context.fill();
+  drawArcadeOverlayIfOver(context, canvas, game);
+}
+
+function drawDodgeGame(game, canvas) {
+  const context = canvas.getContext("2d");
+  drawArcadeBackground(context, canvas);
+  context.fillStyle = "#f7f7f2";
+  context.beginPath();
+  context.moveTo(game.playerX, 430);
+  context.lineTo(game.playerX - 32, 474);
+  context.lineTo(game.playerX + 32, 474);
+  context.closePath();
+  context.fill();
+  game.packets.forEach((packet) => {
+    context.fillStyle = "#42e06f";
+    roundRect(context, packet.x - packet.size / 2, packet.y - packet.size / 2, packet.size, packet.size, 6);
+    context.fill();
+  });
+  drawArcadeOverlayIfOver(context, canvas, game);
+}
+
+function drawArcadeBackground(context, canvas) {
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, "#050505");
+  gradient.addColorStop(1, "#101010");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = "rgba(247,247,242,.08)";
+  for (let x = 0; x < canvas.width; x += 60) {
+    context.beginPath();
+    context.moveTo(x, 0);
+    context.lineTo(x - 90, canvas.height);
+    context.stroke();
+  }
+}
+
+function drawArcadeOverlayIfOver(context, canvas, game) {
+  if (!game.over) return;
+  context.fillStyle = "rgba(5,5,5,.68)";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#f7f7f2";
+  context.font = "700 42px system-ui, sans-serif";
+  context.textAlign = "center";
+  context.fillText(game.status, canvas.width / 2, canvas.height / 2);
+}
+
+function roundRect(context, x, y, width, height, radius) {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.arcTo(x + width, y, x + width, y + height, radius);
+  context.arcTo(x + width, y + height, x, y + height, radius);
+  context.arcTo(x, y + height, x, y, radius);
+  context.arcTo(x, y, x + width, y, radius);
+  context.closePath();
+}
+
 function fireArcadeShot() {
   const game = state.arcade;
   if (!game || game.over || els.arcadeView.hidden || game.fireCooldown > 0) return;
+  if (game.mode !== "invaders") {
+    if (game.mode === "breaker") game.ball.dy = -Math.abs(game.ball.dy);
+    if (game.mode === "snake") rotateSnakeDirection();
+    return;
+  }
   game.bullets.push({ x: game.playerX, y: 432 });
   game.fireCooldown = 12;
 }
@@ -2093,18 +2475,50 @@ function fireArcadeShot() {
 function setArcadeDirection(direction) {
   const game = state.arcade;
   if (!game) return;
+  if (game.mode === "snake") {
+    if (direction < 0 && game.direction !== "right") game.nextDirection = "left";
+    if (direction > 0 && game.direction !== "left") game.nextDirection = "right";
+    return;
+  }
   game.keys.left = direction < 0;
   game.keys.right = direction > 0;
+}
+
+function setArcadeVerticalDirection(direction) {
+  const game = state.arcade;
+  if (!game) return;
+  if (game.mode !== "snake") {
+    game.keys.up = direction < 0;
+    game.keys.down = direction > 0;
+    return;
+  }
+  if (direction < 0 && game.direction !== "down") game.nextDirection = "up";
+  if (direction > 0 && game.direction !== "up") game.nextDirection = "down";
+}
+
+function rotateSnakeDirection() {
+  const game = state.arcade;
+  if (!game || game.mode !== "snake") return;
+  const order = ["up", "right", "down", "left"];
+  const next = order[(order.indexOf(game.nextDirection) + 1) % order.length];
+  const opposites = { down: "up", left: "right", right: "left", up: "down" };
+  if (opposites[next] !== game.direction) game.nextDirection = next;
 }
 
 function handleArcadeKeyDown(event) {
   if (!state.arcade || els.arcadeView.hidden) return;
   if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
     event.preventDefault();
-    state.arcade.keys.left = true;
+    setArcadeDirection(-1);
   } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
     event.preventDefault();
-    state.arcade.keys.right = true;
+    setArcadeDirection(1);
+  } else if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") {
+    event.preventDefault();
+    setArcadeVerticalDirection(-1);
+  } else if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") {
+    event.preventDefault();
+    setArcadeVerticalDirection(1);
   } else if (event.code === "Space") {
     event.preventDefault();
     fireArcadeShot();
@@ -2114,9 +2528,13 @@ function handleArcadeKeyDown(event) {
 function handleArcadeKeyUp(event) {
   if (!state.arcade) return;
   if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
-    state.arcade.keys.left = false;
+    if (state.arcade.mode !== "snake") state.arcade.keys.left = false;
   } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
-    state.arcade.keys.right = false;
+    if (state.arcade.mode !== "snake") state.arcade.keys.right = false;
+  } else if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") {
+    if (state.arcade.mode !== "snake") state.arcade.keys.up = false;
+  } else if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") {
+    if (state.arcade.mode !== "snake") state.arcade.keys.down = false;
   }
 }
 
@@ -2126,6 +2544,27 @@ function updateArcadeHud() {
   els.arcadeScore.textContent = String(game.score);
   els.arcadeLives.textContent = String(Math.max(0, game.lives));
   els.arcadeStatus.textContent = game.status;
+}
+
+function submitFinishedArcadeScore(game) {
+  if (!game || game.submitted) return;
+  game.submitted = true;
+  submitArcadeScore(game.score);
+}
+
+function placeSnakeFood(canvas) {
+  const game = state.arcade;
+  if (!game) return;
+  const cols = 30;
+  const rows = 18;
+  let food;
+  do {
+    food = {
+      x: Math.floor(Math.random() * cols),
+      y: Math.floor(Math.random() * rows)
+    };
+  } while (game.snake.some((segment) => segment.x === food.x && segment.y === food.y));
+  game.food = food;
 }
 
 async function loadArcadeLeaderboard() {
