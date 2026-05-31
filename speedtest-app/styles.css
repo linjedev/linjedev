@@ -137,8 +137,9 @@ body[data-auth="authenticated"] .auth-view {
   min-height: min(760px, calc(100vh - 88px));
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
-  align-items: center;
-  gap: 56px;
+  align-content: center;
+  align-items: end;
+  gap: 18px 56px;
   touch-action: auto;
 }
 
@@ -149,23 +150,25 @@ body[data-auth="authenticated"] .auth-view {
 }
 
 .auth-copy {
+  grid-column: 2;
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .auth-copy h1 {
-  max-width: 760px;
-  font-size: clamp(50px, 8vw, 104px);
+  max-width: 440px;
+  font-size: clamp(38px, 4.5vw, 58px);
 }
 
 .auth-copy p:not(.eyebrow) {
-  max-width: 620px;
+  max-width: 440px;
   color: var(--soft);
-  font-size: clamp(17px, 2vw, 22px);
+  font-size: clamp(15px, 1.5vw, 18px);
   line-height: 1.45;
 }
 
 .auth-card {
+  grid-column: 2;
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -959,6 +962,11 @@ select {
     align-content: center;
     gap: 28px;
     padding-top: 72px;
+  }
+
+  .auth-copy,
+  .auth-card {
+    grid-column: 1;
   }
 
   .auth-brand {

@@ -485,8 +485,8 @@ function initAuthBackground() {
     logo.height = markSize;
 
     if (!logo.initialized) {
-      logo.x = width * .46;
-      logo.y = Math.max(22, height * .08);
+      logo.x = width * .16;
+      logo.y = Math.max(22, height * .1);
       logo.initialized = true;
     }
 
@@ -494,8 +494,13 @@ function initAuthBackground() {
   }
 
   function clampLogo() {
-    logo.x = Math.max(10, Math.min(width - logo.width - 10, logo.x));
+    logo.x = Math.max(10, Math.min(getLogoMaxX(), logo.x));
     logo.y = Math.max(10, Math.min(getLogoMaxY(), logo.y));
+  }
+
+  function getLogoMaxX() {
+    const leftLane = width < 760 ? width - logo.width - 10 : width * .56 - logo.width;
+    return Math.max(10, Math.min(width - logo.width - 10, leftLane));
   }
 
   function getLogoMaxY() {
@@ -559,8 +564,8 @@ function initAuthBackground() {
       logo.y += logo.vy * dt;
     }
 
-    if (logo.x <= 10 || logo.x + logo.width >= width - 10) {
-      logo.x = Math.max(10, Math.min(width - logo.width - 10, logo.x));
+    if (logo.x <= 10 || logo.x >= getLogoMaxX()) {
+      logo.x = Math.max(10, Math.min(getLogoMaxX(), logo.x));
       logo.vx *= -1;
     }
     if (logo.y <= 10 || logo.y >= getLogoMaxY()) {
