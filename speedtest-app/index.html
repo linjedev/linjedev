@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=profile1">
+    <link rel="stylesheet" href="styles.css?v=profile2">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -83,11 +83,11 @@
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="#home" data-view-link="home">Home</a>
         <a href="#speed" data-view-link="speed">Speed</a>
-        <a id="adminLink" href="#admin" hidden>Admin</a>
         <button id="accountButton" class="account-button" type="button" aria-expanded="false" aria-controls="accountMenu">@user</button>
       </nav>
       <div id="accountMenu" class="account-menu" hidden>
         <button id="profileMenuButton" type="button">Profile</button>
+        <button id="adminLink" type="button" hidden>Admin</button>
         <button id="logoutButton" type="button">Logout</button>
       </div>
     </header>
@@ -119,73 +119,79 @@
       </section>
 
       <section id="profile" class="profile-view" aria-labelledby="profile-title" hidden>
-        <div class="profile-head">
-          <div class="profile-avatar" id="profileAvatarPreview" aria-hidden="true">@</div>
-          <div>
+        <div class="profile-layout">
+          <aside class="profile-showcase">
+            <div class="profile-avatar" id="profileAvatarPreview" aria-hidden="true">@</div>
             <p class="eyebrow">Profile</p>
             <h2 id="profile-title">@user</h2>
             <p id="profileStatus">Manage your Linje.dev profile.</p>
+            <div class="profile-preview">
+              <span>About me</span>
+              <p id="profileAboutPreview">No about me yet.</p>
+            </div>
+          </aside>
+
+          <div class="profile-workspace">
+            <form id="profileForm" class="profile-panel profile-panel-main">
+              <div>
+                <p class="eyebrow">Public</p>
+                <h3>Profile details</h3>
+              </div>
+              <label>
+                Profile picture
+                <input id="profileAvatar" type="url" placeholder="https://example.com/avatar.png">
+              </label>
+              <label>
+                About me
+                <textarea id="profileAbout" maxlength="280" rows="5" placeholder="Write a short public intro."></textarea>
+              </label>
+              <button class="run-button" type="submit">Save profile</button>
+            </form>
+
+            <div class="profile-panel-group">
+              <form id="passwordForm" class="profile-panel">
+                <div>
+                  <p class="eyebrow">Security</p>
+                  <h3>Password</h3>
+                </div>
+                <label>
+                  Current password
+                  <input id="currentPassword" type="password" autocomplete="current-password">
+                </label>
+                <label>
+                  New password
+                  <input id="newPassword" type="password" autocomplete="new-password" minlength="8">
+                </label>
+                <button class="run-button" type="submit">Update password</button>
+              </form>
+
+              <form id="emailResetForm" class="profile-panel">
+                <div>
+                  <p class="eyebrow">Email</p>
+                  <h3>Reset link</h3>
+                </div>
+                <label>
+                  Email address
+                  <input id="resetEmail" type="email" autocomplete="email" placeholder="you@example.com">
+                </label>
+                <button class="ghost-button" type="submit">Send reset link</button>
+                <p id="emailResetStatus">Email delivery is not connected yet.</p>
+              </form>
+            </div>
+
+            <form id="visitProfileForm" class="profile-panel profile-lookup">
+              <div>
+                <p class="eyebrow">People</p>
+                <h3>Visit a profile</h3>
+              </div>
+              <label>
+                Username
+                <input id="visitUsername" type="text" placeholder="@linje">
+              </label>
+              <button class="ghost-button" type="submit">Open profile</button>
+              <div id="publicProfileResult" class="public-profile"></div>
+            </form>
           </div>
-        </div>
-
-        <div class="profile-grid">
-          <form id="profileForm" class="profile-card">
-            <div>
-              <p class="eyebrow">Public</p>
-              <h3>Profile details</h3>
-            </div>
-            <label>
-              Profile picture
-              <input id="profileAvatar" type="url" placeholder="https://example.com/avatar.png">
-            </label>
-            <label>
-              About me
-              <textarea id="profileAbout" maxlength="280" rows="5" placeholder="Write a short public intro."></textarea>
-            </label>
-            <button class="run-button" type="submit">Save profile</button>
-          </form>
-
-          <form id="passwordForm" class="profile-card">
-            <div>
-              <p class="eyebrow">Security</p>
-              <h3>Reset password here</h3>
-            </div>
-            <label>
-              Current password
-              <input id="currentPassword" type="password" autocomplete="current-password">
-            </label>
-            <label>
-              New password
-              <input id="newPassword" type="password" autocomplete="new-password" minlength="8">
-            </label>
-            <button class="run-button" type="submit">Update password</button>
-          </form>
-
-          <form id="emailResetForm" class="profile-card">
-            <div>
-              <p class="eyebrow">Email</p>
-              <h3>Reset via email</h3>
-            </div>
-            <label>
-              Email address
-              <input id="resetEmail" type="email" autocomplete="email" placeholder="you@example.com">
-            </label>
-            <button class="ghost-button" type="submit">Send reset link</button>
-            <p id="emailResetStatus">Email delivery is not connected yet.</p>
-          </form>
-
-          <form id="visitProfileForm" class="profile-card">
-            <div>
-              <p class="eyebrow">People</p>
-              <h3>Visit a profile</h3>
-            </div>
-            <label>
-              Username
-              <input id="visitUsername" type="text" placeholder="@linje">
-            </label>
-            <button class="ghost-button" type="submit">Open profile</button>
-            <div id="publicProfileResult" class="public-profile"></div>
-          </form>
         </div>
       </section>
 
@@ -354,6 +360,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=anime2" defer></script>
+    <script src="app.js?v=profile2" defer></script>
   </body>
 </html>

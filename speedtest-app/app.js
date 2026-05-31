@@ -121,6 +121,10 @@ els.profileMenuButton.addEventListener("click", () => {
   closeAccountMenu();
   showProfileView();
 });
+els.adminLink.addEventListener("click", () => {
+  closeAccountMenu();
+  showAdminView();
+});
 els.logout.addEventListener("click", logout);
 els.profileForm.addEventListener("submit", saveProfile);
 els.passwordForm.addEventListener("submit", updatePassword);
@@ -331,6 +335,7 @@ async function enterApp(user, { route = "home" } = {}) {
   els.adminLink.hidden = !isAdmin;
   els.adminLink.tabIndex = isAdmin ? 0 : -1;
   els.adminLink.setAttribute("aria-hidden", String(!isAdmin));
+  els.adminLink.textContent = isAdmin ? "Admin" : "";
   els.accountButton.textContent = `@${user.username || "user"}`;
   setAuthStatus(`Signed in as @${user.username || "user"}.`, "success");
 
@@ -1273,6 +1278,10 @@ function renderProfileForm(profile = {}) {
   const username = profile.username || (state.user && state.user.username) || "user";
   els.profileAvatar.value = profile.avatarUrl || "";
   els.profileAbout.value = profile.about || "";
+  const aboutPreview = document.querySelector("#profileAboutPreview");
+  if (aboutPreview) {
+    aboutPreview.textContent = profile.about || "No about me yet.";
+  }
   els.profileAvatarPreview.textContent = `@${String(username).slice(0, 1).toUpperCase()}`;
   els.profileAvatarPreview.style.backgroundImage = profile.avatarUrl ? `url("${profile.avatarUrl.replaceAll('"', "%22")}")` : "";
   els.profileAvatarPreview.classList.toggle("has-image", Boolean(profile.avatarUrl));
