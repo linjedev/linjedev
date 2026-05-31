@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=disclosure1">
+    <link rel="stylesheet" href="styles.css?v=footer1">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -65,19 +65,14 @@
           <p id="authStatus" class="auth-status" role="status">Checking session...</p>
         </div>
 
-        <section class="auth-disclosure" aria-label="Visitor logging notice">
-          <p>Login and registration activity is logged for account security.</p>
-          <dl>
-            <div>
-              <dt>IP</dt>
-              <dd id="visitorIp">Checking...</dd>
-            </div>
-            <div>
-              <dt>User agent</dt>
-              <dd id="visitorUserAgent">Checking...</dd>
-            </div>
-          </dl>
-        </section>
+        <p class="auth-disclosure" aria-label="Visitor logging notice">
+          <span class="auth-disclosure-note">
+            <span class="auth-disclosure-wide">Login and registration activity is logged for account security.</span>
+            <span class="auth-disclosure-compact">Activity logged.</span>
+          </span>
+          <span><strong>IP</strong> <span id="visitorIp">Checking...</span></span>
+          <span><strong>User agent</strong> <span id="visitorUserAgent">Checking...</span></span>
+        </p>
       </div>
     </section>
 
@@ -257,6 +252,6 @@
       </li>
     </template>
 
-    <script src="app.js?v=disclosure1"></script>
+    <script src="app.js?v=footer1"></script>
   </body>
 </html>
