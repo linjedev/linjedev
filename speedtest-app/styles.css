@@ -445,6 +445,11 @@ body[data-auth="authenticated"] .auth-view {
   gap: 28px;
 }
 
+.home-hero > div {
+  display: grid;
+  gap: 22px;
+}
+
 .home-hero h1 {
   max-width: 900px;
   font-size: clamp(48px, 8vw, 108px);
