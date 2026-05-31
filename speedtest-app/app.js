@@ -485,9 +485,9 @@ function initSiteBackground() {
 
   const pointer = {
     x: window.innerWidth * .5,
-    y: window.innerHeight * .5,
+    y: window.scrollY + window.innerHeight * .5,
     targetX: window.innerWidth * .5,
-    targetY: window.innerHeight * .5
+    targetY: window.scrollY + window.innerHeight * .5
   };
   const ribbons = Array.from({ length: 22 }, (_, index) => ({
     base: .05 + index * .042,
@@ -511,7 +511,7 @@ function initSiteBackground() {
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     width = window.innerWidth;
-    height = window.innerHeight;
+    height = measureSiteBackgroundHeight();
     canvas.width = Math.floor(width * dpr);
     canvas.height = Math.floor(height * dpr);
     canvas.style.width = `${width}px`;
@@ -519,12 +519,22 @@ function initSiteBackground() {
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  function measureSiteBackgroundHeight() {
+    const contentBottom = [...document.body.children].reduce((bottom, node) => {
+      if (node === canvas || node.hidden) return bottom;
+      const rect = node.getBoundingClientRect();
+      return Math.max(bottom, rect.bottom + window.scrollY);
+    }, 0);
+    return Math.ceil(Math.max(window.innerHeight, contentBottom + 96));
+  }
+
   function move(x, y) {
     pointer.targetX = x;
-    pointer.targetY = y;
+    pointer.targetY = y + window.scrollY;
   }
 
   window.addEventListener("resize", resize);
+  window.addEventListener("scroll", resize, { passive: true });
   window.addEventListener("pointermove", (event) => move(event.clientX, event.clientY), { passive: true });
   window.addEventListener("touchmove", (event) => {
     if (event.touches.length === 1) {
@@ -533,6 +543,9 @@ function initSiteBackground() {
   }, { passive: true });
 
   resize();
+  if (window.ResizeObserver) {
+    new ResizeObserver(resize).observe(document.body);
+  }
   requestAnimationFrame(drawSiteBackground);
 
   function drawSiteBackground(now) {
