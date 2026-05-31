@@ -191,21 +191,22 @@ body[data-auth="authenticated"] .auth-view {
 
 .auth-disclosure {
   position: fixed;
-  right: max(10px, env(safe-area-inset-right));
+  left: 50%;
   bottom: max(10px, env(safe-area-inset-bottom));
-  left: max(10px, env(safe-area-inset-left));
   z-index: 3;
-  display: flex;
+  display: grid;
+  width: calc(100% - 20px);
   min-width: 0;
-  max-width: none;
-  align-items: center;
-  gap: 12px;
+  max-width: 1120px;
+  justify-items: center;
+  gap: 3px;
   margin: 0;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.45;
   pointer-events: none;
-  white-space: nowrap;
+  text-align: center;
+  transform: translateX(-50%);
 }
 
 .auth-disclosure span {
@@ -216,10 +217,10 @@ body[data-auth="authenticated"] .auth-view {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
+  max-width: 100%;
 }
 
 .auth-disclosure > span:first-child {
-  flex: 0 1 auto;
   color: var(--soft);
 }
 
@@ -228,23 +229,26 @@ body[data-auth="authenticated"] .auth-view {
 }
 
 .auth-disclosure > span:last-child {
-  flex: 1 1 auto;
-  overflow: hidden;
+  display: inline;
 }
 
 .auth-disclosure strong {
-  flex: 0 0 auto;
   color: var(--muted);
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
 }
 
+.auth-disclosure-note strong {
+  color: var(--soft);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .auth-disclosure #visitorIp,
 .auth-disclosure #visitorUserAgent {
   color: var(--soft);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .auth-card::before,
@@ -1028,14 +1032,12 @@ select {
   }
 
   .auth-disclosure {
-    gap: 8px;
+    gap: 2px;
     font-size: 10px;
   }
 
   .auth-disclosure > span:first-child {
-    flex-shrink: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
   }
 
   .auth-disclosure-wide {
