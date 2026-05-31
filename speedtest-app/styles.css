@@ -444,7 +444,8 @@ body[data-auth="authenticated"]::after {
   font: inherit;
 }
 
-.nav-dropdown {
+.nav-dropdown,
+.account-dropdown {
   position: relative;
   display: inline-flex;
 }
@@ -464,7 +465,7 @@ body[data-auth="authenticated"]::after {
   box-shadow: 0 24px 70px rgba(0, 0, 0, .38);
   display: grid;
   gap: 8px;
-  transform: translateX(-50%);
+  margin-left: -95px;
 }
 
 .nav-menu[hidden] {
@@ -492,7 +493,7 @@ body[data-auth="authenticated"]::after {
 .account-menu {
   position: absolute;
   top: calc(100% + 8px);
-  right: 18px;
+  right: 0;
   z-index: 20;
   min-width: 180px;
   padding: 8px;
@@ -1696,14 +1697,16 @@ select {
   }
 
   .nav-dropdown,
-  .nav-dropdown .nav-button {
+  .account-dropdown,
+  .nav-dropdown .nav-button,
+  .account-dropdown .account-button {
     width: 100%;
   }
 
   .nav-menu {
     left: 0;
     right: auto;
-    transform: none;
+    margin-left: 0;
   }
 
   .site-nav a,
@@ -1844,14 +1847,16 @@ select {
   }
 
   .nav-dropdown,
-  .nav-dropdown .nav-button {
+  .account-dropdown,
+  .nav-dropdown .nav-button,
+  .account-dropdown .account-button {
     width: 100%;
   }
 
   .nav-menu {
     left: 0;
     right: auto;
-    transform: none;
+    margin-left: 0;
   }
 
   .site-nav a,

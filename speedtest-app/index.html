@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=tools1">
+    <link rel="stylesheet" href="styles.css?v=tools2">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -89,13 +89,15 @@
             <button type="button" data-tool-link="server-ping">Server Ping</button>
           </div>
         </div>
-        <button id="accountButton" class="account-button" type="button" aria-expanded="false" aria-controls="accountMenu">@user</button>
+        <div class="account-dropdown">
+          <button id="accountButton" class="account-button" type="button" aria-expanded="false" aria-controls="accountMenu">@user</button>
+          <div id="accountMenu" class="account-menu" hidden>
+            <button id="profileMenuButton" type="button">Profile</button>
+            <button id="adminLink" type="button" hidden>Admin</button>
+            <button id="logoutButton" type="button">Logout</button>
+          </div>
+        </div>
       </nav>
-      <div id="accountMenu" class="account-menu" hidden>
-        <button id="profileMenuButton" type="button">Profile</button>
-        <button id="adminLink" type="button" hidden>Admin</button>
-        <button id="logoutButton" type="button">Logout</button>
-      </div>
     </header>
 
     <canvas id="siteCanvas" class="site-canvas app-only" aria-hidden="true" hidden></canvas>
@@ -398,6 +400,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=tools1" defer></script>
+    <script src="app.js?v=tools2" defer></script>
   </body>
 </html>
