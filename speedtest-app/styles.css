@@ -1667,16 +1667,83 @@ h1,
   font-size: 18px;
 }
 
-#arcadeCanvas {
+.arcade-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: 14px;
+  align-items: stretch;
+}
+
+#arcadeCanvas,
+.arcade-leaderboard {
   width: 100%;
-  aspect-ratio: 90 / 52;
   border: 1px solid rgba(247, 247, 242, .12);
   border-radius: 18px;
-  background: #050505;
   box-shadow:
     inset 0 1px 0 rgba(247, 247, 242, .08),
     0 18px 56px rgba(0, 0, 0, .32);
+}
+
+#arcadeCanvas {
+  aspect-ratio: 90 / 52;
+  background: #050505;
   touch-action: none;
+}
+
+.arcade-leaderboard {
+  min-height: 100%;
+  padding: 16px;
+  background: rgba(5, 5, 5, .28);
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.arcade-leaderboard h3 {
+  margin-top: 6px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.arcade-leaderboard ol {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.arcade-leaderboard li {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid rgba(247, 247, 242, .09);
+  border-radius: 14px;
+  background: rgba(247, 247, 242, .045);
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.arcade-leaderboard li > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.arcade-leaderboard strong {
+  overflow: hidden;
+  color: var(--paper);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arcade-leaderboard b {
+  color: var(--paper);
+  font-size: 18px;
 }
 
 .arcade-actions {
@@ -2170,6 +2237,10 @@ select {
 
   .arcade-scoreboard {
     justify-content: flex-start;
+  }
+
+  .arcade-layout {
+    grid-template-columns: 1fr;
   }
 
   #arcadeCanvas {

@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=arcade1">
+    <link rel="stylesheet" href="styles.css?v=arcade2">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -407,7 +407,18 @@
               <span>Lives <strong id="arcadeLives">3</strong></span>
             </div>
           </div>
-          <canvas id="arcadeCanvas" width="900" height="520" aria-label="Linje Invaders game"></canvas>
+          <div class="arcade-layout">
+            <canvas id="arcadeCanvas" width="900" height="520" aria-label="Linje Invaders game"></canvas>
+            <aside class="arcade-leaderboard" aria-labelledby="arcade-leaderboard-title">
+              <div>
+                <p class="eyebrow">Global</p>
+                <h3 id="arcade-leaderboard-title">Top 10</h3>
+              </div>
+              <ol id="arcadeLeaderboard" aria-live="polite">
+                <li>Loading scores...</li>
+              </ol>
+            </aside>
+          </div>
           <div class="arcade-actions">
             <button id="arcadeLeft" class="ghost-button" type="button">Left</button>
             <button id="arcadeFire" class="run-button" type="button">Fire</button>
@@ -447,6 +458,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=arcade1" defer></script>
+    <script src="app.js?v=arcade2" defer></script>
   </body>
 </html>

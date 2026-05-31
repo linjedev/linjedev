@@ -304,6 +304,7 @@ const state = {
   gameServersLoaded: false,
   arcadeClicks: 0,
   arcadeClickTimer: 0,
+  arcadeUnlocked: false,
   arcade: null
 };
 
@@ -375,6 +376,7 @@ const els = {
   gameServersChecked: document.querySelector("#gameServersChecked"),
   arcadeView: document.querySelector("#arcade"),
   arcadeCanvas: document.querySelector("#arcadeCanvas"),
+  arcadeLeaderboard: document.querySelector("#arcadeLeaderboard"),
   arcadeScore: document.querySelector("#arcadeScore"),
   arcadeLives: document.querySelector("#arcadeLives"),
   arcadeStatus: document.querySelector("#arcadeStatus"),
@@ -556,6 +558,8 @@ async function logout() {
   }
 
   state.user = null;
+  state.arcadeUnlocked = false;
+  state.arcadeClicks = 0;
   els.body.dataset.auth = "guest";
   els.appOnly.forEach((node) => {
     node.hidden = true;
@@ -1615,6 +1619,11 @@ function showServerPingView(updateHash = true) {
 }
 
 function showArcadeView(updateHash = true) {
+  if (!state.arcadeUnlocked) {
+    showHomeView(updateHash);
+    return;
+  }
+
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
@@ -1626,6 +1635,7 @@ function showArcadeView(updateHash = true) {
   if (updateHash) history.pushState(null, "", "#arcade");
   window.scrollTo({ top: 0 });
   animateView(els.arcadeView);
+  loadArcadeLeaderboard();
   startArcadeGame();
 }
 
@@ -1705,6 +1715,7 @@ function handleSecretBrandClick(event) {
 
   if (state.arcadeClicks >= 6) {
     state.arcadeClicks = 0;
+    state.arcadeUnlocked = true;
     showArcadeView();
     return;
   }
@@ -1751,6 +1762,7 @@ function resetArcadeGame() {
     playerX: canvas.width / 2,
     running: true,
     score: 0,
+    submitted: false,
     status: "Move with arrows or buttons. Fire with space."
   };
   updateArcadeHud();
@@ -1836,6 +1848,11 @@ function updateArcadeGame(delta) {
   } else if (game.lives <= 0 || game.enemies.some((enemy) => enemy.alive && enemy.y > 420)) {
     game.over = true;
     game.status = "Game over. Restart to try again.";
+  }
+
+  if (game.over && !game.submitted) {
+    game.submitted = true;
+    submitArcadeScore(game.score);
   }
 
   updateArcadeHud();
@@ -1941,6 +1958,63 @@ function updateArcadeHud() {
   els.arcadeScore.textContent = String(game.score);
   els.arcadeLives.textContent = String(Math.max(0, game.lives));
   els.arcadeStatus.textContent = game.status;
+}
+
+async function loadArcadeLeaderboard() {
+  if (!els.arcadeLeaderboard) return;
+  els.arcadeLeaderboard.innerHTML = "<li>Loading scores...</li>";
+  try {
+    const response = await fetch("/api/arcade/leaderboard", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not load scores.");
+    renderArcadeLeaderboard(data.scores || []);
+  } catch {
+    els.arcadeLeaderboard.innerHTML = "<li>Leaderboard unavailable.</li>";
+  }
+}
+
+async function submitArcadeScore(score) {
+  if (!score) return;
+  try {
+    const response = await fetch("/api/arcade/leaderboard", {
+      body: JSON.stringify({ score }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not save score.");
+    renderArcadeLeaderboard(data.scores || []);
+    if (state.arcade) state.arcade.status = "Score saved to the global leaderboard.";
+    updateArcadeHud();
+  } catch {
+    if (state.arcade) state.arcade.status = "Score could not be saved.";
+    updateArcadeHud();
+  }
+}
+
+function renderArcadeLeaderboard(scores) {
+  if (!els.arcadeLeaderboard) return;
+  els.arcadeLeaderboard.innerHTML = "";
+  if (!scores.length) {
+    const empty = document.createElement("li");
+    empty.textContent = "No scores yet.";
+    els.arcadeLeaderboard.append(empty);
+    return;
+  }
+
+  scores.slice(0, 10).forEach((entry) => {
+    const item = document.createElement("li");
+    item.innerHTML = `
+      <span>${Number(entry.rank) || ""}</span>
+      <strong>@${escapeHtml(entry.username || "user")}</strong>
+      <b>${formatNumber(entry.score || 0, 0)}</b>
+    `;
+    els.arcadeLeaderboard.append(item);
+  });
 }
 
 async function loadProfile() {

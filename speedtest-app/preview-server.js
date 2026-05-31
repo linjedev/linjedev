@@ -8,6 +8,7 @@ const root = __dirname;
 const users = new Map();
 const sessions = new Map();
 const profiles = new Map();
+const arcadeScores = new Map();
 const authEvents = [];
 const CAPTCHA_TTL_MS = 5 * 60 * 1000;
 const CAPTCHA_SECRET = "linje-dev-captcha-v1";
@@ -93,6 +94,41 @@ async function handleApi(request, response, pathname) {
     }, {
       "cache-control": "public, max-age=60"
     });
+    return;
+  }
+
+  if (pathname === "/api/arcade/leaderboard" && request.method === "GET") {
+    sendJson(response, 200, { scores: getPreviewArcadeScores() });
+    return;
+  }
+
+  if (pathname === "/api/arcade/leaderboard" && request.method === "POST") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+
+    const body = await readBody(request);
+    const score = Math.max(0, Math.min(999999, Math.floor(Number(body.score) || 0)));
+    if (!score) {
+      sendJson(response, 400, { error: "Score must be greater than zero." });
+      return;
+    }
+
+    const current = arcadeScores.get(user.id);
+    const now = new Date().toISOString();
+    if (!current || score > current.score) {
+      arcadeScores.set(user.id, {
+        score,
+        updatedAt: now,
+        username: user.username
+      });
+    } else {
+      current.username = user.username;
+    }
+
+    sendJson(response, 200, { scores: getPreviewArcadeScores() });
     return;
   }
 
@@ -371,6 +407,18 @@ function getLocalCommitActivity() {
     totalCommits: buckets.reduce((total, bucket) => total + bucket.count, 0),
     hourBuckets: buckets
   };
+}
+
+function getPreviewArcadeScores() {
+  return [...arcadeScores.values()]
+    .sort((left, right) => right.score - left.score || left.updatedAt.localeCompare(right.updatedAt))
+    .slice(0, 10)
+    .map((entry, index) => ({
+      rank: index + 1,
+      username: entry.username,
+      score: entry.score,
+      updatedAt: entry.updatedAt
+    }));
 }
 
 function normalizePreviewIp(value) {
