@@ -36,6 +36,7 @@ const els = {
   body: document.body,
   auth: document.querySelector("#auth"),
   authCanvas: document.querySelector("#authCanvas"),
+  siteCanvas: document.querySelector("#siteCanvas"),
   app: document.querySelector("#app"),
   appOnly: document.querySelectorAll(".app-only"),
   authTabs: document.querySelectorAll("[data-auth-mode]"),
@@ -110,6 +111,7 @@ window.addEventListener("hashchange", applyRoute);
 
 initialize();
 initAuthBackground();
+initSiteBackground();
 
 async function register(event) {
   event.preventDefault();
@@ -122,7 +124,7 @@ async function register(event) {
       password: els.registerPassword.value,
       client: getClientContext()
     });
-    await enterApp(user);
+    await enterApp(user, { route: "home" });
   } catch (error) {
     setAuthStatus(error.message || "Registration failed.", "error");
   } finally {
@@ -141,7 +143,7 @@ async function login(event) {
       password: els.loginPassword.value,
       client: getClientContext()
     });
-    await enterApp(user);
+    await enterApp(user, { route: "home" });
   } catch (error) {
     setAuthStatus(error.message || "Login failed.", "error");
   } finally {
@@ -267,13 +269,13 @@ async function initialize() {
   loadVisitorDisclosure();
   const user = await restoreSession();
   if (user) {
-    await enterApp(user);
+    await enterApp(user, { route: "current" });
   } else {
     showAuth();
   }
 }
 
-async function enterApp(user) {
+async function enterApp(user, { route = "home" } = {}) {
   state.user = user;
   els.body.dataset.auth = "authenticated";
   els.auth.hidden = true;
@@ -290,7 +292,11 @@ async function enterApp(user) {
   populateServerSelect();
   renderHistory();
   loadGitHubCommitTracker();
-  showHomeView();
+  if (route === "current") {
+    applyRoute();
+  } else {
+    showHomeView();
+  }
 }
 
 function showAuth() {
@@ -453,6 +459,150 @@ function renderVisitorDisclosure(data) {
   }
   if (els.visitorUserAgent) {
     els.visitorUserAgent.textContent = data.userAgent || "unavailable";
+  }
+}
+
+function initSiteBackground() {
+  const canvas = els.siteCanvas;
+  if (!canvas) return;
+
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) return;
+
+  const pointer = {
+    x: window.innerWidth * .5,
+    y: window.innerHeight * .5,
+    targetX: window.innerWidth * .5,
+    targetY: window.innerHeight * .5
+  };
+  const ribbons = Array.from({ length: 22 }, (_, index) => ({
+    base: .05 + index * .042,
+    phase: index * .62,
+    speed: .12 + index * .007,
+    amplitude: 16 + (index % 5) * 9,
+    drift: index % 2 ? 1 : -1
+  }));
+  const particles = Array.from({ length: 42 }, (_, index) => ({
+    x: Math.random(),
+    y: Math.random(),
+    phase: index * 1.6,
+    size: .7 + Math.random() * 1.7,
+    speed: .07 + Math.random() * .13
+  }));
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+  let started = performance.now();
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function move(x, y) {
+    pointer.targetX = x;
+    pointer.targetY = y;
+  }
+
+  window.addEventListener("resize", resize);
+  window.addEventListener("pointermove", (event) => move(event.clientX, event.clientY), { passive: true });
+  window.addEventListener("touchmove", (event) => {
+    if (event.touches.length === 1) {
+      move(event.touches[0].clientX, event.touches[0].clientY);
+    }
+  }, { passive: true });
+
+  resize();
+  requestAnimationFrame(drawSiteBackground);
+
+  function drawSiteBackground(now) {
+    if (els.body.dataset.auth !== "authenticated") {
+      requestAnimationFrame(drawSiteBackground);
+      return;
+    }
+
+    const time = (now - started) / 1000;
+    pointer.x += (pointer.targetX - pointer.x) * .06;
+    pointer.y += (pointer.targetY - pointer.y) * .06;
+
+    context.fillStyle = "#050505";
+    context.fillRect(0, 0, width, height);
+    drawSiteGrid(time);
+    drawSiteRibbons(time);
+    drawSiteParticles(time);
+
+    requestAnimationFrame(drawSiteBackground);
+  }
+
+  function drawSiteGrid(time) {
+    context.save();
+    context.strokeStyle = "rgba(247, 247, 242, .055)";
+    context.lineWidth = 1;
+    const spacing = width < 640 ? 56 : 82;
+    const offsetX = (time * 7) % spacing;
+    const offsetY = (time * 4) % spacing;
+
+    for (let x = -spacing; x < width + spacing; x += spacing) {
+      context.beginPath();
+      context.moveTo(x + offsetX, 0);
+      context.lineTo(x - width * .18 + offsetX, height);
+      context.stroke();
+    }
+
+    for (let y = -spacing; y < height + spacing; y += spacing) {
+      context.beginPath();
+      context.moveTo(0, y + offsetY);
+      context.lineTo(width, y - height * .12 + offsetY);
+      context.stroke();
+    }
+    context.restore();
+  }
+
+  function drawSiteRibbons(time) {
+    context.save();
+    ribbons.forEach((ribbon, index) => {
+      const yBase = height * ribbon.base;
+      const glow = Math.max(0, 1 - Math.abs(pointer.y - yBase) / 220);
+      context.globalAlpha = .08 + glow * .18;
+      context.strokeStyle = index % 4 === 0 ? "rgba(247, 247, 242, .42)" : "rgba(247, 247, 242, .24)";
+      context.lineWidth = index % 4 === 0 ? 2 : 1;
+      context.beginPath();
+      for (let x = -80; x <= width + 80; x += 18) {
+        const wave = Math.sin((x * .008) + ribbon.phase + time * ribbon.speed)
+          + Math.sin((x * .017) - ribbon.phase + time * ribbon.speed * 1.6) * .42;
+        const pull = Math.max(0, 1 - Math.abs(x - pointer.x) / 260) * glow * 36;
+        const y = yBase + wave * ribbon.amplitude + pull * ribbon.drift;
+        if (x === -80) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      }
+      context.stroke();
+    });
+    context.restore();
+  }
+
+  function drawSiteParticles(time) {
+    context.save();
+    particles.forEach((particle) => {
+      const x = ((particle.x * width) + Math.sin(time * particle.speed + particle.phase) * 38 + width) % width;
+      const y = ((particle.y * height) + Math.cos(time * particle.speed * 1.5 + particle.phase) * 24 + height) % height;
+      const dx = x - pointer.x;
+      const dy = y - pointer.y;
+      const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+      const glow = Math.max(0, 1 - distance / 180);
+
+      context.globalAlpha = .07 + glow * .2;
+      context.fillStyle = "#f7f7f2";
+      context.beginPath();
+      context.arc(x + (dx / distance) * glow * 20, y + (dy / distance) * glow * 20, particle.size + glow * 1.5, 0, Math.PI * 2);
+      context.fill();
+    });
+    context.restore();
   }
 }
 
@@ -891,7 +1041,7 @@ function showSpeedView(updateHash = true) {
   els.speedView.hidden = false;
   els.adminView.hidden = true;
   if (updateHash) history.pushState(null, "", "#speed");
-  els.speedView.scrollIntoView({ block: "start" });
+  window.scrollTo({ top: 0 });
 }
 
 function showHomeView(updateHash = true) {
@@ -899,6 +1049,7 @@ function showHomeView(updateHash = true) {
   els.speedView.hidden = true;
   els.adminView.hidden = true;
   if (updateHash) history.pushState(null, "", "#home");
+  window.scrollTo({ top: 0 });
 }
 
 function showAdminView(updateHash = true) {
@@ -911,7 +1062,7 @@ function showAdminView(updateHash = true) {
   els.speedView.hidden = true;
   els.adminView.hidden = false;
   if (updateHash) history.pushState(null, "", "#admin");
-  els.adminView.scrollIntoView({ block: "start" });
+  window.scrollTo({ top: 0 });
   loadAdminEvents();
 }
 
