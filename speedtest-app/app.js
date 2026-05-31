@@ -404,9 +404,13 @@ function initAuthBackground() {
   window.addEventListener("pointermove", (event) => move(event.clientX, event.clientY, true), { passive: true });
   window.addEventListener("pointerleave", () => { pointer.active = false; }, { passive: true });
   window.addEventListener("touchmove", (event) => {
-    if (els.body.dataset.auth !== "authenticated" && event.touches[0]) {
-      move(event.touches[0].clientX, event.touches[0].clientY, true);
-      event.preventDefault();
+    if (els.body.dataset.auth !== "authenticated" && event.touches.length === 1) {
+      const touch = event.touches[0];
+      move(touch.clientX, touch.clientY, true);
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest(".auth-card")) {
+        event.preventDefault();
+      }
     }
   }, { passive: false });
 
