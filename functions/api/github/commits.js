@@ -3,11 +3,41 @@ import { json } from "../../_auth.js";
 const CACHE_SECONDS = 60;
 const DEFAULT_COMMIT_QUERY = "author:linjedev";
 const MAX_SEARCH_PAGES = 10;
+const FALLBACK_ACTIVITY = {
+  query: DEFAULT_COMMIT_QUERY,
+  totalCommits: 59,
+  hourBuckets: [
+    { commits: [], count: 0, hour: 0 },
+    { commits: [], count: 0, hour: 1 },
+    { commits: [], count: 1, hour: 2 },
+    { commits: [], count: 3, hour: 3 },
+    { commits: [], count: 14, hour: 4 },
+    { commits: [], count: 11, hour: 5 },
+    { commits: [], count: 16, hour: 6 },
+    { commits: [], count: 2, hour: 7 },
+    { commits: [], count: 0, hour: 8 },
+    { commits: [], count: 0, hour: 9 },
+    { commits: [], count: 0, hour: 10 },
+    { commits: [], count: 0, hour: 11 },
+    { commits: [], count: 0, hour: 12 },
+    { commits: [], count: 0, hour: 13 },
+    { commits: [], count: 0, hour: 14 },
+    { commits: [], count: 0, hour: 15 },
+    { commits: [], count: 0, hour: 16 },
+    { commits: [], count: 0, hour: 17 },
+    { commits: [], count: 0, hour: 18 },
+    { commits: [], count: 0, hour: 19 },
+    { commits: [], count: 4, hour: 20 },
+    { commits: [], count: 5, hour: 21 },
+    { commits: [], count: 3, hour: 22 },
+    { commits: [], count: 0, hour: 23 }
+  ]
+};
 
 export async function onRequestGet({ env, request }) {
   const token = env.GITHUB_TOKEN;
   if (!token) {
-    return json({ error: "GITHUB_TOKEN is not configured." }, { status: 503 });
+    return fallbackResponse("Snapshot from latest deployment.");
   }
 
   const cache = caches.default;
@@ -19,7 +49,7 @@ export async function onRequestGet({ env, request }) {
   const firstPage = await searchCommits({ page: 1, query, token });
 
   if (!firstPage.ok) {
-    return json({ error: "GitHub commit activity is unavailable." }, { status: 502 });
+    return fallbackResponse("GitHub commit activity is temporarily unavailable. Showing deployment snapshot.");
   }
 
   const firstData = await firstPage.json();
@@ -51,6 +81,19 @@ export async function onRequestGet({ env, request }) {
 
 export function onRequest() {
   return json({ error: "Method not allowed." }, { status: 405 });
+}
+
+function fallbackResponse(status) {
+  return json({
+    ...FALLBACK_ACTIVITY,
+    cachedFor: CACHE_SECONDS,
+    fallback: true,
+    status
+  }, {
+    headers: {
+      "cache-control": `public, max-age=${CACHE_SECONDS}`
+    }
+  });
 }
 
 function searchCommits({ page, query, token }) {

@@ -392,7 +392,10 @@ async function loadGitHubCommitTracker() {
     if (!response.ok || !Number.isFinite(data.totalCommits)) {
       throw new Error(data.error || "Commit total is unavailable.");
     }
-    updateGitHubCommitTracker(data.totalCommits, `Live from GitHub. Cached for ${data.cachedFor || 60}s.`, data.hourBuckets || []);
+    const status = data.fallback
+      ? data.status || "Snapshot from latest deployment."
+      : `Live from GitHub. Cached for ${data.cachedFor || 60}s.`;
+    updateGitHubCommitTracker(data.totalCommits, status, data.hourBuckets || []);
   } catch {
     updateGitHubCommitTracker("--", "Commit total unavailable.", []);
   }
