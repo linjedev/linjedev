@@ -6,6 +6,7 @@ const path = require("path");
 const root = __dirname;
 const users = new Map();
 const sessions = new Map();
+const authEvents = [];
 const blockedUsernameTerms = [
   "6b6b6b",
   "6e617a69",
@@ -62,6 +63,20 @@ async function handleApi(request, response, pathname) {
   if (pathname === "/api/session" && request.method === "GET") {
     const user = currentUser(request);
     sendJson(response, 200, { authenticated: Boolean(user), user });
+    return;
+  }
+
+  if (pathname === "/api/admin/events" && request.method === "GET") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    if (user.username !== "seb") {
+      sendJson(response, 403, { error: "Admin access required." });
+      return;
+    }
+    sendJson(response, 200, { events: authEvents.slice(0, 200) });
     return;
   }
 
@@ -179,7 +194,8 @@ function normalizeForModeration(value) {
 }
 
 function logPreviewAuthEvent(request, { event, userId = "", username = "", success, client = {}, failureReason = "" }) {
-  console.log(JSON.stringify({
+  const record = {
+    id: crypto.randomUUID(),
     event,
     userId,
     username,
@@ -187,10 +203,18 @@ function logPreviewAuthEvent(request, { event, userId = "", username = "", succe
     failureReason,
     ipAddress: request.socket.remoteAddress || "",
     userAgent: request.headers["user-agent"] || "",
-    acceptLanguage: request.headers["accept-language"] || "",
-    client,
+    country: "local",
+    colo: "local",
+    asn: "",
+    metadata: {
+      acceptLanguage: request.headers["accept-language"] || "",
+      cfRay: "",
+      client
+    },
     createdAt: new Date().toISOString()
-  }));
+  };
+  authEvents.unshift(record);
+  console.log(JSON.stringify(record));
 }
 
 function getCookie(request, name) {

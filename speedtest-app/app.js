@@ -44,6 +44,11 @@ const els = {
   loginPassword: document.querySelector("#loginPassword"),
   authStatus: document.querySelector("#authStatus"),
   logout: document.querySelector("#logoutButton"),
+  adminLink: document.querySelector("#adminLink"),
+  adminView: document.querySelector("#admin"),
+  adminStatus: document.querySelector("#adminStatus"),
+  adminEvents: document.querySelector("#adminEvents"),
+  refreshAdmin: document.querySelector("#refreshAdmin"),
   home: document.querySelector("#home"),
   speedView: document.querySelector("#speed"),
   viewLinks: document.querySelectorAll("[data-view-link='speed']"),
@@ -78,6 +83,7 @@ els.authTabs.forEach((tab) => {
 els.registerForm.addEventListener("submit", register);
 els.loginForm.addEventListener("submit", login);
 els.logout.addEventListener("click", logout);
+els.refreshAdmin.addEventListener("click", loadAdminEvents);
 els.start.addEventListener("click", runTest);
 els.stop.addEventListener("click", stopTest);
 els.clear.addEventListener("click", clearHistory);
@@ -260,6 +266,7 @@ async function enterApp(user) {
   els.appOnly.forEach((node) => {
     node.hidden = false;
   });
+  els.adminLink.hidden = user.username !== "seb";
   setAuthStatus(`Signed in as @${user.username || "user"}.`, "success");
 
   state.servers = await loadServers();
@@ -273,6 +280,8 @@ function showAuth() {
   els.appOnly.forEach((node) => {
     node.hidden = true;
   });
+  els.adminLink.hidden = true;
+  els.adminView.hidden = true;
   els.auth.hidden = false;
   setAuthMode("register");
   setAuthStatus("Register to enter Linje.dev.");
@@ -333,7 +342,9 @@ function getClientContext() {
 }
 
 function applyRoute() {
-  if (window.location.hash === "#speed" || window.location.hash === "#ranking") {
+  if (window.location.hash === "#admin") {
+    showAdminView(false);
+  } else if (window.location.hash === "#speed" || window.location.hash === "#ranking") {
     showSpeedView(false);
   } else {
     showHomeView(false);
@@ -343,6 +354,7 @@ function applyRoute() {
 function showSpeedView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = false;
+  els.adminView.hidden = true;
   if (updateHash) history.pushState(null, "", "#speed");
   els.speedView.scrollIntoView({ block: "start" });
 }
@@ -350,7 +362,101 @@ function showSpeedView(updateHash = true) {
 function showHomeView(updateHash = true) {
   els.home.hidden = false;
   els.speedView.hidden = true;
+  els.adminView.hidden = true;
   if (updateHash) history.pushState(null, "", "#home");
+}
+
+function showAdminView(updateHash = true) {
+  if (!state.user || state.user.username !== "seb") {
+    showHomeView(updateHash);
+    return;
+  }
+
+  els.home.hidden = true;
+  els.speedView.hidden = true;
+  els.adminView.hidden = false;
+  if (updateHash) history.pushState(null, "", "#admin");
+  els.adminView.scrollIntoView({ block: "start" });
+  loadAdminEvents();
+}
+
+async function loadAdminEvents() {
+  if (!state.user || state.user.username !== "seb") return;
+
+  els.adminStatus.textContent = "Loading auth events...";
+  try {
+    const response = await fetch("/api/admin/events", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not load admin events.");
+    renderAdminEvents(data.events || []);
+    els.adminStatus.textContent = `${data.events.length} auth events shown.`;
+  } catch (error) {
+    els.adminStatus.textContent = error.message || "Could not load admin events.";
+    els.adminEvents.innerHTML = "";
+  }
+}
+
+function renderAdminEvents(events) {
+  els.adminEvents.innerHTML = "";
+  if (!events.length) {
+    const empty = document.createElement("div");
+    empty.className = "admin-empty";
+    empty.textContent = "No auth events yet.";
+    els.adminEvents.append(empty);
+    return;
+  }
+
+  events.forEach((event) => {
+    const client = event.metadata && event.metadata.client ? event.metadata.client : {};
+    const card = document.createElement("article");
+    card.className = `admin-event ${event.success ? "success" : "failed"}`;
+    card.innerHTML = `
+      <div class="admin-event-top">
+        <div>
+          <strong>${escapeHtml(event.event || "event")} / @${escapeHtml(event.username || "unknown")}</strong>
+          <small>${escapeHtml(formatDateTime(event.createdAt))}</small>
+        </div>
+        <span>${event.success ? "Success" : "Failed"}</span>
+      </div>
+      <dl>
+        <div><dt>IP</dt><dd>${escapeHtml(event.ipAddress || "--")}</dd></div>
+        <div><dt>Reason</dt><dd>${escapeHtml(event.failureReason || "--")}</dd></div>
+        <div><dt>Country</dt><dd>${escapeHtml(event.country || "--")}</dd></div>
+        <div><dt>Colo</dt><dd>${escapeHtml(event.colo || "--")}</dd></div>
+        <div><dt>ASN</dt><dd>${escapeHtml(event.asn || "--")}</dd></div>
+        <div><dt>Ray</dt><dd>${escapeHtml((event.metadata && event.metadata.cfRay) || "--")}</dd></div>
+        <div><dt>Language</dt><dd>${escapeHtml(client.language || (event.metadata && event.metadata.acceptLanguage) || "--")}</dd></div>
+        <div><dt>Languages</dt><dd>${escapeHtml(Array.isArray(client.languages) ? client.languages.join(", ") : "--")}</dd></div>
+        <div><dt>Timezone</dt><dd>${escapeHtml(client.timezone || "--")}</dd></div>
+        <div><dt>Platform</dt><dd>${escapeHtml(client.platform || "--")}</dd></div>
+        <div><dt>Screen</dt><dd>${escapeHtml(client.screen || "--")}</dd></div>
+        <div><dt>Viewport</dt><dd>${escapeHtml(client.viewport || "--")}</dd></div>
+        <div class="wide"><dt>User agent</dt><dd>${escapeHtml(event.userAgent || "--")}</dd></div>
+      </dl>
+    `;
+    els.adminEvents.append(card);
+  });
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "--";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(iso));
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  })[char]);
 }
 
 async function loadServers() {

@@ -290,6 +290,125 @@ body[data-auth="authenticated"] .auth-view {
   display: none;
 }
 
+.admin-view[hidden] {
+  display: none;
+}
+
+.admin-view {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 42px 0 56px;
+  display: grid;
+  gap: 18px;
+}
+
+.admin-head {
+  min-height: 132px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: #090909;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-head h2 {
+  margin-top: 6px;
+  font-size: clamp(38px, 6vw, 74px);
+  font-weight: 500;
+  line-height: .95;
+}
+
+.admin-events {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-empty,
+.admin-event {
+  border: 1px solid var(--line);
+  background: #070707;
+}
+
+.admin-empty {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.admin-event {
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.admin-event-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-event-top strong,
+.admin-event-top small {
+  display: block;
+}
+
+.admin-event-top small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.admin-event-top span {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  color: var(--soft);
+  font-size: 12px;
+}
+
+.admin-event.failed .admin-event-top span {
+  border-color: #795151;
+  color: #f1b8b8;
+}
+
+.admin-event dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.admin-event dl div {
+  min-width: 0;
+  padding: 12px;
+  background: #090909;
+}
+
+.admin-event dl .wide {
+  grid-column: 1 / -1;
+}
+
+.admin-event dt {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.admin-event dd {
+  margin: 0;
+  color: var(--soft);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
@@ -808,5 +927,20 @@ select {
   .history-numbers {
     display: grid;
     gap: 4px;
+  }
+
+  .admin-view {
+    width: min(100% - 20px, 1180px);
+    padding: 10px 0;
+  }
+
+  .admin-head {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .admin-event dl {
+    grid-template-columns: 1fr;
   }
 }
