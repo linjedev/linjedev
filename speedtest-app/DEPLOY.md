@@ -60,6 +60,19 @@ Registration and login do not collect email addresses. The `auth_events` table s
 
 Use this for account security and abuse investigation, and disclose it in a privacy notice before launch.
 
+## GitHub Commit Tracker
+
+The home page commit tracker uses a Cloudflare Pages Function at:
+
+- `GET /api/github/commits`
+
+Create a fine-grained GitHub token with read-only contents access to the private repository or repositories you want counted, then add it to the Pages project environment variables:
+
+- `GITHUB_TOKEN`: the GitHub token
+- `GITHUB_COMMIT_QUERY`: optional, defaults to `author:linjedev`
+
+The function runs GitHub commit search with that query and returns only the query, total commit count, and cache duration. It caches the GitHub result for 60 seconds so the tracker updates on refresh without calling GitHub on every page load.
+
 ## Email Routing
 
 After the zone is active:

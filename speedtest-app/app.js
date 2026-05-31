@@ -22,8 +22,7 @@ const TRANSFER_CHUNKS = {
 };
 
 const STORAGE_KEY = "linje-speed-history-v1";
-const GITHUB_COMMITS_FALLBACK = 48;
-const GITHUB_COMMITS_URL = "https://api.github.com/repos/linjedev/linjedev/commits?per_page=1";
+const GITHUB_COMMITS_URL = "/api/github/commits";
 const state = {
   running: false,
   controller: null,
@@ -364,35 +363,27 @@ function getClientContext() {
 async function loadGitHubCommitTracker() {
   if (state.githubCommitsLoaded) return;
   state.githubCommitsLoaded = true;
-  updateGitHubCommitTracker(GITHUB_COMMITS_FALLBACK, "Showing current Linje commit total.");
+  updateGitHubCommitTracker("--", "Loading commits for linjedev...");
 
   try {
     const response = await fetch(GITHUB_COMMITS_URL, {
       cache: "no-store",
-      headers: { accept: "application/vnd.github+json" }
+      credentials: "same-origin"
     });
-    if (!response.ok) throw new Error("GitHub commits are not public.");
-
-    const count = parseGitHubCommitTotal(response.headers.get("link"));
-    if (!Number.isFinite(count)) throw new Error("GitHub did not return a commit total.");
-    updateGitHubCommitTracker(count, "Live from GitHub.");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !Number.isFinite(data.totalCommits)) {
+      throw new Error(data.error || "Commit total is unavailable.");
+    }
+    updateGitHubCommitTracker(data.totalCommits, `Live from GitHub. Cached for ${data.cachedFor || 60}s.`);
   } catch {
-    updateGitHubCommitTracker(GITHUB_COMMITS_FALLBACK, "Current Linje total.");
+    updateGitHubCommitTracker("--", "Commit total unavailable.");
   }
 }
 
 function updateGitHubCommitTracker(count, status) {
   if (!els.githubCommitTotal || !els.githubCommitStatus) return;
-  els.githubCommitTotal.textContent = new Intl.NumberFormat().format(count);
+  els.githubCommitTotal.textContent = Number.isFinite(count) ? new Intl.NumberFormat().format(count) : String(count);
   els.githubCommitStatus.textContent = status;
-}
-
-function parseGitHubCommitTotal(linkHeader) {
-  if (!linkHeader) return 1;
-  const lastLink = linkHeader.split(",").find((part) => part.includes('rel="last"'));
-  if (!lastLink) return 1;
-  const pageMatch = lastLink.match(/[?&]page=(\d+)/);
-  return pageMatch ? Number(pageMatch[1]) : 1;
 }
 
 async function loadVisitorDisclosure() {

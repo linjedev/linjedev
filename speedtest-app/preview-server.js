@@ -1,4 +1,5 @@
 const http = require("http");
+const childProcess = require("child_process");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
@@ -70,6 +71,17 @@ async function handleApi(request, response, pathname) {
     sendJson(response, 200, {
       ipAddress: normalizePreviewIp(request.socket.remoteAddress || ""),
       userAgent: request.headers["user-agent"] || "unavailable"
+    });
+    return;
+  }
+
+  if (pathname === "/api/github/commits" && request.method === "GET") {
+    sendJson(response, 200, {
+      query: "author:linjedev",
+      totalCommits: getLocalCommitCount(),
+      cachedFor: 60
+    }, {
+      "cache-control": "public, max-age=60"
     });
     return;
   }
@@ -232,6 +244,18 @@ function logPreviewAuthEvent(request, { event, userId = "", username = "", succe
   };
   authEvents.unshift(record);
   console.log(JSON.stringify(record));
+}
+
+function getLocalCommitCount() {
+  try {
+    return Number(childProcess.execFileSync("git", ["rev-list", "--count", "HEAD"], {
+      cwd: path.resolve(root, ".."),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim()) || 0;
+  } catch {
+    return 0;
+  }
 }
 
 function normalizePreviewIp(value) {
