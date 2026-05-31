@@ -376,6 +376,24 @@ function initAuthBackground() {
     size: .7 + Math.random() * 1.8,
     speed: .08 + Math.random() * .15
   }));
+  const logo = {
+    text: "Linje.dev",
+    x: 0,
+    y: 0,
+    vx: 112,
+    vy: 86,
+    width: 170,
+    height: 44,
+    fontSize: 24,
+    initialized: false,
+    dragging: false,
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    lastX: 0,
+    lastY: 0,
+    holdUntil: 0,
+    lastInteraction: 0
+  };
   let width = 0;
   let height = 0;
   let dpr = 1;
@@ -390,6 +408,7 @@ function initAuthBackground() {
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    updateLogoMetrics();
   }
 
   function move(x, y, active = true) {
@@ -398,11 +417,31 @@ function initAuthBackground() {
     pointer.active = active;
     els.auth.style.setProperty("--pointer-x", `${(x / Math.max(width, 1)) * 100}%`);
     els.auth.style.setProperty("--pointer-y", `${(y / Math.max(height, 1)) * 100}%`);
+    interactWithLogo(x, y);
   }
 
   window.addEventListener("resize", resize);
   window.addEventListener("pointermove", (event) => move(event.clientX, event.clientY, true), { passive: true });
-  window.addEventListener("pointerleave", () => { pointer.active = false; }, { passive: true });
+  window.addEventListener("pointerdown", (event) => {
+    if (els.body.dataset.auth === "authenticated") return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest(".auth-card")) return;
+    if (!isPointNearLogo(event.clientX, event.clientY, 26)) return;
+
+    logo.dragging = true;
+    logo.dragOffsetX = event.clientX - logo.x;
+    logo.dragOffsetY = event.clientY - logo.y;
+    logo.lastX = event.clientX;
+    logo.lastY = event.clientY;
+    logo.lastInteraction = performance.now();
+    logo.holdUntil = logo.lastInteraction + 1600;
+  }, { passive: true });
+  window.addEventListener("pointerup", releaseLogo, { passive: true });
+  window.addEventListener("pointercancel", releaseLogo, { passive: true });
+  window.addEventListener("pointerleave", () => {
+    pointer.active = false;
+    releaseLogo();
+  }, { passive: true });
   window.addEventListener("touchmove", (event) => {
     if (els.body.dataset.auth !== "authenticated" && event.touches.length === 1) {
       const touch = event.touches[0];
@@ -433,8 +472,132 @@ function initAuthBackground() {
     drawGrid(time);
     drawRibbons(time);
     drawParticles(time);
+    drawBouncingLogo(time, now);
 
     requestAnimationFrame(drawAuthBackground);
+  }
+
+  function updateLogoMetrics() {
+    logo.fontSize = Math.max(20, Math.min(30, width * .026));
+    const markSize = logo.fontSize * 1.45;
+    context.font = `700 ${logo.fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    logo.width = markSize + logo.fontSize * .55 + context.measureText(logo.text).width;
+    logo.height = markSize;
+
+    if (!logo.initialized) {
+      logo.x = width * .46;
+      logo.y = Math.max(22, height * .08);
+      logo.initialized = true;
+    }
+
+    clampLogo();
+  }
+
+  function clampLogo() {
+    logo.x = Math.max(10, Math.min(width - logo.width - 10, logo.x));
+    logo.y = Math.max(10, Math.min(getLogoMaxY(), logo.y));
+  }
+
+  function getLogoMaxY() {
+    const topLane = height * (width < 640 ? .34 : .3);
+    return Math.max(10, Math.min(height - logo.height - 10, topLane));
+  }
+
+  function isPointNearLogo(x, y, padding = 0) {
+    return x >= logo.x - padding
+      && x <= logo.x + logo.width + padding
+      && y >= logo.y - padding
+      && y <= logo.y + logo.height + padding;
+  }
+
+  function interactWithLogo(x, y) {
+    const now = performance.now();
+    if (logo.dragging) {
+      logo.vx = (x - logo.lastX) * 10;
+      logo.vy = (y - logo.lastY) * 10;
+      logo.x = x - logo.dragOffsetX;
+      logo.y = y - logo.dragOffsetY;
+      logo.lastX = x;
+      logo.lastY = y;
+      logo.lastInteraction = now;
+      logo.holdUntil = now + 1600;
+      clampLogo();
+      return;
+    }
+
+    const centerX = logo.x + logo.width * .5;
+    const centerY = logo.y + logo.height * .5;
+    const dx = centerX - x;
+    const dy = centerY - y;
+    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+    const influence = Math.max(0, 1 - distance / 170);
+    if (influence > 0) {
+      logo.vx += (dx / distance) * influence * 11;
+      logo.vy += (dy / distance) * influence * 11;
+      logo.lastInteraction = now;
+      logo.holdUntil = Math.max(logo.holdUntil, now + 550);
+    }
+  }
+
+  function releaseLogo() {
+    if (!logo.dragging) return;
+    logo.dragging = false;
+    logo.lastInteraction = performance.now();
+    logo.holdUntil = logo.lastInteraction + 1800;
+  }
+
+  function drawBouncingLogo(time, now) {
+    const dt = Math.min(.04, Math.max(.001, (now - (drawBouncingLogo.previous || now)) / 1000));
+    drawBouncingLogo.previous = now;
+
+    if (!logo.dragging && now > logo.holdUntil) {
+      const speed = Math.sqrt(logo.vx * logo.vx + logo.vy * logo.vy) || 1;
+      const targetSpeed = width < 640 ? 82 : 108;
+      logo.vx += (logo.vx / speed) * (targetSpeed - speed) * .018;
+      logo.vy += (logo.vy / speed) * (targetSpeed - speed) * .018;
+      logo.x += logo.vx * dt;
+      logo.y += logo.vy * dt;
+    }
+
+    if (logo.x <= 10 || logo.x + logo.width >= width - 10) {
+      logo.x = Math.max(10, Math.min(width - logo.width - 10, logo.x));
+      logo.vx *= -1;
+    }
+    if (logo.y <= 10 || logo.y >= getLogoMaxY()) {
+      logo.y = Math.max(10, Math.min(getLogoMaxY(), logo.y));
+      logo.vy *= -1;
+    }
+
+    const pulse = Math.sin(time * 2.2) * .04;
+    const idleGlow = Math.max(0, 1 - (now - logo.lastInteraction) / 2200);
+    const markSize = logo.height;
+    const textX = logo.x + markSize + logo.fontSize * .55;
+    const textY = logo.y + logo.height * .72;
+
+    context.save();
+    context.translate(logo.x + logo.width * .5, logo.y + logo.height * .5);
+    context.scale(1 + pulse * idleGlow, 1 + pulse * idleGlow);
+    context.translate(-(logo.x + logo.width * .5), -(logo.y + logo.height * .5));
+
+    context.shadowColor = "rgba(247, 247, 242, .24)";
+    context.shadowBlur = 18 + idleGlow * 12;
+    context.globalAlpha = .7 + idleGlow * .16;
+    context.strokeStyle = "#f7f7f2";
+    context.lineWidth = 2;
+    context.strokeRect(logo.x + 1, logo.y + 1, markSize - 2, markSize - 2);
+
+    context.beginPath();
+    context.moveTo(logo.x + markSize * .22, logo.y + markSize * .36);
+    context.lineTo(logo.x + markSize * .48, logo.y + markSize * .64);
+    context.lineTo(logo.x + markSize * .8, logo.y + markSize * .3);
+    context.stroke();
+
+    context.shadowBlur = 16 + idleGlow * 10;
+    context.globalAlpha = .82 + idleGlow * .12;
+    context.font = `700 ${logo.fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    context.fillStyle = "#f7f7f2";
+    context.fillText(logo.text, textX, textY);
+    context.restore();
   }
 
   function drawGrid(time) {
