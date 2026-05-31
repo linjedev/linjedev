@@ -542,7 +542,7 @@ body[data-auth="authenticated"] .auth-view {
   aspect-ratio: 1;
   min-width: 10px;
   border-radius: 2px;
-  background: #111820;
+  background: rgba(247, 247, 242, .18);
 }
 
 .commit-cells i[data-level="1"] {
