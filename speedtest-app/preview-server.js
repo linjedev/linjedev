@@ -406,14 +406,16 @@ function readBody(request) {
 function createCaptchaChallenge() {
   const left = randomInt(4, 19);
   const right = randomInt(2, 13);
+  const question = `${left} + ${right}`;
   const payload = {
     answer: String(left + right),
     expiresAt: Date.now() + CAPTCHA_TTL_MS,
+    question,
     nonce: crypto.randomBytes(12).toString("hex")
   };
   const body = base64UrlEncode(Buffer.from(JSON.stringify(payload), "utf8"));
   return {
-    question: `${left} + ${right}`,
+    question,
     token: `${body}.${signCaptcha(body)}`,
     expiresAt: payload.expiresAt
   };
@@ -430,10 +432,15 @@ function verifyCaptcha(token, answer) {
   try {
     const payload = JSON.parse(Buffer.from(base64UrlToBase64(body), "base64").toString("utf8"));
     if (!payload || Number(payload.expiresAt) < Date.now()) return false;
-    return String(answer || "").trim() === String(payload.answer || "");
+    return normalizeCaptchaAnswer(answer) === normalizeCaptchaAnswer(payload.answer)
+      || normalizeCaptchaAnswer(answer) === normalizeCaptchaAnswer(payload.question);
   } catch {
     return false;
   }
+}
+
+function normalizeCaptchaAnswer(value) {
+  return String(value || "").trim().replace(/\s+/g, "");
 }
 
 function signCaptcha(body) {

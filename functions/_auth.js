@@ -63,17 +63,19 @@ export async function createCaptchaChallenge(env) {
   const left = randomInt(4, 19);
   const right = randomInt(2, 13);
   const answer = String(left + right);
+  const question = `${left} + ${right}`;
   const expiresAt = Date.now() + CAPTCHA_TTL_MS;
   const payload = {
     answer,
     expiresAt,
+    question,
     nonce: randomToken(12)
   };
   const body = base64UrlEncode(JSON.stringify(payload));
   const signature = await signCaptcha(body, env);
 
   return {
-    question: `${left} + ${right}`,
+    question,
     token: `${body}.${signature}`,
     expiresAt
   };
@@ -89,10 +91,15 @@ export async function verifyCaptcha({ token, answer, env }) {
   try {
     const payload = JSON.parse(base64UrlDecode(body));
     if (!payload || Number(payload.expiresAt) < Date.now()) return false;
-    return String(answer || "").trim() === String(payload.answer || "");
+    return normalizeCaptchaAnswer(answer) === normalizeCaptchaAnswer(payload.answer)
+      || normalizeCaptchaAnswer(answer) === normalizeCaptchaAnswer(payload.question);
   } catch {
     return false;
   }
+}
+
+function normalizeCaptchaAnswer(value) {
+  return String(value || "").trim().replace(/\s+/g, "");
 }
 
 export function isBlockedUsername(username) {
