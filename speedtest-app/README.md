@@ -15,7 +15,7 @@ A clean black-and-white browser speed test app intended to be wrapped as a small
 ## Run Locally
 
 ```powershell
-Set-Location -LiteralPath 'D:\VC\[P1]\IcelandTrip-Travelnformation\speedtest-app'
+Set-Location -LiteralPath 'D:\VC\[P1]\linjedev\speedtest-app'
 python -m http.server 4173
 ```
 
@@ -34,7 +34,7 @@ It is a single portable Windows launcher that embeds the exact web UI, starts a 
 To rebuild it on Windows with the built-in .NET Framework compiler:
 
 ```powershell
-Set-Location -LiteralPath 'D:\VC\[P1]\IcelandTrip-Travelnformation'
+Set-Location -LiteralPath 'D:\VC\[P1]\linjedev'
 New-Item -ItemType Directory -Force -Path 'speedtest-app\dist' | Out-Null
 & 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /nologo /target:winexe /optimize+ /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /out:'speedtest-app\dist\LinjeSpeed.exe' /resource:'speedtest-app\index.html,index.html' /resource:'speedtest-app\styles.css,styles.css' /resource:'speedtest-app\app.js,app.js' /resource:'speedtest-app\servers.json,servers.json' 'speedtest-app\desktop\LinjeSpeedLauncher.cs'
 ```
