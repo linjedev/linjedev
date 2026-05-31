@@ -54,7 +54,7 @@ const els = {
   refreshAdmin: document.querySelector("#refreshAdmin"),
   home: document.querySelector("#home"),
   speedView: document.querySelector("#speed"),
-  viewLinks: document.querySelectorAll("[data-view-link='speed']"),
+  viewLinks: document.querySelectorAll("[data-view-link]"),
   start: document.querySelector("#startTest"),
   stop: document.querySelector("#stopTest"),
   phase: document.querySelector("#phaseLabel"),
@@ -94,7 +94,11 @@ els.exportCsv.addEventListener("click", exportCsv);
 els.viewLinks.forEach((link) => {
   link.addEventListener("click", (event) => {
     event.preventDefault();
-    showSpeedView();
+    if (link.dataset.viewLink === "speed") {
+      showSpeedView();
+    } else {
+      showHomeView();
+    }
   });
 });
 window.addEventListener("hashchange", applyRoute);
@@ -280,7 +284,7 @@ async function enterApp(user) {
   state.servers = await loadServers();
   populateServerSelect();
   renderHistory();
-  applyRoute();
+  showHomeView();
 }
 
 function showAuth() {

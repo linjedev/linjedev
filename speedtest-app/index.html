@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=footer6">
+    <link rel="stylesheet" href="styles.css?v=home1">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -82,7 +82,7 @@
         <strong>Linje.dev</strong>
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
-        <a href="#home">Home</a>
+        <a href="#home" data-view-link="home">Home</a>
         <a href="#speed" data-view-link="speed">Speed</a>
         <a id="adminLink" href="#admin" hidden>Admin</a>
         <button id="logoutButton" class="nav-button" type="button">Logout</button>
@@ -90,14 +90,36 @@
     </header>
 
     <main id="app" class="app-only" hidden>
-      <section id="home" class="site-intro" aria-labelledby="site-title">
-        <p class="eyebrow">Linje.dev</p>
-        <h1 id="site-title">Clean tools for everyday use.</h1>
-        <p>Minimal diagnostics for the network you actually use, starting with a focused speed test for latency, upload, download, and local rankings.</p>
-        <button class="run-button intro-action" type="button" data-view-link="speed">
-          <span class="run-dot" aria-hidden="true"></span>
-          Open Speed
-        </button>
+      <section id="home" class="home-view" aria-labelledby="site-title">
+        <div class="home-hero">
+          <div>
+            <p class="eyebrow">Linje.dev</p>
+            <h1 id="site-title">Your private workspace.</h1>
+            <p>Signed-in tools for clear diagnostics and everyday checks. Pick a section from the top bar when you need it.</p>
+          </div>
+          <button class="run-button intro-action" type="button" data-view-link="speed">
+            <span class="run-dot" aria-hidden="true"></span>
+            Open Speed
+          </button>
+        </div>
+
+        <div class="home-grid" aria-label="Available tools">
+          <article class="home-tile">
+            <span>01</span>
+            <strong>Speed</strong>
+            <p>Measure latency, download, upload, jitter, and local results from its own page.</p>
+          </article>
+          <article class="home-tile">
+            <span>02</span>
+            <strong>Account</strong>
+            <p>Private beta access with logged account activity for security review.</p>
+          </article>
+          <article class="home-tile">
+            <span>03</span>
+            <strong>More tools</strong>
+            <p>New Linje utilities can land here without taking over the home screen.</p>
+          </article>
+        </div>
       </section>
 
       <div id="speed" class="shell tool-shell" hidden>
@@ -252,6 +274,6 @@
       </li>
     </template>
 
-    <script src="app.js?v=footer5"></script>
+    <script src="app.js?v=home1"></script>
   </body>
 </html>
