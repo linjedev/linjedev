@@ -1151,11 +1151,10 @@ h1,
 .server-check span {
   max-width: 110px;
   overflow: hidden;
-  padding: 5px 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
   color: var(--muted);
   font-size: 11px;
+  justify-self: end;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
