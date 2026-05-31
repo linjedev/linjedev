@@ -392,6 +392,7 @@ function initAuthBackground() {
     lastX: 0,
     lastY: 0,
     lastMoveTime: 0,
+    lastGlueTime: 0,
     holdUntil: 0,
     lastInteraction: 0,
     edgeHits: 0,
@@ -414,31 +415,27 @@ function initAuthBackground() {
     updateLogoMetrics();
   }
 
-  function move(x, y, active = true) {
+  function move(x, y, active = true, target = null) {
     pointer.targetX = x;
     pointer.targetY = y;
     pointer.active = active;
     els.auth.style.setProperty("--pointer-x", `${(x / Math.max(width, 1)) * 100}%`);
     els.auth.style.setProperty("--pointer-y", `${(y / Math.max(height, 1)) * 100}%`);
-    interactWithLogo(x, y);
+    interactWithLogo(x, y, target);
   }
 
   window.addEventListener("resize", resize);
-  window.addEventListener("pointermove", (event) => move(event.clientX, event.clientY, true), { passive: true });
+  window.addEventListener("pointermove", (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    move(event.clientX, event.clientY, true, target);
+  }, { passive: true });
   window.addEventListener("pointerdown", (event) => {
     if (els.body.dataset.auth === "authenticated") return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest(".auth-card")) return;
     if (!isPointNearLogo(event.clientX, event.clientY, 26)) return;
 
-    logo.dragging = true;
-    logo.dragOffsetX = event.clientX - logo.x;
-    logo.dragOffsetY = event.clientY - logo.y;
-    logo.lastX = event.clientX;
-    logo.lastY = event.clientY;
-    logo.lastInteraction = performance.now();
-    logo.lastMoveTime = logo.lastInteraction;
-    logo.holdUntil = logo.lastInteraction + 1600;
+    captureLogo(event.clientX, event.clientY, performance.now());
   }, { passive: true });
   window.addEventListener("pointerup", releaseLogo, { passive: true });
   window.addEventListener("pointercancel", releaseLogo, { passive: true });
@@ -449,13 +446,15 @@ function initAuthBackground() {
   window.addEventListener("touchmove", (event) => {
     if (els.body.dataset.auth !== "authenticated" && event.touches.length === 1) {
       const touch = event.touches[0];
-      move(touch.clientX, touch.clientY, true);
       const target = event.target instanceof Element ? event.target : null;
+      move(touch.clientX, touch.clientY, true, target);
       if (!target?.closest(".auth-card")) {
         event.preventDefault();
       }
     }
   }, { passive: false });
+  window.addEventListener("touchend", releaseLogo, { passive: true });
+  window.addEventListener("touchcancel", releaseLogo, { passive: true });
 
   resize();
   requestAnimationFrame(drawAuthBackground);
@@ -509,8 +508,17 @@ function initAuthBackground() {
       && y <= logo.y + logo.height + padding;
   }
 
-  function interactWithLogo(x, y) {
+  function interactWithLogo(x, y, target = null) {
     const now = performance.now();
+    if (target?.closest(".auth-card")) {
+      releaseLogo();
+      return;
+    }
+
+    if (!logo.dragging && isPointNearLogo(x, y, 34)) {
+      captureLogo(x, y, now);
+    }
+
     if (logo.dragging) {
       const dt = Math.max(16, now - logo.lastMoveTime) / 1000;
       logo.vx = (x - logo.lastX) / dt * .92;
@@ -521,8 +529,9 @@ function initAuthBackground() {
       logo.lastX = x;
       logo.lastY = y;
       logo.lastMoveTime = now;
+      logo.lastGlueTime = now;
       logo.lastInteraction = now;
-      logo.holdUntil = now + 1600;
+      logo.holdUntil = now + 90;
       clampLogo();
       return;
     }
@@ -541,6 +550,18 @@ function initAuthBackground() {
     }
   }
 
+  function captureLogo(x, y, now) {
+    logo.dragging = true;
+    logo.dragOffsetX = logo.width * .5;
+    logo.dragOffsetY = logo.height * .5;
+    logo.lastX = x;
+    logo.lastY = y;
+    logo.lastMoveTime = now;
+    logo.lastGlueTime = now;
+    logo.lastInteraction = now;
+    logo.holdUntil = now + 90;
+  }
+
   function releaseLogo() {
     if (!logo.dragging) return;
     logo.dragging = false;
@@ -553,6 +574,10 @@ function initAuthBackground() {
   function drawBouncingLogo(time, now) {
     const dt = Math.min(.04, Math.max(.001, (now - (drawBouncingLogo.previous || now)) / 1000));
     drawBouncingLogo.previous = now;
+
+    if (logo.dragging && now - logo.lastGlueTime > 140) {
+      releaseLogo();
+    }
 
     if (!logo.dragging && now > logo.holdUntil) {
       keepLogoMoving(width < 640 ? 90 : 118);
