@@ -228,6 +228,10 @@ body[data-auth="authenticated"] .auth-view {
   gap: 6px;
 }
 
+.site-nav [hidden] {
+  display: none !important;
+}
+
 .site-nav a {
   min-height: 40px;
   display: inline-flex;

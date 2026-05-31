@@ -266,7 +266,10 @@ async function enterApp(user) {
   els.appOnly.forEach((node) => {
     node.hidden = false;
   });
-  els.adminLink.hidden = user.username !== "seb";
+  const isAdmin = user.username === "seb";
+  els.adminLink.hidden = !isAdmin;
+  els.adminLink.tabIndex = isAdmin ? 0 : -1;
+  els.adminLink.setAttribute("aria-hidden", String(!isAdmin));
   setAuthStatus(`Signed in as @${user.username || "user"}.`, "success");
 
   state.servers = await loadServers();
@@ -281,6 +284,8 @@ function showAuth() {
     node.hidden = true;
   });
   els.adminLink.hidden = true;
+  els.adminLink.tabIndex = -1;
+  els.adminLink.setAttribute("aria-hidden", "true");
   els.adminView.hidden = true;
   els.auth.hidden = false;
   setAuthMode("register");
