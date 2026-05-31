@@ -44,6 +44,8 @@ const els = {
   loginUsername: document.querySelector("#loginUsername"),
   loginPassword: document.querySelector("#loginPassword"),
   authStatus: document.querySelector("#authStatus"),
+  visitorIp: document.querySelector("#visitorIp"),
+  visitorUserAgent: document.querySelector("#visitorUserAgent"),
   logout: document.querySelector("#logoutButton"),
   adminLink: document.querySelector("#adminLink"),
   adminView: document.querySelector("#admin"),
@@ -253,6 +255,7 @@ function getSelectedDuration() {
 }
 
 async function initialize() {
+  loadVisitorDisclosure();
   const user = await restoreSession();
   if (user) {
     await enterApp(user);
@@ -346,6 +349,33 @@ function getClientContext() {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
     viewport: `${window.innerWidth}x${window.innerHeight}`
   };
+}
+
+async function loadVisitorDisclosure() {
+  const fallback = {
+    ipAddress: "unavailable",
+    userAgent: navigator.userAgent || "unavailable"
+  };
+
+  try {
+    const response = await fetch("/api/visitor", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = response.ok ? await response.json() : fallback;
+    renderVisitorDisclosure(data);
+  } catch {
+    renderVisitorDisclosure(fallback);
+  }
+}
+
+function renderVisitorDisclosure(data) {
+  if (els.visitorIp) {
+    els.visitorIp.textContent = data.ipAddress || "unavailable";
+  }
+  if (els.visitorUserAgent) {
+    els.visitorUserAgent.textContent = data.userAgent || "unavailable";
+  }
 }
 
 function initAuthBackground() {

@@ -189,6 +189,47 @@ body[data-auth="authenticated"] .auth-view {
   gap: 20px;
 }
 
+.auth-disclosure {
+  grid-column: 2;
+  max-width: 440px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.auth-disclosure p {
+  margin: 0 0 9px;
+  color: var(--soft);
+}
+
+.auth-disclosure dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.auth-disclosure div {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.auth-disclosure dt {
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.auth-disclosure dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .auth-card::before,
 .auth-card::after {
   content: "";
@@ -965,7 +1006,8 @@ select {
   }
 
   .auth-copy,
-  .auth-card {
+  .auth-card,
+  .auth-disclosure {
     grid-column: 1;
   }
 

@@ -66,6 +66,14 @@ async function handleApi(request, response, pathname) {
     return;
   }
 
+  if (pathname === "/api/visitor" && request.method === "GET") {
+    sendJson(response, 200, {
+      ipAddress: normalizePreviewIp(request.socket.remoteAddress || ""),
+      userAgent: request.headers["user-agent"] || "unavailable"
+    });
+    return;
+  }
+
   if (pathname === "/api/admin/events" && request.method === "GET") {
     const user = currentUser(request);
     if (!user) {
