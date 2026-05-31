@@ -9,6 +9,9 @@ const users = new Map();
 const sessions = new Map();
 const profiles = new Map();
 const arcadeScores = new Map();
+const secureMessageRequests = new Map();
+const secureMessageAccess = new Map();
+const secureMessageEvents = [];
 const authEvents = [];
 const CAPTCHA_TTL_MS = 5 * 60 * 1000;
 const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || crypto.randomBytes(32).toString("hex");
@@ -103,6 +106,67 @@ async function handleApi(request, response, pathname) {
     return;
   }
 
+  if (pathname === "/api/secure-message/access" && request.method === "GET") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    sendJson(response, 200, secureMessageEnrollment(user));
+    return;
+  }
+
+  if (pathname === "/api/secure-message/access" && request.method === "POST") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    const now = new Date().toISOString();
+    secureMessageRequests.set(user.id, {
+      requestedAt: now,
+      status: isPreviewAdmin(user) ? "approved" : "pending",
+      username: user.username
+    });
+    if (isPreviewAdmin(user)) {
+      secureMessageAccess.set(user.id, {
+        active: true,
+        grantedAt: now,
+        grantedBy: user.username,
+        username: user.username
+      });
+    }
+    sendJson(response, 200, secureMessageEnrollment(user));
+    return;
+  }
+
+  if (pathname === "/api/secure-message/send" && request.method === "POST") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    if (!secureMessageEnrollment(user).allowed) {
+      sendJson(response, 403, { error: "Secure Message access required." });
+      return;
+    }
+    const body = await readBody(request);
+    const event = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      username: user.username,
+      event: "send",
+      messageBytes: Math.max(0, Math.min(20000, Math.floor(Number(body.messageBytes) || 0))),
+      ciphertextBytes: Math.max(0, Math.min(50000, Math.floor(Number(body.ciphertextBytes) || 0))),
+      ipAddress: normalizePreviewIp(request.socket.remoteAddress || ""),
+      userAgent: request.headers["user-agent"] || "",
+      createdAt: new Date().toISOString()
+    };
+    secureMessageEvents.unshift(event);
+    sendJson(response, 200, { logged: true, createdAt: event.createdAt });
+    return;
+  }
+
   if (pathname === "/api/arcade/leaderboard" && request.method === "POST") {
     const user = currentUser(request);
     if (!user) {
@@ -144,6 +208,78 @@ async function handleApi(request, response, pathname) {
       return;
     }
     sendJson(response, 200, { events: authEvents.slice(0, 200) });
+    return;
+  }
+
+  if (pathname === "/api/admin/secure-messages" && request.method === "GET") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    if (!isPreviewAdmin(user)) {
+      sendJson(response, 403, { error: "Admin access required." });
+      return;
+    }
+    sendJson(response, 200, getPreviewSecureMessageAdmin());
+    return;
+  }
+
+  if (pathname === "/api/admin/secure-messages" && request.method === "POST") {
+    const admin = currentUser(request);
+    if (!admin || !isPreviewAdmin(admin)) {
+      sendJson(response, admin ? 403 : 401, { error: admin ? "Admin access required." : "Login required." });
+      return;
+    }
+    const body = await readBody(request);
+    const username = normalizeUsername(body.username);
+    const target = [...users.values()].find((item) => item.username === username);
+    if (!target) {
+      sendJson(response, 404, { error: "User not found." });
+      return;
+    }
+    const now = new Date().toISOString();
+    secureMessageAccess.set(target.id, {
+      active: true,
+      grantedAt: now,
+      grantedBy: admin.username,
+      username: target.username
+    });
+    secureMessageRequests.set(target.id, {
+      requestedAt: secureMessageRequests.get(target.id)?.requestedAt || now,
+      reviewedAt: now,
+      reviewedBy: admin.username,
+      status: "approved",
+      username: target.username
+    });
+    sendJson(response, 200, { granted: true, username: target.username, grantedAt: now });
+    return;
+  }
+
+  if (pathname === "/api/admin/secure-messages" && request.method === "DELETE") {
+    const admin = currentUser(request);
+    if (!admin || !isPreviewAdmin(admin)) {
+      sendJson(response, admin ? 403 : 401, { error: admin ? "Admin access required." : "Login required." });
+      return;
+    }
+    const body = await readBody(request);
+    const username = normalizeUsername(body.username);
+    const entry = [...secureMessageAccess.entries()].find(([, value]) => value.username === username);
+    if (entry) {
+      entry[1].active = false;
+      entry[1].revokedAt = new Date().toISOString();
+      entry[1].revokedBy = admin.username;
+      secureMessageAccess.set(entry[0], entry[1]);
+      const requestEntry = secureMessageRequests.get(entry[0]) || { requestedAt: entry[1].grantedAt, username };
+      secureMessageRequests.set(entry[0], {
+        ...requestEntry,
+        reviewedAt: entry[1].revokedAt,
+        reviewedBy: admin.username,
+        status: "revoked",
+        username
+      });
+    }
+    sendJson(response, 200, { revoked: Boolean(entry), username, revokedAt: new Date().toISOString() });
     return;
   }
 
@@ -337,6 +473,61 @@ function verifyPassword(password, stored) {
   const hash = crypto.pbkdf2Sync(String(password || ""), salt, Number(stored.iterations) || 1, 32, "sha256");
   const expected = Buffer.from(stored.hash, "base64");
   return hash.length === expected.length && crypto.timingSafeEqual(hash, expected);
+}
+
+function secureMessageEnrollment(user) {
+  const request = secureMessageRequests.get(user.id);
+  const grant = secureMessageAccess.get(user.id);
+  const allowed = isPreviewAdmin(user) || Boolean(grant && grant.active);
+  return {
+    admin: isPreviewAdmin(user),
+    allowed,
+    grantedAt: grant && grant.active ? grant.grantedAt : "",
+    registered: Boolean(request || grant || isPreviewAdmin(user)),
+    requestedAt: request ? request.requestedAt : "",
+    status: allowed ? "approved" : request ? request.status : "not_registered",
+    username: user.username
+  };
+}
+
+function getPreviewSecureMessageAdmin() {
+  const grants = [...secureMessageAccess.entries()].map(([userId, grant]) => {
+    const sends = secureMessageEvents.filter((event) => event.userId === userId);
+    const request = secureMessageRequests.get(userId);
+    const status = grant.active ? "approved" : request?.status || "revoked";
+    return {
+      userId,
+      username: grant.username,
+      grantedBy: grant.grantedBy || "",
+      grantedAt: grant.grantedAt || "",
+      revokedBy: grant.revokedBy || "",
+      revokedAt: grant.revokedAt || "",
+      active: Boolean(grant.active),
+      requestedAt: request?.requestedAt || "",
+      sendCount: sends.length,
+      status,
+      lastSentAt: sends[0]?.createdAt || ""
+    };
+  });
+  secureMessageRequests.forEach((request, userId) => {
+    if (secureMessageAccess.has(userId)) return;
+    grants.push({
+      userId,
+      username: request.username,
+      grantedBy: "",
+      grantedAt: request.requestedAt,
+      revokedBy: "",
+      revokedAt: "",
+      active: false,
+      status: request.status || "pending",
+      sendCount: 0,
+      lastSentAt: ""
+    });
+  });
+  return {
+    grants,
+    events: secureMessageEvents.slice(0, 100)
+  };
 }
 
 function normalizeUsername(username) {

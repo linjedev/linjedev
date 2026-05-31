@@ -34,6 +34,8 @@ Linje.dev uses Cloudflare Pages Functions and a D1 database binding named `DB`.
 2. Create a database named `linje-auth`.
 3. Open that database console and run the SQL from:
    - `migrations/0001_linje_auth.sql`
+   - `migrations/0002_arcade_scores.sql`
+   - `migrations/0003_secure_messages.sql`
 4. Open **Workers & Pages > Pages > icelandtrip-travelnformation > Settings > Functions > D1 database bindings**.
 5. Add a binding:
    - Variable name: `DB`

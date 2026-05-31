@@ -493,6 +493,7 @@ const state = {
   arcadeGame: "invaders",
   arcadeUnlocked: false,
   arcade: null,
+  secureMessageAccess: null,
   secureMessageViewedToken: ""
 };
 
@@ -558,6 +559,10 @@ const els = {
   serverPingView: document.querySelector("#server-ping"),
   secureMessageView: document.querySelector("#secure-message"),
   secureMessageForm: document.querySelector("#secureMessageForm"),
+  secureSignupPanel: document.querySelector("#secureSignupPanel"),
+  secureSignupTitle: document.querySelector("#secureSignupTitle"),
+  secureSignupText: document.querySelector("#secureSignupText"),
+  secureSignupButton: document.querySelector("#secureSignupButton"),
   secureMessageInput: document.querySelector("#secureMessageInput"),
   secureLinkPanel: document.querySelector("#secureLinkPanel"),
   secureLinkOutput: document.querySelector("#secureLinkOutput"),
@@ -569,6 +574,11 @@ const els = {
   secureMessageStatus: document.querySelector("#secureMessageStatus"),
   secureCipherCanvas: document.querySelector("#secureCipherCanvas"),
   secureViewState: document.querySelector("#secureViewState"),
+  secureAdminGrantForm: document.querySelector("#secureAdminGrantForm"),
+  secureAdminUsername: document.querySelector("#secureAdminUsername"),
+  secureAdminStatus: document.querySelector("#secureAdminStatus"),
+  secureAdminGrants: document.querySelector("#secureAdminGrants"),
+  secureAdminEvents: document.querySelector("#secureAdminEvents"),
   refreshGameServers: document.querySelector("#refreshGameServers"),
   gameServerStatus: document.querySelector("#gameServerStatus"),
   gameServerList: document.querySelector("#gameServerList"),
@@ -661,10 +671,12 @@ els.passwordForm.addEventListener("submit", updatePassword);
 els.emailResetForm.addEventListener("submit", requestEmailReset);
 els.visitProfileForm.addEventListener("submit", visitProfile);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
+els.secureSignupButton.addEventListener("click", requestSecureMessageAccess);
 els.secureMessageForm.addEventListener("submit", createSecureMessageLink);
 els.secureCopyLink.addEventListener("click", copySecureMessageLink);
 els.secureClear.addEventListener("click", clearSecureMessageComposer);
 els.secureBurn.addEventListener("click", burnSecureMessage);
+els.secureAdminGrantForm.addEventListener("submit", grantSecureMessageAccess);
 els.refreshServers.addEventListener("click", () => checkAllServers());
 els.refreshGameServers.addEventListener("click", () => checkGameServers());
 els.arcadeGameButtons.forEach((button) => {
@@ -900,6 +912,7 @@ async function initialize() {
 
 async function enterApp(user, { route = "home" } = {}) {
   state.user = user;
+  state.secureMessageAccess = null;
   els.body.dataset.auth = "authenticated";
   els.auth.hidden = true;
   els.appOnly.forEach((node) => {
@@ -919,6 +932,7 @@ async function enterApp(user, { route = "home" } = {}) {
   renderHistory();
   loadGitHubCommitTracker();
   loadProfile();
+  loadSecureMessageAccess();
   checkAllServers();
   if (route === "current") {
     applyRoute();
@@ -1949,6 +1963,7 @@ function showSecureMessageView(updateHash = true) {
   if (updateHash) history.pushState(null, "", "#secure-message");
   window.scrollTo({ top: 0 });
   animateView(els.secureMessageView);
+  loadSecureMessageAccess();
   decryptSecureMessageFromHash();
 }
 
@@ -2013,6 +2028,11 @@ function showAdminView(updateHash = true) {
 
 async function createSecureMessageLink(event) {
   event.preventDefault();
+  if (!state.secureMessageAccess || !state.secureMessageAccess.allowed) {
+    setSecureMessageStatus("Secure Message access required.");
+    return;
+  }
+
   const message = els.secureMessageInput.value;
   if (!message.trim()) {
     setSecureMessageStatus("Write a message first.");
@@ -2045,6 +2065,10 @@ async function createSecureMessageLink(event) {
     })));
     const token = `${payload}.${base64UrlEncodeBytes(new Uint8Array(rawKey))}`;
     const link = `${window.location.origin}${window.location.pathname}${window.location.search}#message=${token}`;
+    await logSecureMessageSend({
+      ciphertextBytes: new Uint8Array(ciphertext).byteLength,
+      messageBytes: new TextEncoder().encode(message).byteLength
+    });
 
     els.secureLinkOutput.value = link;
     els.secureLinkPanel.hidden = false;
@@ -2054,6 +2078,85 @@ async function createSecureMessageLink(event) {
     animateMetricPulse(els.secureLinkPanel);
   } catch {
     setSecureMessageStatus("Could not encrypt this message.");
+  }
+}
+
+async function loadSecureMessageAccess() {
+  if (!state.user) return;
+  try {
+    const response = await fetch("/api/secure-message/access", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Secure Message access unavailable.");
+    state.secureMessageAccess = data;
+    renderSecureMessageAccess(data);
+  } catch (error) {
+    state.secureMessageAccess = { allowed: false, status: "unavailable" };
+    renderSecureMessageAccess(state.secureMessageAccess);
+    setSecureMessageStatus(error.message || "Secure Message access unavailable.");
+  }
+}
+
+function renderSecureMessageAccess(access = {}) {
+  const allowed = Boolean(access.allowed);
+  els.secureMessageInput.disabled = !allowed;
+  els.secureMessageForm.querySelectorAll("button[type='submit']").forEach((button) => {
+    button.disabled = !allowed;
+  });
+
+  if (allowed) {
+    els.secureSignupPanel.hidden = true;
+    setSecureMessageStatus("Ready. Nothing leaves this browser except send metadata.");
+    return;
+  }
+
+  els.secureSignupPanel.hidden = false;
+  els.secureSignupButton.disabled = access.status === "pending" || access.status === "unavailable";
+  if (access.status === "pending") {
+    els.secureSignupTitle.textContent = "Secure Message request pending.";
+    els.secureSignupText.textContent = "An admin needs to approve this Linje account before encrypted links can be created.";
+    setSecureMessageStatus("Waiting for Secure Message approval.");
+  } else if (access.status === "unavailable") {
+    els.secureSignupTitle.textContent = "Secure Message unavailable.";
+    els.secureSignupText.textContent = "Access could not be checked right now.";
+  } else {
+    els.secureSignupTitle.textContent = "Secure Message signup required.";
+    els.secureSignupText.textContent = "Register this Linje account for Secure Message before creating encrypted links.";
+    setSecureMessageStatus("Request Secure Message access to continue.");
+  }
+}
+
+async function requestSecureMessageAccess() {
+  try {
+    els.secureSignupButton.disabled = true;
+    setSecureMessageStatus("Requesting Secure Message access...");
+    const response = await fetch("/api/secure-message/access", {
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not request access.");
+    state.secureMessageAccess = data;
+    renderSecureMessageAccess(data);
+  } catch (error) {
+    els.secureSignupButton.disabled = false;
+    setSecureMessageStatus(error.message || "Could not request access.");
+  }
+}
+
+async function logSecureMessageSend({ messageBytes, ciphertextBytes }) {
+  const response = await fetch("/api/secure-message/send", {
+    body: JSON.stringify({ messageBytes, ciphertextBytes }),
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "Secure Message send was not authorized.");
   }
 }
 
@@ -3054,6 +3157,7 @@ async function loadAdminEvents() {
   if (!state.user || state.user.username !== "seb") return;
 
   els.adminStatus.textContent = "Loading auth events...";
+  loadSecureMessageAdmin();
   try {
     const response = await fetch("/api/admin/events", {
       cache: "no-store",
@@ -3067,6 +3171,133 @@ async function loadAdminEvents() {
     els.adminStatus.textContent = error.message || "Could not load admin events.";
     els.adminEvents.innerHTML = "";
   }
+}
+
+async function loadSecureMessageAdmin() {
+  if (!state.user || state.user.username !== "seb") return;
+  els.secureAdminStatus.textContent = "Loading Secure Message access...";
+  try {
+    const response = await fetch("/api/admin/secure-messages", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not load Secure Message access.");
+    renderSecureMessageAdmin(data);
+    els.secureAdminStatus.textContent = `${data.grants.length} access records / ${data.events.length} sends shown.`;
+  } catch (error) {
+    els.secureAdminStatus.textContent = error.message || "Could not load Secure Message access.";
+    els.secureAdminGrants.innerHTML = "";
+    els.secureAdminEvents.innerHTML = "";
+  }
+}
+
+async function grantSecureMessageAccess(event) {
+  event.preventDefault();
+  const username = normalizeUsername(els.secureAdminUsername.value);
+  if (!username) return;
+  await grantSecureMessageAccessByUsername(username, true);
+}
+
+async function grantSecureMessageAccessByUsername(username, clearInput = false) {
+  els.secureAdminStatus.textContent = `Granting @${username}...`;
+  try {
+    const response = await fetch("/api/admin/secure-messages", {
+      body: JSON.stringify({ username }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not grant access.");
+    if (clearInput) els.secureAdminUsername.value = "";
+    els.secureAdminStatus.textContent = `Granted @${data.username || username}.`;
+    loadSecureMessageAdmin();
+  } catch (error) {
+    els.secureAdminStatus.textContent = error.message || "Could not grant access.";
+  }
+}
+
+async function revokeSecureMessageAccess(username) {
+  if (!username) return;
+  els.secureAdminStatus.textContent = `Revoking @${username}...`;
+  try {
+    const response = await fetch("/api/admin/secure-messages", {
+      body: JSON.stringify({ username }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "DELETE"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not revoke access.");
+    els.secureAdminStatus.textContent = `Revoked @${data.username || username}.`;
+    loadSecureMessageAdmin();
+  } catch (error) {
+    els.secureAdminStatus.textContent = error.message || "Could not revoke access.";
+  }
+}
+
+function renderSecureMessageAdmin(data) {
+  els.secureAdminGrants.innerHTML = "";
+  els.secureAdminEvents.innerHTML = "";
+
+  if (!data.grants.length) {
+    const empty = document.createElement("p");
+    empty.className = "admin-empty";
+    empty.textContent = "No Secure Message access requests yet.";
+    els.secureAdminGrants.append(empty);
+  } else {
+    data.grants.forEach((grant) => {
+      const item = document.createElement("article");
+      const status = grant.status || (grant.active ? "approved" : "pending");
+      item.className = `secure-admin-card ${status}`;
+      const statusLabel = status === "approved" ? "Active" : status === "revoked" ? "Revoked" : "Pending";
+      const action = grant.active
+        ? `<button class="ghost-button" type="button" data-secure-revoke="${escapeAttribute(grant.username)}">Revoke</button>`
+        : status === "pending"
+          ? `<button class="ghost-button" type="button" data-secure-grant="${escapeAttribute(grant.username)}">Grant</button>`
+          : "<span>Revoked</span>";
+      item.innerHTML = `
+        <div>
+          <strong>@${escapeHtml(grant.username)}</strong>
+          <small>${statusLabel} / sends ${Number(grant.sendCount) || 0}</small>
+        </div>
+        <div>
+          <small>${grant.grantedAt ? `Granted ${escapeHtml(formatDateTime(grant.grantedAt))}` : `Requested ${escapeHtml(formatDateTime(grant.requestedAt))}`}</small>
+          <small>Last send ${escapeHtml(grant.lastSentAt ? formatDateTime(grant.lastSentAt) : "--")}</small>
+        </div>
+        ${action}
+      `;
+      els.secureAdminGrants.append(item);
+    });
+  }
+
+  els.secureAdminGrants.querySelectorAll("[data-secure-revoke]").forEach((button) => {
+    button.addEventListener("click", () => revokeSecureMessageAccess(button.dataset.secureRevoke));
+  });
+  els.secureAdminGrants.querySelectorAll("[data-secure-grant]").forEach((button) => {
+    button.addEventListener("click", () => grantSecureMessageAccessByUsername(button.dataset.secureGrant));
+  });
+
+  if (!data.events.length) {
+    const empty = document.createElement("p");
+    empty.className = "admin-empty";
+    empty.textContent = "No Secure Message sends logged yet.";
+    els.secureAdminEvents.append(empty);
+    return;
+  }
+
+  data.events.forEach((event) => {
+    const item = document.createElement("article");
+    item.className = "secure-admin-event";
+    item.innerHTML = `
+      <strong>@${escapeHtml(event.username)} sent a Secure Message</strong>
+      <small>${escapeHtml(formatDateTime(event.createdAt))}</small>
+      <span>${Number(event.messageBytes) || 0} plaintext bytes / ${Number(event.ciphertextBytes) || 0} encrypted bytes</span>
+      <span>${escapeHtml(event.ipAddress || "--")}</span>
+    `;
+    els.secureAdminEvents.append(item);
+  });
 }
 
 function renderAdminEvents(events) {

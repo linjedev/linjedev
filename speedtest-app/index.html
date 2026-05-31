@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=secure1">
+    <link rel="stylesheet" href="styles.css?v=secure2">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -408,6 +408,14 @@
             </div>
 
             <form id="secureMessageForm" class="secure-message-form">
+              <div id="secureSignupPanel" class="secure-signup-panel">
+                <div>
+                  <p class="eyebrow">Access</p>
+                  <h3 id="secureSignupTitle">Secure Message signup required.</h3>
+                  <p id="secureSignupText">Register this Linje account for Secure Message before creating encrypted links.</p>
+                </div>
+                <button id="secureSignupButton" class="ghost-button" type="button">Request access</button>
+              </div>
               <label>
                 Message
                 <textarea id="secureMessageInput" maxlength="2000" rows="8" placeholder="Type the message here."></textarea>
@@ -512,6 +520,24 @@
           </div>
           <button id="refreshAdmin" class="ghost-button" type="button">Refresh</button>
         </div>
+        <section class="admin-secure-panel" aria-labelledby="admin-secure-title">
+          <div class="admin-secure-head">
+            <div>
+              <p class="eyebrow">Secure Message</p>
+              <h3 id="admin-secure-title">Access control</h3>
+            </div>
+            <form id="secureAdminGrantForm" class="admin-secure-form">
+              <label>
+                Username
+                <input id="secureAdminUsername" type="text" placeholder="@username">
+              </label>
+              <button class="run-button" type="submit">Grant</button>
+            </form>
+          </div>
+          <p id="secureAdminStatus" class="status">Secure Message access loads here.</p>
+          <div id="secureAdminGrants" class="secure-admin-grants"></div>
+          <div id="secureAdminEvents" class="secure-admin-events"></div>
+        </section>
         <p id="adminStatus" class="status">Auth events load here for @seb.</p>
         <div id="adminEvents" class="admin-events" aria-live="polite"></div>
       </section>
@@ -533,6 +559,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=secure1" defer></script>
+    <script src="app.js?v=secure2" defer></script>
   </body>
 </html>

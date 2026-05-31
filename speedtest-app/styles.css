@@ -1058,6 +1058,89 @@ body[data-auth="authenticated"]::after {
   text-underline-offset: 3px;
 }
 
+.admin-secure-panel {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  background: var(--glass-bg), rgba(9, 9, 9, .34);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.admin-secure-head,
+.admin-secure-form,
+.secure-admin-card,
+.secure-admin-event {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-secure-head {
+  justify-content: space-between;
+}
+
+.admin-secure-head h3 {
+  margin: 5px 0 0;
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.admin-secure-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.admin-secure-form input {
+  min-height: 44px;
+  min-width: 220px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.secure-admin-grants,
+.secure-admin-events {
+  display: grid;
+  gap: 10px;
+}
+
+.secure-admin-card,
+.secure-admin-event {
+  min-width: 0;
+  justify-content: space-between;
+  padding: 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: rgba(9, 9, 9, .42);
+}
+
+.secure-admin-card strong,
+.secure-admin-card small,
+.secure-admin-event strong,
+.secure-admin-event small,
+.secure-admin-event span {
+  display: block;
+}
+
+.secure-admin-card small,
+.secure-admin-event small,
+.secure-admin-event span {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.secure-admin-card.revoked {
+  opacity: .58;
+}
+
 .shell {
   position: relative;
   z-index: 2;
@@ -1678,6 +1761,28 @@ h1,
 .secure-read-panel {
   display: grid;
   gap: 14px;
+}
+
+.secure-signup-panel {
+  padding: 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: rgba(247, 247, 242, .055);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.secure-signup-panel h3 {
+  margin: 5px 0;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.secure-signup-panel p:not(.eyebrow) {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .secure-message-form label,
@@ -2458,9 +2563,19 @@ select {
 
   .secure-head,
   .secure-actions,
+  .secure-signup-panel,
+  .admin-secure-head,
+  .admin-secure-form,
+  .secure-admin-card,
+  .secure-admin-event,
   .secure-link-panel {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .admin-secure-form input {
+    min-width: 0;
+    width: 100%;
   }
 
   .secure-head h2 {
