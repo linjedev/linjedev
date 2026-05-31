@@ -6,6 +6,24 @@ const path = require("path");
 const root = __dirname;
 const users = new Map();
 const sessions = new Map();
+const blockedUsernameTerms = [
+  "6b6b6b",
+  "6e617a69",
+  "6869746c6572",
+  "7768697465706f776572",
+  "776869746573757072656d616379",
+  "6e6967676572",
+  "6e69676761",
+  "6b696b65",
+  "6368696e6b",
+  "73706963",
+  "70616b69",
+  "7765746261636b",
+  "636f6f6e",
+  "676f6f6b",
+  "72616768656164",
+  "746f77656c68656164"
+].map(hexToText);
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -52,9 +70,15 @@ async function handleApi(request, response, pathname) {
     const username = normalizeUsername(body.username);
     const password = String(body.password || "");
 
-    if (!/^[a-z0-9_]{3,24}$/.test(username)) {
+    if (!/^[a-z0-9_]{1,24}$/.test(username)) {
       logPreviewAuthEvent(request, { event: "register", username, success: false, client: body.client, failureReason: "invalid_username" });
-      sendJson(response, 400, { error: "Usernames need 3-24 letters, numbers, or underscores." });
+      sendJson(response, 400, { error: "Usernames need 1-24 letters, numbers, or underscores." });
+      return;
+    }
+
+    if (isBlockedUsername(username)) {
+      logPreviewAuthEvent(request, { event: "register", username, success: false, client: body.client, failureReason: "blocked_username" });
+      sendJson(response, 400, { error: "Choose a different username." });
       return;
     }
 
@@ -136,6 +160,24 @@ function normalizeUsername(username) {
   return String(username || "").trim().replace(/^@+/, "").toLowerCase();
 }
 
+function isBlockedUsername(username) {
+  const compact = normalizeForModeration(username);
+  return blockedUsernameTerms.some((term) => compact.includes(term));
+}
+
+function normalizeForModeration(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[@]/g, "a")
+    .replace(/[4]/g, "a")
+    .replace(/[3]/g, "e")
+    .replace(/[1!|]/g, "i")
+    .replace(/[0]/g, "o")
+    .replace(/[5$]/g, "s")
+    .replace(/[7]/g, "t")
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function logPreviewAuthEvent(request, { event, userId = "", username = "", success, client = {}, failureReason = "" }) {
   console.log(JSON.stringify({
     event,
@@ -181,4 +223,12 @@ function sendJson(response, status, body, headers = {}) {
     ...headers
   });
   response.end(JSON.stringify(body));
+}
+
+function hexToText(hex) {
+  let text = "";
+  for (let index = 0; index < hex.length; index += 2) {
+    text += String.fromCharCode(Number.parseInt(hex.slice(index, index + 2), 16));
+  }
+  return text;
 }

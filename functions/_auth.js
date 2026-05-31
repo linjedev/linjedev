@@ -1,6 +1,24 @@
 const encoder = new TextEncoder();
 const SESSION_COOKIE = "linje_session";
 const SESSION_DAYS = 30;
+const BLOCKED_USERNAME_TERMS = [
+  "6b6b6b",
+  "6e617a69",
+  "6869746c6572",
+  "7768697465706f776572",
+  "776869746573757072656d616379",
+  "6e6967676572",
+  "6e69676761",
+  "6b696b65",
+  "6368696e6b",
+  "73706963",
+  "70616b69",
+  "7765746261636b",
+  "636f6f6e",
+  "676f6f6b",
+  "72616768656164",
+  "746f77656c68656164"
+].map(hexToText);
 
 export function json(data, init = {}) {
   return new Response(JSON.stringify(data), {
@@ -25,8 +43,12 @@ export function normalizeUsername(username) {
 }
 
 export function validateAccount({ username, password }) {
-  if (!/^[a-z0-9_]{3,24}$/.test(username)) {
-    return "Usernames need 3-24 letters, numbers, or underscores.";
+  if (!/^[a-z0-9_]{1,24}$/.test(username)) {
+    return "Usernames need 1-24 letters, numbers, or underscores.";
+  }
+
+  if (isBlockedUsername(username)) {
+    return "Choose a different username.";
   }
 
   if (String(password || "").length < 8) {
@@ -34,6 +56,24 @@ export function validateAccount({ username, password }) {
   }
 
   return "";
+}
+
+export function isBlockedUsername(username) {
+  const compact = normalizeForModeration(username);
+  return BLOCKED_USERNAME_TERMS.some((term) => compact.includes(term));
+}
+
+function normalizeForModeration(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[@]/g, "a")
+    .replace(/[4]/g, "a")
+    .replace(/[3]/g, "e")
+    .replace(/[1!|]/g, "i")
+    .replace(/[0]/g, "o")
+    .replace(/[5$]/g, "s")
+    .replace(/[7]/g, "t")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 export async function hashPassword(password, saltBase64 = "") {
@@ -184,4 +224,12 @@ function base64ToBytes(value) {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
+}
+
+function hexToText(hex) {
+  let text = "";
+  for (let index = 0; index < hex.length; index += 2) {
+    text += String.fromCharCode(Number.parseInt(hex.slice(index, index + 2), 16));
+  }
+  return text;
 }
