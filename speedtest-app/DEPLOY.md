@@ -36,12 +36,13 @@ Linje.dev uses Cloudflare Pages Functions and a D1 database binding named `DB`.
    - `migrations/0001_linje_auth.sql`
    - `migrations/0002_arcade_scores.sql`
    - `migrations/0003_secure_messages.sql`
+   - `migrations/0004_app_config.sql`
 4. Open **Workers & Pages > Pages > icelandtrip-travelnformation > Settings > Functions > D1 database bindings**.
 5. Add a binding:
    - Variable name: `DB`
    - D1 database: `linje-auth`
 6. Add Pages environment variables:
-   - `CAPTCHA_SECRET`: at least 32 random characters, used to sign captcha tokens.
+   - `CAPTCHA_SECRET`: at least 32 random characters, used to sign captcha tokens. If omitted, Linje.dev creates a durable fallback secret in D1.
    - `ADMIN_USERS`: comma-separated usernames that can read `/api/admin/events`, for example `seb`.
 7. Redeploy the latest Pages deployment.
 

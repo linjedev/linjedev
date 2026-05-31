@@ -359,10 +359,7 @@ function randomInt(min, max) {
 }
 
 async function signCaptcha(body, env) {
-  const secretValue = env && env.CAPTCHA_SECRET ? String(env.CAPTCHA_SECRET) : "";
-  if (secretValue.length < 32) {
-    throw new Error("CAPTCHA_SECRET must be configured with at least 32 characters.");
-  }
+  const secretValue = await getCaptchaSecret(env);
   const secret = encoder.encode(secretValue);
   const key = await crypto.subtle.importKey(
     "raw",
@@ -373,6 +370,39 @@ async function signCaptcha(body, env) {
   );
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
   return base64UrlEncodeBytes(new Uint8Array(signature));
+}
+
+async function getCaptchaSecret(env) {
+  const configured = env && env.CAPTCHA_SECRET ? String(env.CAPTCHA_SECRET) : "";
+  if (configured.length >= 32) return configured;
+
+  if (!hasDatabase(env)) {
+    throw new Error("CAPTCHA_SECRET must be configured with at least 32 characters.");
+  }
+
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS app_config (
+      config_key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )`
+  ).run();
+
+  const generated = randomToken(32);
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO app_config (config_key, value, created_at) VALUES ('captcha_secret', ?, ?)"
+  ).bind(generated, now).run();
+
+  const row = await env.DB.prepare(
+    "SELECT value FROM app_config WHERE config_key = 'captcha_secret'"
+  ).first();
+  const stored = row && row.value ? String(row.value) : "";
+  if (stored.length < 32) {
+    throw new Error("Captcha signing secret is unavailable.");
+  }
+
+  return stored;
 }
 
 function base64UrlEncode(value) {
