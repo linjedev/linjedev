@@ -173,8 +173,8 @@ body[data-auth="authenticated"] .auth-view {
   border: 1px solid var(--line);
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(247, 247, 242, .105), rgba(247, 247, 242, .018) 32%, rgba(5, 5, 5, .72)),
-    rgba(9, 9, 9, .48);
+    linear-gradient(135deg, rgba(247, 247, 242, .075), rgba(247, 247, 242, .012) 32%, rgba(5, 5, 5, .52)),
+    rgba(9, 9, 9, .34);
   -webkit-backdrop-filter: blur(26px) saturate(1.2);
   backdrop-filter: blur(26px) saturate(1.2);
   box-shadow:
@@ -196,9 +196,9 @@ body[data-auth="authenticated"] .auth-view {
 .auth-card::before {
   inset: -1px;
   background:
-    radial-gradient(circle at var(--pointer-x, 50%) var(--pointer-y, 50%), rgba(247, 247, 242, .22), transparent 18rem),
-    linear-gradient(115deg, transparent 0%, rgba(247, 247, 242, .12) 34%, transparent 48%);
-  opacity: .52;
+    radial-gradient(circle at var(--pointer-x, 50%) var(--pointer-y, 50%), rgba(247, 247, 242, .18), transparent 18rem),
+    linear-gradient(115deg, transparent 0%, rgba(247, 247, 242, .08) 34%, transparent 48%);
+  opacity: .46;
   mix-blend-mode: screen;
   animation: glass-sheen 9s ease-in-out infinite alternate;
 }
@@ -229,7 +229,7 @@ body[data-auth="authenticated"] .auth-view {
   grid-template-columns: 1fr 1fr;
   border: 1px solid rgba(247, 247, 242, .12);
   border-radius: 6px;
-  background: rgba(5, 5, 5, .28);
+  background: rgba(5, 5, 5, .18);
   box-shadow: inset 0 1px 0 rgba(247, 247, 242, .08);
   overflow: hidden;
 }
@@ -271,8 +271,8 @@ body[data-auth="authenticated"] .auth-view {
   font-size: 16px;
   border-color: rgba(247, 247, 242, .1);
   background:
-    linear-gradient(180deg, rgba(247, 247, 242, .035), rgba(5, 5, 5, .2)),
-    rgba(5, 5, 5, .34);
+    linear-gradient(180deg, rgba(247, 247, 242, .026), rgba(5, 5, 5, .14)),
+    rgba(5, 5, 5, .24);
   box-shadow:
     inset 0 1px 0 rgba(247, 247, 242, .08),
     inset 0 -1px 0 rgba(0, 0, 0, .32);
