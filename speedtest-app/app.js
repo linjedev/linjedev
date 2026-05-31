@@ -391,6 +391,7 @@ function initAuthBackground() {
     dragOffsetY: 0,
     lastX: 0,
     lastY: 0,
+    lastMoveTime: 0,
     holdUntil: 0,
     lastInteraction: 0,
     edgeHits: 0,
@@ -436,6 +437,7 @@ function initAuthBackground() {
     logo.lastX = event.clientX;
     logo.lastY = event.clientY;
     logo.lastInteraction = performance.now();
+    logo.lastMoveTime = logo.lastInteraction;
     logo.holdUntil = logo.lastInteraction + 1600;
   }, { passive: true });
   window.addEventListener("pointerup", releaseLogo, { passive: true });
@@ -510,12 +512,15 @@ function initAuthBackground() {
   function interactWithLogo(x, y) {
     const now = performance.now();
     if (logo.dragging) {
-      logo.vx = (x - logo.lastX) * 10;
-      logo.vy = (y - logo.lastY) * 10;
+      const dt = Math.max(16, now - logo.lastMoveTime) / 1000;
+      logo.vx = (x - logo.lastX) / dt * .92;
+      logo.vy = (y - logo.lastY) / dt * .92;
+      capLogoSpeed(width < 640 ? 620 : 780);
       logo.x = x - logo.dragOffsetX;
       logo.y = y - logo.dragOffsetY;
       logo.lastX = x;
       logo.lastY = y;
+      logo.lastMoveTime = now;
       logo.lastInteraction = now;
       logo.holdUntil = now + 1600;
       clampLogo();
@@ -539,9 +544,10 @@ function initAuthBackground() {
   function releaseLogo() {
     if (!logo.dragging) return;
     logo.dragging = false;
-    keepLogoMoving(124);
+    boostReleaseVelocity();
+    keepLogoMoving(146);
     logo.lastInteraction = performance.now();
-    logo.holdUntil = logo.lastInteraction + 650;
+    logo.holdUntil = logo.lastInteraction + 90;
   }
 
   function drawBouncingLogo(time, now) {
@@ -622,6 +628,25 @@ function initAuthBackground() {
     if (logo.x + logo.width >= width - 10 && logo.vx > 0) logo.vx = -Math.abs(logo.vx);
     if (logo.y <= 10 && logo.vy < 0) logo.vy = Math.abs(logo.vy);
     if (logo.y + logo.height >= height - 10 && logo.vy > 0) logo.vy = -Math.abs(logo.vy);
+  }
+
+  function boostReleaseVelocity() {
+    const speed = Math.sqrt(logo.vx * logo.vx + logo.vy * logo.vy);
+    if (!speed) return;
+
+    const minFlick = width < 640 ? 180 : 220;
+    const maxFlick = width < 640 ? 720 : 940;
+    const boost = speed > minFlick ? 1.35 : 1.08;
+    logo.vx *= boost;
+    logo.vy *= boost;
+    capLogoSpeed(maxFlick);
+  }
+
+  function capLogoSpeed(maxSpeed) {
+    const speed = Math.sqrt(logo.vx * logo.vx + logo.vy * logo.vy);
+    if (speed <= maxSpeed || !speed) return;
+    logo.vx = (logo.vx / speed) * maxSpeed;
+    logo.vy = (logo.vy / speed) * maxSpeed;
   }
 
   function increaseCornerChance(now) {
