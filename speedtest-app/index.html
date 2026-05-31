@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=home3">
+    <link rel="stylesheet" href="styles.css?v=home4">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -99,23 +99,17 @@
           </div>
         </div>
 
-        <div class="home-grid" aria-label="Available tools">
-          <article class="home-tile">
-            <span>01</span>
-            <strong>Speed</strong>
-            <p>Measure latency, download, upload, jitter, and local results from its own page.</p>
-          </article>
-          <article class="home-tile">
-            <span>02</span>
-            <strong>Account</strong>
-            <p>Private beta access with logged account activity for security review.</p>
-          </article>
-          <article class="home-tile">
-            <span>03</span>
-            <strong>More tools</strong>
-            <p>New Linje utilities can land here without taking over the home screen.</p>
-          </article>
-        </div>
+        <section class="commit-tracker" aria-labelledby="commit-tracker-title">
+          <div>
+            <p class="eyebrow">GitHub</p>
+            <h2 id="commit-tracker-title">linjedev commits</h2>
+          </div>
+          <div class="commit-total" aria-live="polite">
+            <span id="githubCommitTotal">--</span>
+            <small>Total commits</small>
+          </div>
+          <p id="githubCommitStatus">Loading commits for linjedev...</p>
+        </section>
       </section>
 
       <div id="speed" class="shell tool-shell" hidden>
@@ -270,6 +264,6 @@
       </li>
     </template>
 
-    <script src="app.js?v=home2"></script>
+    <script src="app.js?v=home4"></script>
   </body>
 </html>

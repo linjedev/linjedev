@@ -466,39 +466,49 @@ body[data-auth="authenticated"] .auth-view {
   line-height: 1.45;
 }
 
-.home-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.home-tile {
-  min-height: 180px;
-  padding: 18px;
+.commit-tracker {
+  min-height: 220px;
+  padding: 24px;
   border: 1px solid var(--line);
   background: #070707;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
+  align-items: end;
   align-content: space-between;
-  gap: 18px;
+  gap: 24px;
 }
 
-.home-tile span {
+.commit-tracker h2 {
+  margin-top: 8px;
+  font-size: clamp(28px, 4vw, 52px);
+  font-weight: 500;
+}
+
+.commit-tracker p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.commit-total {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.commit-total span {
+  font-size: clamp(58px, 10vw, 116px);
+  font-weight: 500;
+  line-height: .85;
+  font-variant-numeric: tabular-nums;
+}
+
+.commit-total small {
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: .14em;
-}
-
-.home-tile strong {
-  display: block;
-  font-size: 24px;
-  font-weight: 500;
-}
-
-.home-tile p {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.45;
+  text-transform: uppercase;
 }
 
 .tool-shell[hidden] {
@@ -1176,14 +1186,14 @@ select {
     padding: 16px;
   }
 
-  .home-grid {
+  .commit-tracker {
+    min-height: 180px;
     grid-template-columns: 1fr;
-    gap: 10px;
+    padding: 16px;
   }
 
-  .home-tile {
-    min-height: 140px;
-    padding: 16px;
+  .commit-total {
+    justify-items: start;
   }
 
   .shell {

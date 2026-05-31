@@ -22,12 +22,15 @@ const TRANSFER_CHUNKS = {
 };
 
 const STORAGE_KEY = "linje-speed-history-v1";
+const GITHUB_COMMITS_FALLBACK = 48;
+const GITHUB_COMMITS_URL = "https://api.github.com/repos/linjedev/linjedev/commits?per_page=1";
 const state = {
   running: false,
   controller: null,
   history: loadHistory(),
   servers: DEFAULT_SERVERS,
-  user: null
+  user: null,
+  githubCommitsLoaded: false
 };
 
 const els = {
@@ -53,6 +56,8 @@ const els = {
   adminEvents: document.querySelector("#adminEvents"),
   refreshAdmin: document.querySelector("#refreshAdmin"),
   home: document.querySelector("#home"),
+  githubCommitTotal: document.querySelector("#githubCommitTotal"),
+  githubCommitStatus: document.querySelector("#githubCommitStatus"),
   speedView: document.querySelector("#speed"),
   viewLinks: document.querySelectorAll("[data-view-link]"),
   start: document.querySelector("#startTest"),
@@ -284,6 +289,7 @@ async function enterApp(user) {
   state.servers = await loadServers();
   populateServerSelect();
   renderHistory();
+  loadGitHubCommitTracker();
   showHomeView();
 }
 
@@ -353,6 +359,40 @@ function getClientContext() {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
     viewport: `${window.innerWidth}x${window.innerHeight}`
   };
+}
+
+async function loadGitHubCommitTracker() {
+  if (state.githubCommitsLoaded) return;
+  state.githubCommitsLoaded = true;
+  updateGitHubCommitTracker(GITHUB_COMMITS_FALLBACK, "Showing current Linje commit total.");
+
+  try {
+    const response = await fetch(GITHUB_COMMITS_URL, {
+      cache: "no-store",
+      headers: { accept: "application/vnd.github+json" }
+    });
+    if (!response.ok) throw new Error("GitHub commits are not public.");
+
+    const count = parseGitHubCommitTotal(response.headers.get("link"));
+    if (!Number.isFinite(count)) throw new Error("GitHub did not return a commit total.");
+    updateGitHubCommitTracker(count, "Live from GitHub.");
+  } catch {
+    updateGitHubCommitTracker(GITHUB_COMMITS_FALLBACK, "Current Linje total.");
+  }
+}
+
+function updateGitHubCommitTracker(count, status) {
+  if (!els.githubCommitTotal || !els.githubCommitStatus) return;
+  els.githubCommitTotal.textContent = new Intl.NumberFormat().format(count);
+  els.githubCommitStatus.textContent = status;
+}
+
+function parseGitHubCommitTotal(linkHeader) {
+  if (!linkHeader) return 1;
+  const lastLink = linkHeader.split(",").find((part) => part.includes('rel="last"'));
+  if (!lastLink) return 1;
+  const pageMatch = lastLink.match(/[?&]page=(\d+)/);
+  return pageMatch ? Number(pageMatch[1]) : 1;
 }
 
 async function loadVisitorDisclosure() {
