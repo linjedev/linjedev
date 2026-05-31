@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=glass3">
+    <link rel="stylesheet" href="styles.css?v=servers1">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -237,6 +237,18 @@
           <span>Save local history</span>
         </label>
       </section>
+
+      <section class="server-checks" aria-labelledby="server-checks-title">
+        <div class="server-checks-head">
+          <div>
+            <p class="eyebrow">Server checks</p>
+            <h2 id="server-checks-title">Ping from your connection</h2>
+          </div>
+          <button id="refreshServers" class="ghost-button" type="button">Refresh</button>
+        </div>
+        <p id="serverCheckStatus" class="status">Checking configured servers...</p>
+        <div id="serverCheckList" class="server-check-list" aria-live="polite"></div>
+      </section>
       </div>
 
       <section id="admin" class="admin-view" aria-labelledby="admin-title" hidden>
@@ -267,6 +279,6 @@
       </li>
     </template>
 
-    <script src="app.js?v=glass1"></script>
+    <script src="app.js?v=servers1"></script>
   </body>
 </html>

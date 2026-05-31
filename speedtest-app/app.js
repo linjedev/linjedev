@@ -61,6 +61,9 @@ const els = {
   githubCommitStatus: document.querySelector("#githubCommitStatus"),
   speedView: document.querySelector("#speed"),
   viewLinks: document.querySelectorAll("[data-view-link]"),
+  refreshServers: document.querySelector("#refreshServers"),
+  serverCheckStatus: document.querySelector("#serverCheckStatus"),
+  serverCheckList: document.querySelector("#serverCheckList"),
   start: document.querySelector("#startTest"),
   stop: document.querySelector("#stopTest"),
   phase: document.querySelector("#phaseLabel"),
@@ -93,6 +96,7 @@ els.registerForm.addEventListener("submit", register);
 els.loginForm.addEventListener("submit", login);
 els.logout.addEventListener("click", logout);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
+els.refreshServers.addEventListener("click", () => checkAllServers());
 els.start.addEventListener("click", runTest);
 els.stop.addEventListener("click", stopTest);
 els.clear.addEventListener("click", clearHistory);
@@ -292,6 +296,7 @@ async function enterApp(user, { route = "home" } = {}) {
   populateServerSelect();
   renderHistory();
   loadGitHubCommitTracker();
+  checkAllServers();
   if (route === "current") {
     applyRoute();
   } else {
@@ -1188,6 +1193,57 @@ function populateServerSelect() {
     els.server.append(option);
   });
   els.server.value = state.servers.some((server) => server.id === selected) ? selected : "auto";
+}
+
+async function checkAllServers() {
+  if (!els.serverCheckList || !els.serverCheckStatus) return;
+
+  const servers = state.servers.filter((server) => server.protocol !== "auto");
+  if (!servers.length) {
+    els.serverCheckStatus.textContent = "No test servers configured.";
+    els.serverCheckList.innerHTML = "";
+    return;
+  }
+
+  els.refreshServers.disabled = true;
+  els.serverCheckStatus.textContent = `Checking ${servers.length} servers from this browser...`;
+  els.serverCheckList.innerHTML = "";
+  renderServerChecks(servers.map((server) => ({ server, status: "checking" })));
+
+  const results = await Promise.all(servers.map(async (server) => {
+    try {
+      const ping = await probeServerLatency(server, new AbortController().signal);
+      return { ping, server, status: "online" };
+    } catch {
+      return { ping: Number.POSITIVE_INFINITY, server, status: "offline" };
+    }
+  }));
+
+  results.sort((a, b) => a.ping - b.ping);
+  renderServerChecks(results);
+  const online = results.filter((result) => result.status === "online");
+  els.serverCheckStatus.textContent = online.length
+    ? `${online.length} of ${results.length} servers responded. Fastest: ${online[0].server.name} at ${formatNumber(online[0].ping, 0)} ms.`
+    : "No configured servers responded from this browser.";
+  els.refreshServers.disabled = false;
+}
+
+function renderServerChecks(results) {
+  els.serverCheckList.innerHTML = "";
+  results.forEach((result) => {
+    const item = document.createElement("article");
+    item.className = `server-check ${result.status}`;
+    const ping = result.status === "online" ? `${formatNumber(result.ping, 0)} ms` : result.status === "checking" ? "..." : "Failed";
+    item.innerHTML = `
+      <div>
+        <strong>${escapeHtml(result.server.name)}</strong>
+        <small>${escapeHtml(result.server.location || result.server.provider || "")}</small>
+      </div>
+      <span>${escapeHtml(result.server.provider || result.server.protocol)}</span>
+      <b>${ping}</b>
+    `;
+    els.serverCheckList.append(item);
+  });
 }
 
 async function resolveSelectedServer(signal) {
