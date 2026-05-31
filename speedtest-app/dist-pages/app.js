@@ -738,6 +738,9 @@ initUiAnimations();
 
 async function register(event) {
   event.preventDefault();
+  const captcha = getCaptchaPayload("register");
+  if (!captcha) return;
+
   setAuthStatus("Creating account...");
   setAuthBusy(true);
 
@@ -745,8 +748,8 @@ async function register(event) {
     const user = await authRequest("/api/register", {
       username: normalizeUsername(els.registerUsername.value),
       password: els.registerPassword.value,
-      captchaToken: els.registerCaptchaToken.value,
-      captchaAnswer: els.registerCaptchaAnswer.value,
+      captchaToken: captcha.token,
+      captchaAnswer: captcha.answer,
       client: getClientContext()
     });
     await enterApp(user, { route: "home" });
@@ -760,6 +763,9 @@ async function register(event) {
 
 async function login(event) {
   event.preventDefault();
+  const captcha = getCaptchaPayload("login");
+  if (!captcha) return;
+
   setAuthStatus("Logging in...");
   setAuthBusy(true);
 
@@ -767,8 +773,8 @@ async function login(event) {
     const user = await authRequest("/api/login", {
       username: normalizeUsername(els.loginUsername.value),
       password: els.loginPassword.value,
-      captchaToken: els.loginCaptchaToken.value,
-      captchaAnswer: els.loginCaptchaAnswer.value,
+      captchaToken: captcha.token,
+      captchaAnswer: captcha.answer,
       client: getClientContext()
     });
     await enterApp(user, { route: "home" });
@@ -992,6 +998,8 @@ async function loadCaptcha(mode) {
   question.textContent = "Loading...";
   token.value = "";
   answer.value = "";
+  answer.disabled = true;
+  answer.placeholder = "Loading...";
 
   try {
     const response = await fetch("/api/captcha", {
@@ -1002,9 +1010,37 @@ async function loadCaptcha(mode) {
     if (!response.ok) throw new Error(data.error || "Captcha unavailable.");
     question.textContent = data.question || "Complete the check.";
     token.value = data.token || "";
+    answer.disabled = false;
+    answer.placeholder = "Result";
   } catch {
     question.textContent = "Refresh to retry.";
+    answer.disabled = false;
+    answer.placeholder = "Refresh first";
   }
+}
+
+function getCaptchaPayload(mode) {
+  const prefix = mode === "login" ? "login" : "register";
+  const token = els[`${prefix}CaptchaToken`];
+  const answer = els[`${prefix}CaptchaAnswer`];
+  if (!token || !answer) return null;
+
+  if (!token.value) {
+    setAuthStatus("Refresh the Linje check, then enter the answer.", "error");
+    loadCaptcha(mode);
+    return null;
+  }
+
+  if (!answer.value.trim()) {
+    setAuthStatus("Enter the Linje check answer.", "error");
+    answer.focus();
+    return null;
+  }
+
+  return {
+    token: token.value,
+    answer: answer.value
+  };
 }
 
 async function authRequest(path, body) {
