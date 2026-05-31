@@ -47,7 +47,7 @@ The auth endpoints live in the repository root `functions/` directory:
 - `GET /api/session`
 - `POST /api/logout`
 
-Passwords are salted and hashed with PBKDF2 before they are stored. Sessions are stored in D1 and sent to the browser as HttpOnly cookies.
+Passwords are salted and hashed before they are stored. Sessions are stored in D1 and sent to the browser as HttpOnly cookies.
 
 Registration and login do not collect email addresses. The `auth_events` table stores security audit records for register/login attempts:
 

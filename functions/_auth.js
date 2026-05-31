@@ -1,7 +1,6 @@
 const encoder = new TextEncoder();
 const SESSION_COOKIE = "linje_session";
 const SESSION_DAYS = 30;
-const HASH_ITERATIONS = 120000;
 
 export function json(data, init = {}) {
   return new Response(JSON.stringify(data), {
@@ -39,28 +38,15 @@ export function validateAccount({ username, password }) {
 
 export async function hashPassword(password, saltBase64 = "") {
   const salt = saltBase64 ? base64ToBytes(saltBase64) : crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
-  const hash = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt,
-      iterations: HASH_ITERATIONS
-    },
-    key,
-    256
-  );
+  const material = new Uint8Array(salt.length + encoder.encode(password).length);
+  material.set(salt, 0);
+  material.set(encoder.encode(password), salt.length);
+  const hash = await crypto.subtle.digest("SHA-256", material);
 
   return {
     hash: bytesToBase64(new Uint8Array(hash)),
     salt: bytesToBase64(salt),
-    iterations: HASH_ITERATIONS
+    iterations: 1
   };
 }
 
