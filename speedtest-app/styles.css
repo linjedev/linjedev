@@ -457,10 +457,6 @@ body[data-auth="authenticated"] .auth-view {
   line-height: 1.45;
 }
 
-.intro-action {
-  width: max-content;
-}
-
 .home-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
