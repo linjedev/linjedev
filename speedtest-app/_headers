@@ -4,11 +4,10 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 /app.js
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=60
 
 /styles.css
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=60
 
 /servers.json
   Cache-Control: public, max-age=300
-
