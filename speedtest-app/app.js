@@ -55,6 +55,7 @@ const els = {
   adminEvents: document.querySelector("#adminEvents"),
   refreshAdmin: document.querySelector("#refreshAdmin"),
   home: document.querySelector("#home"),
+  githubCommitHeatmap: document.querySelector("#githubCommitHeatmap"),
   githubCommitTotal: document.querySelector("#githubCommitTotal"),
   githubCommitStatus: document.querySelector("#githubCommitStatus"),
   speedView: document.querySelector("#speed"),
@@ -374,16 +375,58 @@ async function loadGitHubCommitTracker() {
     if (!response.ok || !Number.isFinite(data.totalCommits)) {
       throw new Error(data.error || "Commit total is unavailable.");
     }
-    updateGitHubCommitTracker(data.totalCommits, `Live from GitHub. Cached for ${data.cachedFor || 60}s.`);
+    updateGitHubCommitTracker(data.totalCommits, `Live from GitHub. Cached for ${data.cachedFor || 60}s.`, data.hourBuckets || []);
   } catch {
-    updateGitHubCommitTracker("--", "Commit total unavailable.");
+    updateGitHubCommitTracker("--", "Commit total unavailable.", []);
   }
 }
 
-function updateGitHubCommitTracker(count, status) {
+function updateGitHubCommitTracker(count, status, hourBuckets = []) {
   if (!els.githubCommitTotal || !els.githubCommitStatus) return;
   els.githubCommitTotal.textContent = Number.isFinite(count) ? new Intl.NumberFormat().format(count) : String(count);
   els.githubCommitStatus.textContent = status;
+  renderCommitHeatmap(hourBuckets);
+}
+
+function renderCommitHeatmap(hourBuckets) {
+  if (!els.githubCommitHeatmap) return;
+  const buckets = Array.from({ length: 24 }, (_, hour) => {
+    const bucket = hourBuckets.find((item) => item.hour === hour) || { commits: [], count: 0, hour };
+    return {
+      commits: bucket.commits || [],
+      count: Number(bucket.count) || 0,
+      hour
+    };
+  });
+  const maxCount = Math.max(1, ...buckets.map((bucket) => bucket.count));
+
+  els.githubCommitHeatmap.innerHTML = "";
+  buckets.forEach((bucket) => {
+    const hour = document.createElement("section");
+    hour.className = "commit-hour";
+
+    const label = document.createElement("span");
+    label.textContent = formatHour(bucket.hour);
+    hour.append(label);
+
+    const cells = document.createElement("div");
+    cells.className = "commit-cells";
+    const cellCount = Math.max(3, bucket.count);
+    for (let index = 0; index < cellCount; index += 1) {
+      const cell = document.createElement("i");
+      const active = index < bucket.count;
+      const level = active ? Math.max(1, Math.ceil((bucket.count / maxCount) * 4)) : 0;
+      cell.dataset.level = String(level);
+      cell.title = `${bucket.count} commits around ${formatHour(bucket.hour)}`;
+      cells.append(cell);
+    }
+    hour.append(cells);
+    els.githubCommitHeatmap.append(hour);
+  });
+}
+
+function formatHour(hour) {
+  return `${String(hour).padStart(2, "0")}:00`;
 }
 
 async function loadVisitorDisclosure() {

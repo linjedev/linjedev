@@ -467,7 +467,7 @@ body[data-auth="authenticated"] .auth-view {
 }
 
 .commit-tracker {
-  min-height: 220px;
+  min-height: 320px;
   padding: 24px;
   border: 1px solid var(--line);
   background: #070707;
@@ -509,6 +509,56 @@ body[data-auth="authenticated"] .auth-view {
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
+}
+
+.commit-heatmap {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px 18px;
+}
+
+.commit-hour {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.commit-hour > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.commit-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10px, 1fr));
+  gap: 4px;
+}
+
+.commit-cells i {
+  display: block;
+  aspect-ratio: 1;
+  min-width: 10px;
+  border-radius: 2px;
+  background: #111820;
+}
+
+.commit-cells i[data-level="1"] {
+  background: #0e4429;
+}
+
+.commit-cells i[data-level="2"] {
+  background: #006d32;
+}
+
+.commit-cells i[data-level="3"] {
+  background: #26a641;
+}
+
+.commit-cells i[data-level="4"] {
+  background: #39d353;
 }
 
 .tool-shell[hidden] {
@@ -1187,13 +1237,18 @@ select {
   }
 
   .commit-tracker {
-    min-height: 180px;
+    min-height: 260px;
     grid-template-columns: 1fr;
     padding: 16px;
   }
 
   .commit-total {
     justify-items: start;
+  }
+
+  .commit-heatmap {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
   }
 
   .shell {

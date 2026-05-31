@@ -71,7 +71,7 @@ Create a fine-grained GitHub token with read-only contents access to the private
 - `GITHUB_TOKEN`: the GitHub token
 - `GITHUB_COMMIT_QUERY`: optional, defaults to `author:linjedev`
 
-The function runs GitHub commit search with that query and returns only the query, total commit count, and cache duration. It caches the GitHub result for 60 seconds so the tracker updates on refresh without calling GitHub on every page load.
+The function runs GitHub commit search with that query and returns only the query, total commit count, hourly activity buckets, and cache duration. It caches the GitHub result for 60 seconds so the tracker updates on refresh without calling GitHub on every page load.
 
 ## Email Routing
 

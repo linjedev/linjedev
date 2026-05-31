@@ -76,9 +76,11 @@ async function handleApi(request, response, pathname) {
   }
 
   if (pathname === "/api/github/commits" && request.method === "GET") {
+    const activity = getLocalCommitActivity();
     sendJson(response, 200, {
       query: "author:linjedev",
-      totalCommits: getLocalCommitCount(),
+      totalCommits: activity.totalCommits,
+      hourBuckets: activity.hourBuckets,
       cachedFor: 60
     }, {
       "cache-control": "public, max-age=60"
@@ -246,16 +248,38 @@ function logPreviewAuthEvent(request, { event, userId = "", username = "", succe
   console.log(JSON.stringify(record));
 }
 
-function getLocalCommitCount() {
+function getLocalCommitActivity() {
+  const buckets = Array.from({ length: 24 }, (_, hour) => ({
+    commits: [],
+    count: 0,
+    hour
+  }));
+
   try {
-    return Number(childProcess.execFileSync("git", ["rev-list", "--count", "HEAD"], {
+    const output = childProcess.execFileSync("git", ["log", "--date=iso-strict", "--pretty=%H%x09%ad%x09%s"], {
       cwd: path.resolve(root, ".."),
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
-    }).trim()) || 0;
+    });
+    output.split(/\r?\n/).filter(Boolean).forEach((line) => {
+      const [sha, dateValue, ...subjectParts] = line.split("\t");
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) return;
+      const hour = date.getHours();
+      buckets[hour].count += 1;
+      buckets[hour].commits.push({
+        date: date.toISOString(),
+        message: subjectParts.join("\t") || "Commit",
+        sha
+      });
+    });
   } catch {
-    return 0;
   }
+
+  return {
+    totalCommits: buckets.reduce((total, bucket) => total + bucket.count, 0),
+    hourBuckets: buckets
+  };
 }
 
 function normalizePreviewIp(value) {
