@@ -448,8 +448,54 @@ body[data-auth="authenticated"]::after {
   color: var(--muted);
 }
 
+.account-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--paper);
+  font-weight: 800;
+}
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 18px;
+  z-index: 20;
+  min-width: 180px;
+  padding: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  background: var(--glass-bg), rgba(9, 9, 9, .72);
+  -webkit-backdrop-filter: blur(26px) saturate(1.18);
+  backdrop-filter: blur(26px) saturate(1.18);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .38);
+  display: grid;
+  gap: 8px;
+}
+
+.account-menu[hidden] {
+  display: none;
+}
+
+.account-menu button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(247, 247, 242, .08);
+  color: var(--paper);
+  font-weight: 700;
+}
+
+.account-menu button:last-child {
+  background: rgba(5, 5, 5, .24);
+  color: var(--muted);
+}
+
 .nav-button:hover,
-.nav-button:focus-visible {
+.nav-button:focus-visible,
+.account-button:hover,
+.account-button:focus-visible {
   color: var(--paper);
   outline: 0;
 }
@@ -612,10 +658,12 @@ body[data-auth="authenticated"]::after {
   display: none;
 }
 
+.profile-view[hidden],
 .admin-view[hidden] {
   display: none;
 }
 
+.profile-view,
 .admin-view {
   position: relative;
   z-index: 2;
@@ -626,6 +674,7 @@ body[data-auth="authenticated"]::after {
   gap: 18px;
 }
 
+.profile-head,
 .admin-head {
   min-height: 132px;
   padding: 24px;
@@ -644,11 +693,112 @@ body[data-auth="authenticated"]::after {
   gap: 18px;
 }
 
+.profile-head {
+  justify-content: start;
+}
+
+.profile-avatar {
+  width: 84px;
+  height: 84px;
+  border: 1px solid var(--glass-border);
+  border-radius: 28px;
+  background: rgba(247, 247, 242, .08);
+  display: grid;
+  place-items: center;
+  color: var(--paper);
+  font-size: 28px;
+  font-weight: 800;
+  background-position: center;
+  background-size: cover;
+}
+
+.profile-avatar.has-image {
+  color: transparent;
+}
+
+.profile-head h2,
 .admin-head h2 {
   margin-top: 6px;
   font-size: clamp(38px, 6vw, 74px);
   font-weight: 500;
   line-height: .95;
+}
+
+.profile-head p:not(.eyebrow) {
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.profile-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  background: var(--glass-bg), rgba(9, 9, 9, .34);
+  -webkit-backdrop-filter: blur(26px) saturate(1.18);
+  backdrop-filter: blur(26px) saturate(1.18);
+  box-shadow:
+    inset 0 1px 0 rgba(247, 247, 242, .16),
+    inset 0 -1px 0 rgba(247, 247, 242, .05),
+    0 24px 70px rgba(0, 0, 0, .34);
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.profile-card h3 {
+  margin: 6px 0 0;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.profile-card label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.profile-card input,
+.profile-card textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(5, 5, 5, .34);
+  color: var(--paper);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.profile-card textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.profile-card p,
+.public-profile {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.public-profile {
+  display: grid;
+  gap: 6px;
+}
+
+.public-profile strong {
+  color: var(--paper);
 }
 
 .admin-events {
@@ -1319,7 +1469,8 @@ select {
   }
 
   .site-nav a,
-  .nav-button {
+  .nav-button,
+  .account-button {
     min-height: 32px;
     justify-content: center;
     padding: 0 4px;
@@ -1455,7 +1606,8 @@ select {
   }
 
   .site-nav a,
-  .nav-button {
+  .nav-button,
+  .account-button {
     min-height: 32px;
     justify-content: center;
     padding: 0 4px;
@@ -1476,6 +1628,32 @@ select {
   .commit-tracker {
     min-height: 260px;
     grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .profile-view {
+    width: min(100% - 20px, 1180px);
+    padding: 10px 0 24px;
+  }
+
+  .profile-head {
+    min-height: 0;
+    align-items: start;
+    padding: 16px;
+  }
+
+  .profile-avatar {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+    font-size: 20px;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-card {
     padding: 16px;
   }
 

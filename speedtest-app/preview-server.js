@@ -7,6 +7,7 @@ const path = require("path");
 const root = __dirname;
 const users = new Map();
 const sessions = new Map();
+const profiles = new Map();
 const authEvents = [];
 const blockedUsernameTerms = [
   "6b6b6b",
@@ -102,6 +103,69 @@ async function handleApi(request, response, pathname) {
     return;
   }
 
+  if (pathname === "/api/profile" && request.method === "GET") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    sendJson(response, 200, { profile: getPreviewProfile(user) });
+    return;
+  }
+
+  if (pathname === "/api/profile" && request.method === "POST") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    const body = await readBody(request);
+    const profile = {
+      username: user.username,
+      avatarUrl: String(body.avatarUrl || "").trim().slice(0, 2000),
+      about: String(body.about || "").trim().slice(0, 280),
+      updatedAt: new Date().toISOString()
+    };
+    profiles.set(user.username, profile);
+    sendJson(response, 200, { profile });
+    return;
+  }
+
+  if (pathname === "/api/profile/password" && request.method === "POST") {
+    const sessionUser = currentUser(request);
+    if (!sessionUser) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    const body = await readBody(request);
+    const user = users.get(sessionUser.id);
+    if (!user || user.password !== String(body.currentPassword || "")) {
+      sendJson(response, 401, { error: "Current password is wrong." });
+      return;
+    }
+    const nextPassword = String(body.newPassword || "");
+    if (nextPassword.length < 8) {
+      sendJson(response, 400, { error: "Passwords need at least 8 characters." });
+      return;
+    }
+    user.password = nextPassword;
+    users.set(user.id, user);
+    sendJson(response, 200, { updated: true });
+    return;
+  }
+
+  const publicProfileMatch = pathname.match(/^\/api\/profile\/([^/]+)$/);
+  if (publicProfileMatch && request.method === "GET") {
+    const username = normalizeUsername(decodeURIComponent(publicProfileMatch[1]));
+    const user = [...users.values()].find((item) => item.username === username);
+    if (!user) {
+      sendJson(response, 404, { error: "Profile not found." });
+      return;
+    }
+    sendJson(response, 200, { profile: getPreviewProfile(user) });
+    return;
+  }
+
   if (pathname === "/api/register" && request.method === "POST") {
     const body = await readBody(request);
     const username = normalizeUsername(body.username);
@@ -183,6 +247,15 @@ function createPreviewSession(response, user) {
 function currentUser(request) {
   const sessionId = getCookie(request, "linje_session");
   return sessionId ? sessions.get(sessionId) || null : null;
+}
+
+function getPreviewProfile(user) {
+  return profiles.get(user.username) || {
+    username: user.username,
+    avatarUrl: "",
+    about: "",
+    updatedAt: user.createdAt
+  };
 }
 
 function publicUser(user) {

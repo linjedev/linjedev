@@ -23,6 +23,7 @@ const TRANSFER_CHUNKS = {
 
 const STORAGE_KEY = "linje-speed-history-v1";
 const GITHUB_COMMITS_URL = "/api/github/commits";
+const PROFILE_STORAGE_KEY = "linje-profile-v1";
 const state = {
   running: false,
   controller: null,
@@ -51,6 +52,9 @@ const els = {
   authStatus: document.querySelector("#authStatus"),
   visitorIp: document.querySelector("#visitorIp"),
   visitorUserAgent: document.querySelector("#visitorUserAgent"),
+  accountButton: document.querySelector("#accountButton"),
+  accountMenu: document.querySelector("#accountMenu"),
+  profileMenuButton: document.querySelector("#profileMenuButton"),
   logout: document.querySelector("#logoutButton"),
   adminLink: document.querySelector("#adminLink"),
   adminView: document.querySelector("#admin"),
@@ -61,6 +65,22 @@ const els = {
   githubCommitHeatmap: document.querySelector("#githubCommitHeatmap"),
   githubCommitTotal: document.querySelector("#githubCommitTotal"),
   githubCommitStatus: document.querySelector("#githubCommitStatus"),
+  profileView: document.querySelector("#profile"),
+  profileTitle: document.querySelector("#profile-title"),
+  profileStatus: document.querySelector("#profileStatus"),
+  profileAvatarPreview: document.querySelector("#profileAvatarPreview"),
+  profileForm: document.querySelector("#profileForm"),
+  profileAvatar: document.querySelector("#profileAvatar"),
+  profileAbout: document.querySelector("#profileAbout"),
+  passwordForm: document.querySelector("#passwordForm"),
+  currentPassword: document.querySelector("#currentPassword"),
+  newPassword: document.querySelector("#newPassword"),
+  emailResetForm: document.querySelector("#emailResetForm"),
+  resetEmail: document.querySelector("#resetEmail"),
+  emailResetStatus: document.querySelector("#emailResetStatus"),
+  visitProfileForm: document.querySelector("#visitProfileForm"),
+  visitUsername: document.querySelector("#visitUsername"),
+  publicProfileResult: document.querySelector("#publicProfileResult"),
   speedView: document.querySelector("#speed"),
   viewLinks: document.querySelectorAll("[data-view-link]"),
   refreshServers: document.querySelector("#refreshServers"),
@@ -96,7 +116,16 @@ els.authTabs.forEach((tab) => {
 });
 els.registerForm.addEventListener("submit", register);
 els.loginForm.addEventListener("submit", login);
+els.accountButton.addEventListener("click", toggleAccountMenu);
+els.profileMenuButton.addEventListener("click", () => {
+  closeAccountMenu();
+  showProfileView();
+});
 els.logout.addEventListener("click", logout);
+els.profileForm.addEventListener("submit", saveProfile);
+els.passwordForm.addEventListener("submit", updatePassword);
+els.emailResetForm.addEventListener("submit", requestEmailReset);
+els.visitProfileForm.addEventListener("submit", visitProfile);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
 els.refreshServers.addEventListener("click", () => checkAllServers());
 els.start.addEventListener("click", runTest);
@@ -112,6 +141,11 @@ els.viewLinks.forEach((link) => {
       showHomeView();
     }
   });
+});
+document.addEventListener("click", (event) => {
+  if (!els.accountMenu.hidden && !event.target.closest(".site-header")) {
+    closeAccountMenu();
+  }
 });
 window.addEventListener("hashchange", applyRoute);
 
@@ -159,6 +193,7 @@ async function login(event) {
 
 async function logout() {
   if (state.running) stopTest();
+  closeAccountMenu();
 
   try {
     await fetch("/api/logout", { method: "POST" });
@@ -295,6 +330,7 @@ async function enterApp(user, { route = "home" } = {}) {
   els.adminLink.hidden = !isAdmin;
   els.adminLink.tabIndex = isAdmin ? 0 : -1;
   els.adminLink.setAttribute("aria-hidden", String(!isAdmin));
+  els.accountButton.textContent = `@${user.username || "user"}`;
   setAuthStatus(`Signed in as @${user.username || "user"}.`, "success");
 
   state.serverCatalog = await loadServers();
@@ -302,6 +338,7 @@ async function enterApp(user, { route = "home" } = {}) {
   populateServerSelect();
   renderHistory();
   loadGitHubCommitTracker();
+  loadProfile();
   checkAllServers();
   if (route === "current") {
     applyRoute();
@@ -319,6 +356,7 @@ function showAuth() {
   els.adminLink.tabIndex = -1;
   els.adminLink.setAttribute("aria-hidden", "true");
   els.adminView.hidden = true;
+  closeAccountMenu();
   els.auth.hidden = false;
   setAuthMode("register");
   setAuthStatus("Register to enter Linje.dev.");
@@ -1056,6 +1094,8 @@ function initAuthBackground() {
 function applyRoute() {
   if (window.location.hash === "#admin") {
     showAdminView(false);
+  } else if (window.location.hash === "#profile") {
+    showProfileView(false);
   } else if (window.location.hash === "#speed" || window.location.hash === "#ranking") {
     showSpeedView(false);
   } else {
@@ -1066,7 +1106,9 @@ function applyRoute() {
 function showSpeedView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = false;
+  els.profileView.hidden = true;
   els.adminView.hidden = true;
+  closeAccountMenu();
   if (updateHash) history.pushState(null, "", "#speed");
   window.scrollTo({ top: 0 });
 }
@@ -1074,8 +1116,21 @@ function showSpeedView(updateHash = true) {
 function showHomeView(updateHash = true) {
   els.home.hidden = false;
   els.speedView.hidden = true;
+  els.profileView.hidden = true;
   els.adminView.hidden = true;
+  closeAccountMenu();
   if (updateHash) history.pushState(null, "", "#home");
+  window.scrollTo({ top: 0 });
+}
+
+function showProfileView(updateHash = true) {
+  els.home.hidden = true;
+  els.speedView.hidden = true;
+  els.profileView.hidden = false;
+  els.adminView.hidden = true;
+  closeAccountMenu();
+  loadProfile();
+  if (updateHash) history.pushState(null, "", "#profile");
   window.scrollTo({ top: 0 });
 }
 
@@ -1087,10 +1142,161 @@ function showAdminView(updateHash = true) {
 
   els.home.hidden = true;
   els.speedView.hidden = true;
+  els.profileView.hidden = true;
   els.adminView.hidden = false;
+  closeAccountMenu();
   if (updateHash) history.pushState(null, "", "#admin");
   window.scrollTo({ top: 0 });
   loadAdminEvents();
+}
+
+function toggleAccountMenu() {
+  const open = els.accountMenu.hidden;
+  els.accountMenu.hidden = !open;
+  els.accountButton.setAttribute("aria-expanded", String(open));
+}
+
+function closeAccountMenu() {
+  if (!els.accountMenu) return;
+  els.accountMenu.hidden = true;
+  els.accountButton.setAttribute("aria-expanded", "false");
+}
+
+async function loadProfile() {
+  if (!state.user) return;
+  els.profileTitle.textContent = `@${state.user.username || "user"}`;
+  setProfileStatus("Manage your Linje.dev profile.");
+
+  const fallback = getStoredProfile(state.user.username);
+  renderProfileForm(fallback);
+
+  try {
+    const response = await fetch("/api/profile", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data.profile) {
+      renderProfileForm(data.profile);
+      storeProfile(data.profile);
+    }
+  } catch {
+  }
+}
+
+function renderProfileForm(profile = {}) {
+  const username = profile.username || (state.user && state.user.username) || "user";
+  els.profileAvatar.value = profile.avatarUrl || "";
+  els.profileAbout.value = profile.about || "";
+  els.profileAvatarPreview.textContent = `@${String(username).slice(0, 1).toUpperCase()}`;
+  els.profileAvatarPreview.style.backgroundImage = profile.avatarUrl ? `url("${profile.avatarUrl.replaceAll('"', "%22")}")` : "";
+  els.profileAvatarPreview.classList.toggle("has-image", Boolean(profile.avatarUrl));
+}
+
+async function saveProfile(event) {
+  event.preventDefault();
+  const profile = {
+    username: state.user.username,
+    avatarUrl: els.profileAvatar.value.trim(),
+    about: els.profileAbout.value.trim()
+  };
+  storeProfile(profile);
+  renderProfileForm(profile);
+  setProfileStatus("Saving profile...");
+
+  try {
+    const response = await fetch("/api/profile", {
+      body: JSON.stringify(profile),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not save profile.");
+    renderProfileForm(data.profile || profile);
+    setProfileStatus("Profile saved.");
+  } catch (error) {
+    setProfileStatus(error.message || "Profile saved locally.");
+  }
+}
+
+async function updatePassword(event) {
+  event.preventDefault();
+  setProfileStatus("Updating password...");
+
+  try {
+    const response = await fetch("/api/profile/password", {
+      body: JSON.stringify({
+        currentPassword: els.currentPassword.value,
+        newPassword: els.newPassword.value
+      }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not update password.");
+    els.currentPassword.value = "";
+    els.newPassword.value = "";
+    setProfileStatus("Password updated.");
+  } catch (error) {
+    setProfileStatus(error.message || "Could not update password.");
+  }
+}
+
+function requestEmailReset(event) {
+  event.preventDefault();
+  els.emailResetStatus.textContent = els.resetEmail.value.trim()
+    ? "Email reset needs an email provider before links can be sent."
+    : "Enter an email address first.";
+}
+
+async function visitProfile(event) {
+  event.preventDefault();
+  const username = normalizeUsername(els.visitUsername.value);
+  if (!username) return;
+  els.publicProfileResult.textContent = "Loading profile...";
+
+  try {
+    const response = await fetch(`/api/profile/${encodeURIComponent(username)}`, {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Profile not found.");
+    renderPublicProfile(data.profile || { username });
+  } catch {
+    renderPublicProfile(getStoredProfile(username));
+  }
+}
+
+function renderPublicProfile(profile = {}) {
+  els.publicProfileResult.innerHTML = `
+    <strong>@${escapeHtml(profile.username || "user")}</strong>
+    <span>${escapeHtml(profile.about || "No about me yet.")}</span>
+  `;
+}
+
+function getStoredProfile(username) {
+  try {
+    const profiles = JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY) || "{}");
+    return profiles[username] || { username, avatarUrl: "", about: "" };
+  } catch {
+    return { username, avatarUrl: "", about: "" };
+  }
+}
+
+function storeProfile(profile) {
+  try {
+    const profiles = JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY) || "{}");
+    profiles[profile.username] = profile;
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles));
+  } catch {
+  }
+}
+
+function setProfileStatus(message) {
+  els.profileStatus.textContent = message;
 }
 
 async function loadAdminEvents() {
