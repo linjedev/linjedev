@@ -152,6 +152,7 @@ window.addEventListener("hashchange", applyRoute);
 initialize();
 initAuthBackground();
 initSiteBackground();
+initUiAnimations();
 
 async function register(event) {
   event.preventDefault();
@@ -480,6 +481,13 @@ function renderCommitHeatmap(hourBuckets) {
     }
     hour.append(cells);
     els.githubCommitHeatmap.append(hour);
+  });
+  animate(els.githubCommitHeatmap.querySelectorAll(".commit-hour"), {
+    opacity: [0, 1],
+    translateY: [10, 0],
+    duration: 360,
+    delay: window.anime ? window.anime.stagger(18) : 0,
+    easing: "easeOutCubic"
   });
 }
 
@@ -1103,6 +1111,78 @@ function applyRoute() {
   }
 }
 
+function initUiAnimations() {
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target.closest("button, .site-nav a, select, input, textarea");
+    if (!target || target.disabled) return;
+    animate(target, {
+      duration: 160,
+      easing: "easeOutQuad",
+      scale: .985
+    });
+  });
+
+  document.addEventListener("pointerup", (event) => {
+    const target = event.target.closest("button, .site-nav a, select, input, textarea");
+    if (!target) return;
+    animate(target, {
+      duration: 220,
+      easing: "easeOutElastic(1, .65)",
+      scale: 1
+    });
+  });
+}
+
+function animate(targets, options) {
+  if (!window.anime || !targets) return;
+  window.anime.remove(targets);
+  window.anime({
+    targets,
+    ...options
+  });
+}
+
+function animateView(view) {
+  if (!window.anime || !view) return;
+  const children = [...view.children].filter((node) => !node.hidden);
+  const targets = children.length ? children : [view];
+  window.anime.remove(targets);
+  window.anime({
+    targets,
+    opacity: [0, 1],
+    translateY: [16, 0],
+    scale: [.992, 1],
+    duration: 520,
+    delay: window.anime.stagger(55),
+    easing: "easeOutCubic"
+  });
+}
+
+function animateAccountMenuOpen() {
+  animate(els.accountMenu, {
+    opacity: [0, 1],
+    translateY: [-8, 0],
+    scale: [.96, 1],
+    duration: 260,
+    easing: "easeOutCubic"
+  });
+  animate([...els.accountMenu.querySelectorAll("button")], {
+    opacity: [0, 1],
+    translateY: [-4, 0],
+    duration: 240,
+    delay: window.anime ? window.anime.stagger(35) : 0,
+    easing: "easeOutCubic"
+  });
+}
+
+function animateMetricPulse(target) {
+  animate(target, {
+    duration: 420,
+    easing: "easeOutCubic",
+    scale: [1.04, 1]
+  });
+}
+
 function showSpeedView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = false;
@@ -1111,6 +1191,7 @@ function showSpeedView(updateHash = true) {
   closeAccountMenu();
   if (updateHash) history.pushState(null, "", "#speed");
   window.scrollTo({ top: 0 });
+  animateView(els.speedView);
 }
 
 function showHomeView(updateHash = true) {
@@ -1121,6 +1202,7 @@ function showHomeView(updateHash = true) {
   closeAccountMenu();
   if (updateHash) history.pushState(null, "", "#home");
   window.scrollTo({ top: 0 });
+  animateView(els.home);
 }
 
 function showProfileView(updateHash = true) {
@@ -1132,6 +1214,7 @@ function showProfileView(updateHash = true) {
   loadProfile();
   if (updateHash) history.pushState(null, "", "#profile");
   window.scrollTo({ top: 0 });
+  animateView(els.profileView);
 }
 
 function showAdminView(updateHash = true) {
@@ -1148,12 +1231,14 @@ function showAdminView(updateHash = true) {
   if (updateHash) history.pushState(null, "", "#admin");
   window.scrollTo({ top: 0 });
   loadAdminEvents();
+  animateView(els.adminView);
 }
 
 function toggleAccountMenu() {
   const open = els.accountMenu.hidden;
   els.accountMenu.hidden = !open;
   els.accountButton.setAttribute("aria-expanded", String(open));
+  if (open) animateAccountMenuOpen();
 }
 
 function closeAccountMenu() {
@@ -1191,6 +1276,12 @@ function renderProfileForm(profile = {}) {
   els.profileAvatarPreview.textContent = `@${String(username).slice(0, 1).toUpperCase()}`;
   els.profileAvatarPreview.style.backgroundImage = profile.avatarUrl ? `url("${profile.avatarUrl.replaceAll('"', "%22")}")` : "";
   els.profileAvatarPreview.classList.toggle("has-image", Boolean(profile.avatarUrl));
+  animate(els.profileAvatarPreview, {
+    duration: 460,
+    easing: "easeOutElastic(1, .72)",
+    scale: [.92, 1],
+    rotate: [-2, 0]
+  });
 }
 
 async function saveProfile(event) {
@@ -1513,6 +1604,13 @@ function renderServerChecks(results) {
       <b>${ping}</b>
     `;
     els.serverCheckList.append(item);
+  });
+  animate(els.serverCheckList.querySelectorAll(".server-check"), {
+    opacity: [0, 1],
+    translateY: [12, 0],
+    duration: 420,
+    delay: window.anime ? window.anime.stagger(35) : 0,
+    easing: "easeOutCubic"
   });
 }
 
@@ -1896,6 +1994,7 @@ function setPhase(phase, progress, text) {
   els.phase.textContent = phase;
   els.status.textContent = text;
   setProgress(progress);
+  animateMetricPulse(els.phase);
 }
 
 function setProgress(progress) {
@@ -1908,10 +2007,12 @@ function showLive(direction, mbps) {
   els.primary.textContent = formatNumber(mbps, 1);
   els.unit.textContent = direction === "download" ? "Mbps down" : "Mbps up";
   updateMetric(direction, mbps);
+  animateMetricPulse(els.primary);
 }
 
 function updateMetric(metric, value) {
   els[metric].textContent = formatNumber(value, metric === "jitter" || metric === "ping" ? 0 : 1);
+  animateMetricPulse(els[metric]);
 }
 
 function resetReadout() {
