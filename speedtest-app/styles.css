@@ -79,11 +79,11 @@ a {
 
 .site-header {
   position: sticky;
-  top: 0;
+  top: 10px;
   z-index: 10;
   width: min(1180px, calc(100% - 32px));
-  min-height: 76px;
-  margin: 0 auto;
+  min-height: 64px;
+  margin: 10px auto 0;
   padding: 0 18px;
   display: flex;
   align-items: center;
@@ -466,7 +466,7 @@ body[data-auth="authenticated"]::after {
   z-index: 2;
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-  min-height: calc(100vh - 76px);
+  min-height: calc(100vh - 84px);
   padding: 18px 0 56px;
   display: grid;
   align-content: start;
