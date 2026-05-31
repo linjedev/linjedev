@@ -116,7 +116,10 @@ els.authTabs.forEach((tab) => {
 });
 els.registerForm.addEventListener("submit", register);
 els.loginForm.addEventListener("submit", login);
-els.accountButton.addEventListener("click", toggleAccountMenu);
+els.accountButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleAccountMenu();
+});
 els.profileMenuButton.addEventListener("click", () => {
   closeAccountMenu();
   showProfileView();
@@ -147,7 +150,11 @@ els.viewLinks.forEach((link) => {
   });
 });
 document.addEventListener("click", (event) => {
-  if (!els.accountMenu.hidden && !event.target.closest(".site-header")) {
+  if (
+    !els.accountMenu.hidden
+    && !event.target.closest("#accountButton")
+    && !event.target.closest("#accountMenu")
+  ) {
     closeAccountMenu();
   }
 });
