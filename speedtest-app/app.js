@@ -392,7 +392,9 @@ function initAuthBackground() {
     lastX: 0,
     lastY: 0,
     holdUntil: 0,
-    lastInteraction: 0
+    lastInteraction: 0,
+    edgeHits: 0,
+    lastCornerAim: 0
   };
   let width = 0;
   let height = 0;
@@ -494,18 +496,8 @@ function initAuthBackground() {
   }
 
   function clampLogo() {
-    logo.x = Math.max(10, Math.min(getLogoMaxX(), logo.x));
-    logo.y = Math.max(10, Math.min(getLogoMaxY(), logo.y));
-  }
-
-  function getLogoMaxX() {
-    const leftLane = width < 760 ? width - logo.width - 10 : width * .56 - logo.width;
-    return Math.max(10, Math.min(width - logo.width - 10, leftLane));
-  }
-
-  function getLogoMaxY() {
-    const topLane = height * (width < 640 ? .34 : .3);
-    return Math.max(10, Math.min(height - logo.height - 10, topLane));
+    logo.x = Math.max(10, Math.min(width - logo.width - 10, logo.x));
+    logo.y = Math.max(10, Math.min(height - logo.height - 10, logo.y));
   }
 
   function isPointNearLogo(x, y, padding = 0) {
@@ -547,8 +539,9 @@ function initAuthBackground() {
   function releaseLogo() {
     if (!logo.dragging) return;
     logo.dragging = false;
+    keepLogoMoving(124);
     logo.lastInteraction = performance.now();
-    logo.holdUntil = logo.lastInteraction + 1800;
+    logo.holdUntil = logo.lastInteraction + 650;
   }
 
   function drawBouncingLogo(time, now) {
@@ -556,21 +549,29 @@ function initAuthBackground() {
     drawBouncingLogo.previous = now;
 
     if (!logo.dragging && now > logo.holdUntil) {
+      keepLogoMoving(width < 640 ? 90 : 118);
       const speed = Math.sqrt(logo.vx * logo.vx + logo.vy * logo.vy) || 1;
-      const targetSpeed = width < 640 ? 82 : 108;
-      logo.vx += (logo.vx / speed) * (targetSpeed - speed) * .018;
-      logo.vy += (logo.vy / speed) * (targetSpeed - speed) * .018;
+      const targetSpeed = width < 640 ? 98 : 132;
+      logo.vx += (logo.vx / speed) * (targetSpeed - speed) * .024;
+      logo.vy += (logo.vy / speed) * (targetSpeed - speed) * .024;
       logo.x += logo.vx * dt;
       logo.y += logo.vy * dt;
     }
 
-    if (logo.x <= 10 || logo.x >= getLogoMaxX()) {
-      logo.x = Math.max(10, Math.min(getLogoMaxX(), logo.x));
+    let bounced = false;
+    if (logo.x <= 10 || logo.x + logo.width >= width - 10) {
+      logo.x = Math.max(10, Math.min(width - logo.width - 10, logo.x));
       logo.vx *= -1;
+      bounced = true;
     }
-    if (logo.y <= 10 || logo.y >= getLogoMaxY()) {
-      logo.y = Math.max(10, Math.min(getLogoMaxY(), logo.y));
+    if (logo.y <= 10 || logo.y + logo.height >= height - 10) {
+      logo.y = Math.max(10, Math.min(height - logo.height - 10, logo.y));
       logo.vy *= -1;
+      bounced = true;
+    }
+
+    if (bounced) {
+      increaseCornerChance(now);
     }
 
     const pulse = Math.sin(time * 2.2) * .04;
@@ -603,6 +604,40 @@ function initAuthBackground() {
     context.fillStyle = "#f7f7f2";
     context.fillText(logo.text, textX, textY);
     context.restore();
+  }
+
+  function keepLogoMoving(minSpeed) {
+    const speed = Math.sqrt(logo.vx * logo.vx + logo.vy * logo.vy);
+    if (speed < minSpeed * .45) {
+      const centerX = logo.x + logo.width * .5;
+      const centerY = logo.y + logo.height * .5;
+      const dx = width * .5 - centerX || 1;
+      const dy = height * .5 - centerY || .65;
+      const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+      logo.vx = (dx / distance) * minSpeed;
+      logo.vy = (dy / distance) * minSpeed;
+    }
+
+    if (logo.x <= 10 && logo.vx < 0) logo.vx = Math.abs(logo.vx);
+    if (logo.x + logo.width >= width - 10 && logo.vx > 0) logo.vx = -Math.abs(logo.vx);
+    if (logo.y <= 10 && logo.vy < 0) logo.vy = Math.abs(logo.vy);
+    if (logo.y + logo.height >= height - 10 && logo.vy > 0) logo.vy = -Math.abs(logo.vy);
+  }
+
+  function increaseCornerChance(now) {
+    logo.edgeHits += 1;
+    if (now - logo.lastInteraction < 1600 || now - logo.lastCornerAim < 900) return;
+    if (logo.edgeHits % 3 !== 0 && Math.random() > .38) return;
+
+    const targetSpeed = width < 640 ? 112 : 148;
+    const targetX = logo.vx >= 0 ? width - logo.width - 10 : 10;
+    const targetY = logo.vy >= 0 ? height - logo.height - 10 : 10;
+    const dx = targetX - logo.x;
+    const dy = targetY - logo.y;
+    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+    logo.vx = (dx / distance) * targetSpeed;
+    logo.vy = (dy / distance) * targetSpeed;
+    logo.lastCornerAim = now;
   }
 
   function drawGrid(time) {
