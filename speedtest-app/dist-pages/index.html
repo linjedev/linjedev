@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Linje.dev</title>
+    <meta name="description" content="Linje.dev provides clean everyday network tools, starting with a focused speed test for latency, download, upload, and local rankings.">
+    <meta name="theme-color" content="#050505">
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="site-brand" href="#home" aria-label="Linje.dev home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <strong>Linje.dev</strong>
+      </a>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="#home">Home</a>
+        <a href="#speed" data-view-link="speed">Speed</a>
+      </nav>
+    </header>
+
+    <main>
+      <section id="home" class="site-intro" aria-labelledby="site-title">
+        <p class="eyebrow">Linje.dev</p>
+        <h1 id="site-title">Clean tools for everyday use.</h1>
+        <p>Minimal diagnostics for the network you actually use, starting with a focused speed test for latency, upload, download, and local rankings.</p>
+        <button class="run-button intro-action" type="button" data-view-link="speed">
+          <span class="run-dot" aria-hidden="true"></span>
+          Open Speed
+        </button>
+      </section>
+
+      <div id="speed" class="shell tool-shell" hidden>
+      <section class="hero" aria-labelledby="app-title">
+        <div class="brand">
+          <div>
+            <p class="eyebrow">Linje Speed</p>
+            <h2 id="app-title">Measure the line.</h2>
+          </div>
+        </div>
+
+        <div class="test-panel" aria-live="polite">
+          <div class="dial" data-state="idle">
+            <svg viewBox="0 0 240 240" role="img" aria-label="Speed test progress">
+              <circle class="dial-track" cx="120" cy="120" r="104"></circle>
+              <circle class="dial-progress" cx="120" cy="120" r="104"></circle>
+            </svg>
+            <div class="dial-content">
+              <span id="phaseLabel">Ready</span>
+              <strong id="primaryValue">--</strong>
+              <small id="primaryUnit">Mbps</small>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="startTest" class="run-button" type="button">
+              <span class="run-dot" aria-hidden="true"></span>
+              Start
+            </button>
+            <button id="stopTest" class="ghost-button" type="button" disabled>Stop</button>
+          </div>
+
+          <p id="statusText" class="status">No test has run in this browser yet.</p>
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="Current result">
+        <article class="metric">
+          <span>Ping</span>
+          <strong id="pingValue">--</strong>
+          <small>ms</small>
+        </article>
+        <article class="metric">
+          <span>Download</span>
+          <strong id="downloadValue">--</strong>
+          <small>Mbps</small>
+        </article>
+        <article class="metric">
+          <span>Upload</span>
+          <strong id="uploadValue">--</strong>
+          <small>Mbps</small>
+        </article>
+        <article class="metric">
+          <span>Jitter</span>
+          <strong id="jitterValue">--</strong>
+          <small>ms</small>
+        </article>
+      </section>
+
+      <section id="ranking" class="details">
+        <div class="summary-band">
+          <div>
+            <span>Score</span>
+            <strong id="scoreValue">--</strong>
+          </div>
+          <div>
+            <span>Quality</span>
+            <strong id="qualityValue">Waiting</strong>
+          </div>
+          <div>
+            <span>Loaded latency</span>
+            <strong id="loadedLatencyValue">-- ms</strong>
+          </div>
+          <div>
+            <span>Loss</span>
+            <strong id="lossValue">--</strong>
+          </div>
+        </div>
+
+        <div class="history-head">
+          <div>
+            <p class="eyebrow">Last 10</p>
+            <h2>Ranking</h2>
+          </div>
+          <div class="history-actions">
+            <button id="exportCsv" class="ghost-button" type="button">CSV</button>
+            <button id="clearHistory" class="ghost-button" type="button">Clear</button>
+          </div>
+        </div>
+
+        <ol id="historyList" class="history-list" aria-label="Last 10 speed tests"></ol>
+      </section>
+
+      <section class="settings" aria-label="Test settings">
+        <label>
+          Server
+          <select id="serverSelect">
+            <option value="auto">Auto select nearest</option>
+          </select>
+        </label>
+        <fieldset class="duration-toggle" aria-label="Test duration">
+          <legend>Duration</legend>
+          <label>
+            <input type="radio" name="testDuration" value="15" checked>
+            <span>15s</span>
+          </label>
+          <label>
+            <input type="radio" name="testDuration" value="30">
+            <span>30s</span>
+          </label>
+          <label>
+            <input type="radio" name="testDuration" value="45">
+            <span>45s</span>
+          </label>
+          <label>
+            <input type="radio" name="testDuration" value="60">
+            <span>60s</span>
+          </label>
+        </fieldset>
+        <label class="toggle">
+          <input id="saveHistory" type="checkbox" checked>
+          <span>Save local history</span>
+        </label>
+      </section>
+      </div>
+    </main>
+
+    <template id="historyItemTemplate">
+      <li>
+        <span class="rank"></span>
+        <div>
+          <strong class="history-title"></strong>
+          <small class="history-meta"></small>
+        </div>
+        <div class="history-numbers">
+          <span class="down"></span>
+          <span class="up"></span>
+          <span class="ping"></span>
+        </div>
+      </li>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

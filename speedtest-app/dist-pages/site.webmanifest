@@ -1,0 +1,9 @@
+{
+  "name": "Linje.dev",
+  "short_name": "Linje",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "description": "Clean everyday network tools."
+}
