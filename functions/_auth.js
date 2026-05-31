@@ -1,6 +1,7 @@
 const encoder = new TextEncoder();
 const SESSION_COOKIE = "linje_session";
 const SESSION_DAYS = 30;
+const CAPTCHA_TTL_MS = 5 * 60 * 1000;
 const BLOCKED_USERNAME_TERMS = [
   "6b6b6b",
   "6e617a69",
@@ -56,6 +57,42 @@ export function validateAccount({ username, password }) {
   }
 
   return "";
+}
+
+export async function createCaptchaChallenge(env) {
+  const left = randomInt(4, 19);
+  const right = randomInt(2, 13);
+  const answer = String(left + right);
+  const expiresAt = Date.now() + CAPTCHA_TTL_MS;
+  const payload = {
+    answer,
+    expiresAt,
+    nonce: randomToken(12)
+  };
+  const body = base64UrlEncode(JSON.stringify(payload));
+  const signature = await signCaptcha(body, env);
+
+  return {
+    question: `${left} + ${right}`,
+    token: `${body}.${signature}`,
+    expiresAt
+  };
+}
+
+export async function verifyCaptcha({ token, answer, env }) {
+  const [body, signature] = String(token || "").split(".");
+  if (!body || !signature) return false;
+
+  const expected = await signCaptcha(body, env);
+  if (!timingSafeEqual(signature, expected)) return false;
+
+  try {
+    const payload = JSON.parse(base64UrlDecode(body));
+    if (!payload || Number(payload.expiresAt) < Date.now()) return false;
+    return String(answer || "").trim() === String(payload.answer || "");
+  } catch {
+    return false;
+  }
 }
 
 export function isBlockedUsername(username) {
@@ -220,6 +257,47 @@ function sessionCookie(request, value, maxAge) {
 function randomToken(bytes) {
   const data = crypto.getRandomValues(new Uint8Array(bytes));
   return [...data].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function randomInt(min, max) {
+  const range = max - min + 1;
+  const data = crypto.getRandomValues(new Uint8Array(1));
+  return min + (data[0] % range);
+}
+
+async function signCaptcha(body, env) {
+  const secret = encoder.encode((env && env.CAPTCHA_SECRET) || "linje-dev-captcha-v1");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    secret,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
+  return base64UrlEncodeBytes(new Uint8Array(signature));
+}
+
+function base64UrlEncode(value) {
+  return base64UrlEncodeBytes(encoder.encode(value));
+}
+
+function base64UrlEncodeBytes(bytes) {
+  return bytesToBase64(bytes)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function base64UrlDecode(value) {
+  const base64 = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 function bytesToBase64(bytes) {

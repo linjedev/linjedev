@@ -9,6 +9,8 @@ const users = new Map();
 const sessions = new Map();
 const profiles = new Map();
 const authEvents = [];
+const CAPTCHA_TTL_MS = 5 * 60 * 1000;
+const CAPTCHA_SECRET = "linje-dev-captcha-v1";
 const blockedUsernameTerms = [
   "6b6b6b",
   "6e617a69",
@@ -73,6 +75,11 @@ async function handleApi(request, response, pathname) {
       ipAddress: normalizePreviewIp(request.socket.remoteAddress || ""),
       userAgent: request.headers["user-agent"] || "unavailable"
     });
+    return;
+  }
+
+  if (pathname === "/api/captcha" && request.method === "GET") {
+    sendJson(response, 200, createCaptchaChallenge());
     return;
   }
 
@@ -170,6 +177,11 @@ async function handleApi(request, response, pathname) {
     const body = await readBody(request);
     const username = normalizeUsername(body.username);
     const password = String(body.password || "");
+    if (!verifyCaptcha(body.captchaToken, body.captchaAnswer)) {
+      logPreviewAuthEvent(request, { event: "register", username, success: false, client: body.client, failureReason: "captcha_failed" });
+      sendJson(response, 400, { error: "Linje check answer is wrong or expired." });
+      return;
+    }
 
     if (!/^[a-z0-9_]{1,24}$/.test(username)) {
       logPreviewAuthEvent(request, { event: "register", username, success: false, client: body.client, failureReason: "invalid_username" });
@@ -211,6 +223,12 @@ async function handleApi(request, response, pathname) {
     const body = await readBody(request);
     const username = normalizeUsername(body.username);
     const password = String(body.password || "");
+    if (!verifyCaptcha(body.captchaToken, body.captchaAnswer)) {
+      logPreviewAuthEvent(request, { event: "login", username, success: false, client: body.client, failureReason: "captcha_failed" });
+      sendJson(response, 400, { error: "Linje check answer is wrong or expired." });
+      return;
+    }
+
     const user = [...users.values()].find((item) => item.username === username && item.password === password);
 
     if (!user) {
@@ -383,6 +401,56 @@ function readBody(request) {
       }
     });
   });
+}
+
+function createCaptchaChallenge() {
+  const left = randomInt(4, 19);
+  const right = randomInt(2, 13);
+  const payload = {
+    answer: String(left + right),
+    expiresAt: Date.now() + CAPTCHA_TTL_MS,
+    nonce: crypto.randomBytes(12).toString("hex")
+  };
+  const body = base64UrlEncode(Buffer.from(JSON.stringify(payload), "utf8"));
+  return {
+    question: `${left} + ${right}`,
+    token: `${body}.${signCaptcha(body)}`,
+    expiresAt: payload.expiresAt
+  };
+}
+
+function verifyCaptcha(token, answer) {
+  const [body, signature] = String(token || "").split(".");
+  if (!body || !signature) return false;
+  const expected = signCaptcha(body);
+  const left = Buffer.from(signature);
+  const right = Buffer.from(expected);
+  if (left.length !== right.length || !crypto.timingSafeEqual(left, right)) return false;
+
+  try {
+    const payload = JSON.parse(Buffer.from(base64UrlToBase64(body), "base64").toString("utf8"));
+    if (!payload || Number(payload.expiresAt) < Date.now()) return false;
+    return String(answer || "").trim() === String(payload.answer || "");
+  } catch {
+    return false;
+  }
+}
+
+function signCaptcha(body) {
+  return base64UrlEncode(crypto.createHmac("sha256", CAPTCHA_SECRET).update(body).digest());
+}
+
+function randomInt(min, max) {
+  return min + crypto.randomInt(max - min + 1);
+}
+
+function base64UrlEncode(buffer) {
+  return buffer.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlToBase64(value) {
+  const base64 = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+  return base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
 }
 
 function sendJson(response, status, body, headers = {}) {

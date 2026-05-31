@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=tools2">
+    <link rel="stylesheet" href="styles.css?v=captcha1">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -41,6 +41,18 @@
               Password
               <input id="registerPassword" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="8 characters minimum">
             </label>
+            <div class="captcha-box">
+              <div>
+                <span>Linje check</span>
+                <strong id="registerCaptchaQuestion">Loading...</strong>
+              </div>
+              <button id="refreshRegisterCaptcha" class="captcha-refresh" type="button" aria-label="Refresh register captcha">Refresh</button>
+              <input id="registerCaptchaToken" type="hidden">
+              <label>
+                Answer
+                <input id="registerCaptchaAnswer" name="captcha" type="text" inputmode="numeric" autocomplete="off" required placeholder="Result">
+              </label>
+            </div>
             <button class="run-button auth-submit" type="submit">
               <span class="run-dot" aria-hidden="true"></span>
               Create account
@@ -56,6 +68,18 @@
               Password
               <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
             </label>
+            <div class="captcha-box">
+              <div>
+                <span>Linje check</span>
+                <strong id="loginCaptchaQuestion">Loading...</strong>
+              </div>
+              <button id="refreshLoginCaptcha" class="captcha-refresh" type="button" aria-label="Refresh login captcha">Refresh</button>
+              <input id="loginCaptchaToken" type="hidden">
+              <label>
+                Answer
+                <input id="loginCaptchaAnswer" name="captcha" type="text" inputmode="numeric" autocomplete="off" required placeholder="Result">
+              </label>
+            </div>
             <button class="run-button auth-submit" type="submit">
               <span class="run-dot" aria-hidden="true"></span>
               Login
@@ -400,6 +424,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=tools2" defer></script>
+    <script src="app.js?v=captcha1" defer></script>
   </body>
 </html>

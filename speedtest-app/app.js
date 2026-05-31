@@ -92,8 +92,16 @@ const els = {
   loginForm: document.querySelector("#loginForm"),
   registerUsername: document.querySelector("#registerUsername"),
   registerPassword: document.querySelector("#registerPassword"),
+  registerCaptchaQuestion: document.querySelector("#registerCaptchaQuestion"),
+  registerCaptchaToken: document.querySelector("#registerCaptchaToken"),
+  registerCaptchaAnswer: document.querySelector("#registerCaptchaAnswer"),
+  refreshRegisterCaptcha: document.querySelector("#refreshRegisterCaptcha"),
   loginUsername: document.querySelector("#loginUsername"),
   loginPassword: document.querySelector("#loginPassword"),
+  loginCaptchaQuestion: document.querySelector("#loginCaptchaQuestion"),
+  loginCaptchaToken: document.querySelector("#loginCaptchaToken"),
+  loginCaptchaAnswer: document.querySelector("#loginCaptchaAnswer"),
+  refreshLoginCaptcha: document.querySelector("#refreshLoginCaptcha"),
   authStatus: document.querySelector("#authStatus"),
   visitorIp: document.querySelector("#visitorIp"),
   visitorUserAgent: document.querySelector("#visitorUserAgent"),
@@ -171,6 +179,8 @@ els.authTabs.forEach((tab) => {
 });
 els.registerForm.addEventListener("submit", register);
 els.loginForm.addEventListener("submit", login);
+els.refreshRegisterCaptcha.addEventListener("click", () => loadCaptcha("register"));
+els.refreshLoginCaptcha.addEventListener("click", () => loadCaptcha("login"));
 els.toolsButton.addEventListener("click", (event) => {
   event.stopPropagation();
   toggleToolsMenu();
@@ -252,11 +262,14 @@ async function register(event) {
     const user = await authRequest("/api/register", {
       username: normalizeUsername(els.registerUsername.value),
       password: els.registerPassword.value,
+      captchaToken: els.registerCaptchaToken.value,
+      captchaAnswer: els.registerCaptchaAnswer.value,
       client: getClientContext()
     });
     await enterApp(user, { route: "home" });
   } catch (error) {
     setAuthStatus(error.message || "Registration failed.", "error");
+    loadCaptcha("register");
   } finally {
     setAuthBusy(false);
   }
@@ -271,11 +284,14 @@ async function login(event) {
     const user = await authRequest("/api/login", {
       username: normalizeUsername(els.loginUsername.value),
       password: els.loginPassword.value,
+      captchaToken: els.loginCaptchaToken.value,
+      captchaAnswer: els.loginCaptchaAnswer.value,
       client: getClientContext()
     });
     await enterApp(user, { route: "home" });
   } catch (error) {
     setAuthStatus(error.message || "Login failed.", "error");
+    loadCaptcha("login");
   } finally {
     setAuthBusy(false);
   }
@@ -461,6 +477,7 @@ function setAuthMode(mode) {
     tab.classList.toggle("active", tab.dataset.authMode === mode);
   });
   setAuthStatus(isRegister ? "Choose a clean @username and create your account." : "Welcome back.");
+  loadCaptcha(isRegister ? "register" : "login");
 }
 
 function setAuthBusy(busy) {
@@ -475,6 +492,31 @@ function setAuthStatus(message, tone = "") {
     els.authStatus.dataset.tone = tone;
   } else {
     delete els.authStatus.dataset.tone;
+  }
+}
+
+async function loadCaptcha(mode) {
+  const prefix = mode === "login" ? "login" : "register";
+  const question = els[`${prefix}CaptchaQuestion`];
+  const token = els[`${prefix}CaptchaToken`];
+  const answer = els[`${prefix}CaptchaAnswer`];
+  if (!question || !token || !answer) return;
+
+  question.textContent = "Loading...";
+  token.value = "";
+  answer.value = "";
+
+  try {
+    const response = await fetch("/api/captcha", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Captcha unavailable.");
+    question.textContent = data.question || "Complete the check.";
+    token.value = data.token || "";
+  } catch {
+    question.textContent = "Refresh to retry.";
   }
 }
 

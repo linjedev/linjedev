@@ -7,7 +7,8 @@ import {
   normalizeUsername,
   publicUser,
   readJson,
-  validateAccount
+  validateAccount,
+  verifyCaptcha
 } from "../_auth.js";
 
 export async function onRequestPost({ request, env }) {
@@ -19,6 +20,12 @@ export async function onRequestPost({ request, env }) {
     const input = await readJson(request);
     const username = normalizeUsername(input.username);
     const password = String(input.password || "");
+    const captchaOk = await verifyCaptcha({ token: input.captchaToken, answer: input.captchaAnswer, env });
+    if (!captchaOk) {
+      await logAuthEvent({ request, env, username, event: "register", success: false, client: input.client, failureReason: "captcha_failed" });
+      return json({ error: "Linje check answer is wrong or expired." }, { status: 400 });
+    }
+
     const validationError = validateAccount({ username, password });
 
     if (validationError) {
