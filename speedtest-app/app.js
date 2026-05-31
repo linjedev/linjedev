@@ -1,0 +1,613 @@
+const DEFAULT_SERVERS = [
+  {
+    id: "auto",
+    name: "Auto select nearest",
+    location: "Lowest latency",
+    provider: "Mixed",
+    protocol: "auto"
+  },
+  {
+    id: "cloudflare-global",
+    name: "Cloudflare Global",
+    location: "Anycast CDN",
+    provider: "Cloudflare",
+    protocol: "cloudflare",
+    server: "https://speed.cloudflare.com"
+  }
+];
+
+const TRANSFER_CHUNKS = {
+  download: [5_000_000, 10_000_000, 15_000_000, 25_000_000],
+  upload: [1_000_000, 2_500_000, 5_000_000, 8_000_000]
+};
+
+const STORAGE_KEY = "linje-speed-history-v1";
+const state = {
+  running: false,
+  controller: null,
+  history: loadHistory(),
+  servers: DEFAULT_SERVERS
+};
+
+const els = {
+  home: document.querySelector("#home"),
+  speedView: document.querySelector("#speed"),
+  viewLinks: document.querySelectorAll("[data-view-link='speed']"),
+  start: document.querySelector("#startTest"),
+  stop: document.querySelector("#stopTest"),
+  phase: document.querySelector("#phaseLabel"),
+  primary: document.querySelector("#primaryValue"),
+  unit: document.querySelector("#primaryUnit"),
+  status: document.querySelector("#statusText"),
+  dial: document.querySelector(".dial"),
+  dialProgress: document.querySelector(".dial-progress"),
+  ping: document.querySelector("#pingValue"),
+  download: document.querySelector("#downloadValue"),
+  upload: document.querySelector("#uploadValue"),
+  jitter: document.querySelector("#jitterValue"),
+  score: document.querySelector("#scoreValue"),
+  quality: document.querySelector("#qualityValue"),
+  loadedLatency: document.querySelector("#loadedLatencyValue"),
+  loss: document.querySelector("#lossValue"),
+  historyList: document.querySelector("#historyList"),
+  template: document.querySelector("#historyItemTemplate"),
+  server: document.querySelector("#serverSelect"),
+  durations: document.querySelectorAll("input[name='testDuration']"),
+  saveHistory: document.querySelector("#saveHistory"),
+  clear: document.querySelector("#clearHistory"),
+  exportCsv: document.querySelector("#exportCsv")
+};
+
+els.start.addEventListener("click", runTest);
+els.stop.addEventListener("click", stopTest);
+els.clear.addEventListener("click", clearHistory);
+els.exportCsv.addEventListener("click", exportCsv);
+els.viewLinks.forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    showSpeedView();
+  });
+});
+window.addEventListener("hashchange", applyRoute);
+
+initialize();
+
+async function runTest() {
+  if (state.running) return;
+
+  const durationSeconds = getSelectedDuration();
+  const pingCount = durationSeconds >= 45 ? 8 : 6;
+  const controller = new AbortController();
+  state.running = true;
+  state.controller = controller;
+  setRunning(true);
+  resetReadout();
+
+  try {
+    const server = await resolveSelectedServer(controller.signal);
+
+    setPhase("Ping", 6, `Finding latency to ${server.name}`);
+    const latency = await measurePing(server, pingCount, controller.signal);
+    updateMetric("ping", latency.ping);
+    updateMetric("jitter", latency.jitter);
+    els.loss.textContent = `${latency.loss.toFixed(0)}%`;
+
+    setPhase("Download", 18, `Measuring inbound throughput from ${server.name} for ${durationSeconds}s`);
+    const download = await measureTransfer({
+      server,
+      bytesList: TRANSFER_CHUNKS.download,
+      durationSeconds,
+      direction: "download",
+      signal: controller.signal,
+      progressStart: 18,
+      progressEnd: 58
+    });
+    updateMetric("download", download.mbps);
+
+    setPhase("Upload", 62, `Measuring outbound throughput to ${server.name} for ${durationSeconds}s`);
+    const upload = await measureTransfer({
+      server,
+      bytesList: TRANSFER_CHUNKS.upload,
+      durationSeconds,
+      direction: "upload",
+      signal: controller.signal,
+      progressStart: 62,
+      progressEnd: 90
+    });
+    updateMetric("upload", upload.mbps);
+
+    setPhase("Loaded", 94, "Checking latency under load");
+    const loadedLatency = await measureLoadedLatency(server, controller.signal);
+
+    const result = buildResult({
+      server,
+      latency,
+      download,
+      upload,
+      loadedLatency
+    });
+
+    showResult(result);
+    if (els.saveHistory.checked) saveResult(result);
+    setPhase("Complete", 100, `Finished ${formatTime(result.createdAt)}`);
+  } catch (error) {
+    if (error.name === "AbortError") {
+      setPhase("Stopped", 0, "Test stopped before saving a result.");
+    } else {
+      setPhase("Offline", 0, "Test could not complete. Check the connection or CORS access to the selected endpoint.");
+      console.error(error);
+    }
+  } finally {
+    state.running = false;
+    state.controller = null;
+    setRunning(false);
+  }
+}
+
+function stopTest() {
+  if (state.controller) state.controller.abort();
+}
+
+function getSelectedDuration() {
+  const selected = [...els.durations].find((input) => input.checked);
+  return Number(selected ? selected.value : 15);
+}
+
+async function initialize() {
+  state.servers = await loadServers();
+  populateServerSelect();
+  renderHistory();
+  applyRoute();
+}
+
+function applyRoute() {
+  if (window.location.hash === "#speed" || window.location.hash === "#ranking") {
+    showSpeedView(false);
+  } else {
+    showHomeView(false);
+  }
+}
+
+function showSpeedView(updateHash = true) {
+  els.home.hidden = true;
+  els.speedView.hidden = false;
+  if (updateHash) history.pushState(null, "", "#speed");
+  els.speedView.scrollIntoView({ block: "start" });
+}
+
+function showHomeView(updateHash = true) {
+  els.home.hidden = false;
+  els.speedView.hidden = true;
+  if (updateHash) history.pushState(null, "", "#home");
+}
+
+async function loadServers() {
+  try {
+    const response = await fetch("servers.json", { cache: "no-store" });
+    if (!response.ok) throw new Error("Server catalog unavailable");
+    const servers = await response.json();
+    return Array.isArray(servers) && servers.length ? servers : DEFAULT_SERVERS;
+  } catch {
+    return DEFAULT_SERVERS;
+  }
+}
+
+function populateServerSelect() {
+  const selected = els.server.value || "auto";
+  els.server.innerHTML = "";
+  state.servers.forEach((server) => {
+    const option = document.createElement("option");
+    option.value = server.id;
+    option.textContent = server.protocol === "auto"
+      ? server.name
+      : `${server.name} - ${server.provider}`;
+    els.server.append(option);
+  });
+  els.server.value = state.servers.some((server) => server.id === selected) ? selected : "auto";
+}
+
+async function resolveSelectedServer(signal) {
+  const selected = state.servers.find((server) => server.id === els.server.value) || state.servers[0];
+  if (selected.protocol !== "auto") return selected;
+
+  const candidates = state.servers.filter((server) => server.protocol !== "auto");
+  if (!candidates.length) throw new Error("No test servers configured");
+
+  setPhase("Server", 3, "Auto-selecting the lowest-latency test point");
+  const probes = await Promise.all(candidates.map(async (server) => {
+    try {
+      const ping = await probeServerLatency(server, signal);
+      return { server, ping };
+    } catch {
+      return { server, ping: Number.POSITIVE_INFINITY };
+    }
+  }));
+  const best = probes.sort((a, b) => a.ping - b.ping)[0];
+  if (!Number.isFinite(best.ping)) throw new Error("No test servers responded");
+  els.status.textContent = `Selected ${best.server.name} at ${formatNumber(best.ping, 0)} ms.`;
+  return best.server;
+}
+
+async function probeServerLatency(server, outerSignal) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1800);
+  const onAbort = () => controller.abort();
+  outerSignal.addEventListener("abort", onAbort, { once: true });
+
+  try {
+    const start = performance.now();
+    await fetch(buildPingUrl(server, "probe"), {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    return performance.now() - start;
+  } finally {
+    clearTimeout(timeout);
+    outerSignal.removeEventListener("abort", onAbort);
+  }
+}
+
+async function measurePing(server, count, signal) {
+  const samples = [];
+  let failed = 0;
+
+  for (let i = 0; i < count; i += 1) {
+    const start = performance.now();
+    try {
+      await fetch(buildPingUrl(server, i), {
+        cache: "no-store",
+        signal
+      });
+      samples.push(performance.now() - start);
+    } catch (error) {
+      if (error.name === "AbortError") throw error;
+      failed += 1;
+    }
+    setProgress(6 + ((i + 1) / count) * 10);
+  }
+
+  if (!samples.length) {
+    throw new Error("No ping samples completed");
+  }
+
+  return {
+    ping: percentile(samples, .5),
+    jitter: average(samples.map((sample, index) => index ? Math.abs(sample - samples[index - 1]) : 0).slice(1)),
+    loss: (failed / count) * 100,
+    samples
+  };
+}
+
+async function measureTransfer({ server, bytesList, durationSeconds, direction, signal, progressStart, progressEnd }) {
+  const samples = [];
+  const deadline = performance.now() + durationSeconds * 1000;
+  const started = performance.now();
+  let i = 0;
+
+  while (performance.now() < deadline || samples.length === 0) {
+    const bytes = bytesList[i % bytesList.length];
+    let measuredBytes = bytes;
+    const start = performance.now();
+
+    if (direction === "download") {
+      const response = await fetch(buildDownloadUrl(server, bytes, i), {
+        cache: "no-store",
+        signal
+      });
+      const body = await response.arrayBuffer();
+      measuredBytes = body.byteLength || bytes;
+    } else {
+      const payload = makePayload(bytes);
+      await fetch(buildUploadUrl(server, bytes, i), {
+        body: payload,
+        cache: "no-store",
+        method: "POST",
+        signal
+      });
+    }
+
+    const seconds = (performance.now() - start) / 1000;
+    const mbps = (measuredBytes * 8) / seconds / 1_000_000;
+    samples.push(mbps);
+    i += 1;
+    const elapsed = Math.min(durationSeconds * 1000, performance.now() - started);
+    const progress = progressStart + (elapsed / (durationSeconds * 1000)) * (progressEnd - progressStart);
+    setProgress(progress);
+    showLive(direction, mbps);
+  }
+
+  const trimmed = samples.length > 2 ? samples.slice(1) : samples;
+  return {
+    mbps: percentile(trimmed, .75),
+    peak: Math.max(...samples),
+    consistency: Math.min(100, (percentile(trimmed, .25) / Math.max(percentile(trimmed, .75), 1)) * 100),
+    samples
+  };
+}
+
+async function measureLoadedLatency(server, signal) {
+  const samples = [];
+  const downloads = [1_000_000, 1_000_000, 1_000_000].map((bytes, index) => {
+    return fetch(buildDownloadUrl(server, bytes, `loaded-${index}`), {
+      cache: "no-store",
+      signal
+    }).catch((error) => {
+      if (error.name === "AbortError") throw error;
+    });
+  });
+
+  for (let i = 0; i < 3; i += 1) {
+    const start = performance.now();
+    await fetch(buildPingUrl(server, `loaded-${i}`), {
+      cache: "no-store",
+      signal
+    });
+    samples.push(performance.now() - start);
+  }
+
+  await Promise.all(downloads);
+  return percentile(samples, .5);
+}
+
+function buildPingUrl(server, token) {
+  if (server.protocol === "cloudflare") {
+    return `${cleanBase(server.server)}/__down?bytes=0&ping=${Date.now()}-${token}`;
+  }
+  return `${joinUrl(server.server, server.pingURL)}?r=${Date.now()}-${token}`;
+}
+
+function buildDownloadUrl(server, bytes, token) {
+  if (server.protocol === "cloudflare") {
+    return `${cleanBase(server.server)}/__down?bytes=${bytes}&cacheBust=${Date.now()}-${token}`;
+  }
+  const chunkMb = Math.max(1, Math.ceil(bytes / 1_000_000));
+  return `${joinUrl(server.server, server.dlURL)}?ckSize=${chunkMb}&r=${Date.now()}-${token}`;
+}
+
+function buildUploadUrl(server, bytes, token) {
+  if (server.protocol === "cloudflare") {
+    return `${cleanBase(server.server)}/__up?bytes=${bytes}&cacheBust=${Date.now()}-${token}`;
+  }
+  return `${joinUrl(server.server, server.ulURL)}?r=${Date.now()}-${token}`;
+}
+
+function joinUrl(base, path) {
+  return `${cleanBase(base)}/${String(path || "").replace(/^\/+/, "")}`;
+}
+
+function cleanBase(url) {
+  return String(url || "").replace(/\/+$/, "");
+}
+
+function makePayload(bytes) {
+  if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+    const data = new Uint8Array(bytes);
+    const chunk = 65_536;
+    for (let offset = 0; offset < data.length; offset += chunk) {
+      window.crypto.getRandomValues(data.subarray(offset, Math.min(offset + chunk, data.length)));
+    }
+    return data;
+  }
+  return new Uint8Array(bytes);
+}
+
+function buildResult({ server, latency, download, upload, loadedLatency }) {
+  const score = calculateScore(download.mbps, upload.mbps, latency.ping, latency.jitter, loadedLatency, latency.loss);
+  return {
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    createdAt: new Date().toISOString(),
+    endpoint: server.server,
+    serverId: server.id,
+    serverName: server.name,
+    serverProvider: server.provider,
+    serverProtocol: server.protocol,
+    ping: latency.ping,
+    jitter: latency.jitter,
+    packetLoss: latency.loss,
+    download: download.mbps,
+    upload: upload.mbps,
+    downloadPeak: download.peak,
+    uploadPeak: upload.peak,
+    consistency: Math.round((download.consistency + upload.consistency) / 2),
+    loadedLatency,
+    score,
+    quality: labelQuality(score)
+  };
+}
+
+function calculateScore(download, upload, ping, jitter, loaded, loss) {
+  const downScore = Math.min(download / 500, 1) * 42;
+  const upScore = Math.min(upload / 100, 1) * 26;
+  const pingScore = Math.max(0, 1 - ping / 120) * 16;
+  const loadedScore = Math.max(0, 1 - loaded / 260) * 8;
+  const jitterScore = Math.max(0, 1 - jitter / 35) * 5;
+  const lossScore = Math.max(0, 1 - loss / 8) * 3;
+  return Math.round(downScore + upScore + pingScore + loadedScore + jitterScore + lossScore);
+}
+
+function labelQuality(score) {
+  if (score >= 88) return "Excellent";
+  if (score >= 72) return "Strong";
+  if (score >= 55) return "Steady";
+  if (score >= 38) return "Limited";
+  return "Poor";
+}
+
+function showResult(result) {
+  els.ping.textContent = formatNumber(result.ping, 0);
+  els.download.textContent = formatNumber(result.download, 1);
+  els.upload.textContent = formatNumber(result.upload, 1);
+  els.jitter.textContent = formatNumber(result.jitter, 0);
+  els.loadedLatency.textContent = `${formatNumber(result.loadedLatency, 0)} ms`;
+  els.loss.textContent = `${formatNumber(result.packetLoss, 0)}%`;
+  els.score.textContent = result.score;
+  els.quality.textContent = result.quality;
+  els.primary.textContent = formatNumber(result.download, 1);
+  els.unit.textContent = "Mbps down";
+}
+
+function saveResult(result) {
+  state.history = [result, ...state.history].slice(0, 10);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history));
+  renderHistory();
+}
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw).slice(0, 10) : [];
+  } catch {
+    return [];
+  }
+}
+
+function renderHistory() {
+  els.historyList.innerHTML = "";
+  const sorted = [...state.history].sort((a, b) => b.score - a.score);
+
+  if (!sorted.length) {
+    const empty = document.createElement("li");
+    empty.className = "history-empty";
+    empty.textContent = "Run a test to start the ranking.";
+    els.historyList.append(empty);
+    return;
+  }
+
+  sorted.forEach((item, index) => {
+    const node = els.template.content.firstElementChild.cloneNode(true);
+    node.querySelector(".rank").textContent = index + 1;
+    node.querySelector(".history-title").textContent = `${item.score} / ${item.quality}`;
+    node.querySelector(".history-meta").textContent = `${formatTime(item.createdAt)} / ${item.serverName || "Unknown server"} / consistency ${item.consistency}%`;
+    node.querySelector(".down").textContent = `D ${formatNumber(item.download, 1)}`;
+    node.querySelector(".up").textContent = `U ${formatNumber(item.upload, 1)}`;
+    node.querySelector(".ping").textContent = `P ${formatNumber(item.ping, 0)}`;
+    els.historyList.append(node);
+  });
+}
+
+function clearHistory() {
+  state.history = [];
+  localStorage.removeItem(STORAGE_KEY);
+  renderHistory();
+}
+
+function exportCsv() {
+  if (!state.history.length) return;
+  const headers = [
+    "createdAt",
+    "score",
+    "quality",
+    "downloadMbps",
+    "uploadMbps",
+    "pingMs",
+    "jitterMs",
+    "loadedLatencyMs",
+    "packetLossPercent",
+    "consistencyPercent",
+    "serverName",
+    "serverProvider",
+    "serverProtocol",
+    "endpoint"
+  ];
+  const rows = state.history.map((item) => [
+    item.createdAt,
+    item.score,
+    item.quality,
+    item.download,
+    item.upload,
+    item.ping,
+    item.jitter,
+    item.loadedLatency,
+    item.packetLoss,
+    item.consistency,
+    item.serverName,
+    item.serverProvider,
+    item.serverProtocol,
+    item.endpoint
+  ]);
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "linje-speed-history.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function setRunning(running) {
+  els.start.disabled = running;
+  els.stop.disabled = !running;
+  els.durations.forEach((input) => {
+    input.disabled = running;
+  });
+  els.dial.dataset.state = running ? "running" : "idle";
+}
+
+function setPhase(phase, progress, text) {
+  els.phase.textContent = phase;
+  els.status.textContent = text;
+  setProgress(progress);
+}
+
+function setProgress(progress) {
+  const circumference = 653.45;
+  const offset = circumference - (Math.max(0, Math.min(progress, 100)) / 100) * circumference;
+  els.dialProgress.style.strokeDashoffset = offset;
+}
+
+function showLive(direction, mbps) {
+  els.primary.textContent = formatNumber(mbps, 1);
+  els.unit.textContent = direction === "download" ? "Mbps down" : "Mbps up";
+  updateMetric(direction, mbps);
+}
+
+function updateMetric(metric, value) {
+  els[metric].textContent = formatNumber(value, metric === "jitter" || metric === "ping" ? 0 : 1);
+}
+
+function resetReadout() {
+  ["ping", "download", "upload", "jitter"].forEach((metric) => {
+    els[metric].textContent = "--";
+  });
+  els.score.textContent = "--";
+  els.quality.textContent = "Testing";
+  els.loadedLatency.textContent = "-- ms";
+  els.loss.textContent = "--";
+  els.primary.textContent = "--";
+  els.unit.textContent = "Mbps";
+}
+
+function average(values) {
+  if (!values.length) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function percentile(values, p) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
+  return sorted[index];
+}
+
+function formatNumber(value, places) {
+  if (!Number.isFinite(value)) return "--";
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: places,
+    minimumFractionDigits: places
+  });
+}
+
+function formatTime(iso) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(iso));
+}
