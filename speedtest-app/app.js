@@ -33,6 +33,7 @@ const state = {
 const els = {
   body: document.body,
   auth: document.querySelector("#auth"),
+  authCanvas: document.querySelector("#authCanvas"),
   app: document.querySelector("#app"),
   appOnly: document.querySelectorAll(".app-only"),
   authTabs: document.querySelectorAll("[data-auth-mode]"),
@@ -97,6 +98,7 @@ els.viewLinks.forEach((link) => {
 window.addEventListener("hashchange", applyRoute);
 
 initialize();
+initAuthBackground();
 
 async function register(event) {
   event.preventDefault();
@@ -344,6 +346,166 @@ function getClientContext() {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
     viewport: `${window.innerWidth}x${window.innerHeight}`
   };
+}
+
+function initAuthBackground() {
+  const canvas = els.authCanvas;
+  if (!canvas) return;
+
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) return;
+
+  const pointer = {
+    x: window.innerWidth * .5,
+    y: window.innerHeight * .5,
+    targetX: window.innerWidth * .5,
+    targetY: window.innerHeight * .5,
+    active: false
+  };
+  const ribbons = Array.from({ length: 14 }, (_, index) => ({
+    base: .08 + index * .07,
+    phase: index * .72,
+    speed: .18 + index * .012,
+    amplitude: 22 + (index % 5) * 13,
+    drift: index % 2 ? 1 : -1
+  }));
+  const particles = Array.from({ length: 46 }, (_, index) => ({
+    x: Math.random(),
+    y: Math.random(),
+    phase: index * 1.8,
+    size: .7 + Math.random() * 1.8,
+    speed: .08 + Math.random() * .15
+  }));
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
+  let started = performance.now();
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function move(x, y, active = true) {
+    pointer.targetX = x;
+    pointer.targetY = y;
+    pointer.active = active;
+    els.auth.style.setProperty("--pointer-x", `${(x / Math.max(width, 1)) * 100}%`);
+    els.auth.style.setProperty("--pointer-y", `${(y / Math.max(height, 1)) * 100}%`);
+  }
+
+  window.addEventListener("resize", resize);
+  window.addEventListener("pointermove", (event) => move(event.clientX, event.clientY, true), { passive: true });
+  window.addEventListener("pointerleave", () => { pointer.active = false; }, { passive: true });
+  window.addEventListener("touchmove", (event) => {
+    if (event.touches[0]) move(event.touches[0].clientX, event.touches[0].clientY, true);
+  }, { passive: true });
+
+  resize();
+  requestAnimationFrame(drawAuthBackground);
+
+  function drawAuthBackground(now) {
+    if (els.auth.hidden || els.body.dataset.auth === "authenticated") {
+      requestAnimationFrame(drawAuthBackground);
+      return;
+    }
+
+    const time = (now - started) / 1000;
+    pointer.x += (pointer.targetX - pointer.x) * .08;
+    pointer.y += (pointer.targetY - pointer.y) * .08;
+
+    context.fillStyle = "#050505";
+    context.fillRect(0, 0, width, height);
+
+    drawGrid(time);
+    drawRibbons(time);
+    drawParticles(time);
+
+    requestAnimationFrame(drawAuthBackground);
+  }
+
+  function drawGrid(time) {
+    context.save();
+    context.globalAlpha = .08;
+    context.strokeStyle = "#f7f7f2";
+    context.lineWidth = 1;
+    const gap = 64;
+    const offset = (time * 10) % gap;
+    for (let x = -gap; x < width + gap; x += gap) {
+      context.beginPath();
+      context.moveTo(x + offset, 0);
+      context.lineTo(x - height * .18 + offset, height);
+      context.stroke();
+    }
+    for (let y = -gap; y < height + gap; y += gap) {
+      context.beginPath();
+      context.moveTo(0, y + offset);
+      context.lineTo(width, y - width * .1 + offset);
+      context.stroke();
+    }
+    context.restore();
+  }
+
+  function drawRibbons(time) {
+    ribbons.forEach((ribbon, ribbonIndex) => {
+      const yBase = height * ribbon.base;
+      const points = [];
+      const step = 24;
+
+      for (let x = -120; x <= width + 120; x += step) {
+        const wave = Math.sin((x * .008) + ribbon.phase + time * ribbon.speed)
+          + Math.sin((x * .017) - ribbon.phase + time * ribbon.speed * 1.7) * .45;
+        let y = yBase + wave * ribbon.amplitude + Math.sin(time * .22 + ribbonIndex) * 34 * ribbon.drift;
+        const dx = x - pointer.x;
+        const dy = y - pointer.y;
+        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+        const influence = Math.max(0, 1 - distance / 260);
+        y += (dy / distance) * influence * (pointer.active ? 92 : 38);
+        points.push({ x, y });
+      }
+
+      context.save();
+      context.globalAlpha = .14 + (ribbonIndex % 4) * .035;
+      context.strokeStyle = "#f7f7f2";
+      context.lineWidth = ribbonIndex % 3 === 0 ? 1.6 : .9;
+      context.beginPath();
+      points.forEach((point, index) => {
+        if (!index) {
+          context.moveTo(point.x, point.y);
+        } else {
+          const previous = points[index - 1];
+          context.quadraticCurveTo(previous.x, previous.y, (previous.x + point.x) / 2, (previous.y + point.y) / 2);
+        }
+      });
+      context.stroke();
+      context.restore();
+    });
+  }
+
+  function drawParticles(time) {
+    context.save();
+    particles.forEach((particle) => {
+      const x = ((particle.x * width) + Math.sin(time * particle.speed + particle.phase) * 42 + width) % width;
+      const y = ((particle.y * height) + Math.cos(time * particle.speed * 1.6 + particle.phase) * 26 + height) % height;
+      const dx = x - pointer.x;
+      const dy = y - pointer.y;
+      const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+      const glow = Math.max(0, 1 - distance / 180);
+
+      context.globalAlpha = .08 + glow * .26;
+      context.fillStyle = "#f7f7f2";
+      context.beginPath();
+      context.arc(x + (dx / distance) * glow * 24, y + (dy / distance) * glow * 24, particle.size + glow * 1.8, 0, Math.PI * 2);
+      context.fill();
+    });
+    context.restore();
+  }
 }
 
 function applyRoute() {

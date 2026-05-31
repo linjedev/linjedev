@@ -97,15 +97,40 @@ body[data-auth="authenticated"] .auth-view {
 }
 
 .auth-view {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
-  width: min(1180px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 44px 0;
+  width: 100%;
+  margin: 0;
+  padding: 44px max(16px, calc((100vw - 1180px) / 2));
   display: grid;
   place-items: center;
 }
 
+.auth-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--black);
+  pointer-events: none;
+}
+
+.auth-view::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at var(--pointer-x, 50%) var(--pointer-y, 50%), rgba(247, 247, 242, .12), transparent 22rem),
+    linear-gradient(90deg, rgba(5, 5, 5, .08), rgba(5, 5, 5, .62) 48%, rgba(5, 5, 5, .12));
+}
+
 .auth-panel {
+  position: relative;
+  z-index: 2;
   width: 100%;
   min-height: min(760px, calc(100vh - 88px));
   display: grid;
@@ -139,7 +164,8 @@ body[data-auth="authenticated"] .auth-view {
 
 .auth-card {
   border: 1px solid var(--line);
-  background: #090909;
+  background: rgba(9, 9, 9, .78);
+  backdrop-filter: blur(18px);
   padding: 22px;
   display: grid;
   gap: 20px;
@@ -849,8 +875,7 @@ select {
   }
 
   .auth-view {
-    width: min(100% - 20px, 1180px);
-    padding: 24px 0;
+    padding: 24px 10px;
     place-items: start;
   }
 
