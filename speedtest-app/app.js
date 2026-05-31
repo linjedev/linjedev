@@ -362,11 +362,11 @@ function initAuthBackground() {
     targetY: window.innerHeight * .5,
     active: false
   };
-  const ribbons = Array.from({ length: 14 }, (_, index) => ({
-    base: .08 + index * .07,
-    phase: index * .72,
-    speed: .18 + index * .012,
-    amplitude: 22 + (index % 5) * 13,
+  const ribbons = Array.from({ length: 24 }, (_, index) => ({
+    base: .03 + index * .043,
+    phase: index * .58,
+    speed: .16 + index * .009,
+    amplitude: 18 + (index % 6) * 10,
     drift: index % 2 ? 1 : -1
   }));
   const particles = Array.from({ length: 46 }, (_, index) => ({
@@ -404,8 +404,11 @@ function initAuthBackground() {
   window.addEventListener("pointermove", (event) => move(event.clientX, event.clientY, true), { passive: true });
   window.addEventListener("pointerleave", () => { pointer.active = false; }, { passive: true });
   window.addEventListener("touchmove", (event) => {
-    if (event.touches[0]) move(event.touches[0].clientX, event.touches[0].clientY, true);
-  }, { passive: true });
+    if (els.body.dataset.auth !== "authenticated" && event.touches[0]) {
+      move(event.touches[0].clientX, event.touches[0].clientY, true);
+      event.preventDefault();
+    }
+  }, { passive: false });
 
   resize();
   requestAnimationFrame(drawAuthBackground);
@@ -471,9 +474,9 @@ function initAuthBackground() {
       }
 
       context.save();
-      context.globalAlpha = .14 + (ribbonIndex % 4) * .035;
+      context.globalAlpha = .11 + (ribbonIndex % 5) * .026;
       context.strokeStyle = "#f7f7f2";
-      context.lineWidth = ribbonIndex % 3 === 0 ? 1.6 : .9;
+      context.lineWidth = ribbonIndex % 4 === 0 ? 1.45 : .82;
       context.beginPath();
       points.forEach((point, index) => {
         if (!index) {

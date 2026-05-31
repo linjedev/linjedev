@@ -99,6 +99,8 @@ body[data-auth="authenticated"] .auth-view {
 .auth-view {
   position: relative;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
   min-height: 100vh;
   width: 100%;
   margin: 0;
@@ -137,6 +139,7 @@ body[data-auth="authenticated"] .auth-view {
   grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
   align-items: center;
   gap: 56px;
+  touch-action: auto;
 }
 
 .auth-brand {
