@@ -2,6 +2,7 @@ import {
   createSession,
   hashPassword,
   hasDatabase,
+  isAdminUser,
   json,
   logAuthEvent,
   normalizeUsername,
@@ -58,7 +59,11 @@ export async function onRequestPost({ request, env }) {
 
     const cookie = await createSession({ request, env, userId: user.id });
     await logAuthEvent({ request, env, userId: user.id, username, event: "login", success: true, client: input.client });
-    return json({ authenticated: true, user: publicUser(user) }, { headers: { "set-cookie": cookie } });
+    const sessionUser = publicUser(user);
+    return json({
+      authenticated: true,
+      user: { ...sessionUser, admin: isAdminUser(sessionUser, env) }
+    }, { headers: { "set-cookie": cookie } });
   } catch (error) {
     return json({ error: "Account service failed during login." }, { status: 500 });
   }

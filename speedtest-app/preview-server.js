@@ -578,6 +578,7 @@ function publicUser(user) {
   return {
     id: user.id,
     username: user.username,
+    admin: isPreviewAdmin(user),
     createdAt: user.createdAt
   };
 }

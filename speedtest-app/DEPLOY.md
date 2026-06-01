@@ -74,12 +74,13 @@ The home page commit tracker uses a Cloudflare Pages Function at:
 
 - `GET /api/github/commits`
 
-Create a fine-grained GitHub token with read-only contents access to the private repository or repositories you want counted, then add it to the Pages project environment variables:
+By default, the live tracker reads repository commit activity from `linjedev/linjedev` when GitHub allows public access. For private repositories or higher rate limits, create a fine-grained GitHub token with read-only contents access and add it to the Pages project environment variables:
 
-- `GITHUB_TOKEN`: the GitHub token
-- `GITHUB_COMMIT_QUERY`: optional, defaults to `author:linjedev`
+- `GITHUB_TOKEN`: optional GitHub token
+- `GITHUB_REPOSITORY`: optional repository name, defaults to `linjedev/linjedev`
+- `GITHUB_COMMIT_QUERY`: optional search query override
 
-The function runs GitHub commit search with that query and returns only the query, total commit count, hourly activity buckets, and cache duration. It caches the GitHub result for 60 seconds so the tracker updates on refresh without calling GitHub on every page load.
+The function returns only the query, total commit count, hourly activity buckets, and cache duration. It caches the GitHub result for 60 seconds so the tracker updates on refresh without calling GitHub on every page load.
 
 ## Email Routing
 

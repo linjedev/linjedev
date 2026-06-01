@@ -949,7 +949,7 @@ async function enterApp(user, { route = "home" } = {}) {
   els.appOnly.forEach((node) => {
     node.hidden = false;
   });
-  const isAdmin = user.username === "seb";
+  const isAdmin = Boolean(user.admin || user.username === "seb");
   els.adminLink.hidden = !isAdmin;
   els.adminLink.tabIndex = isAdmin ? 0 : -1;
   els.adminLink.setAttribute("aria-hidden", String(!isAdmin));
@@ -2093,7 +2093,7 @@ function showProfileView(updateHash = true) {
 }
 
 function showAdminView(updateHash = true) {
-  if (!state.user || state.user.username !== "seb") {
+  if (!state.user || (!state.user.admin && state.user.username !== "seb")) {
     showHomeView(updateHash);
     return;
   }
@@ -3492,7 +3492,7 @@ function setProfileStatus(message) {
 }
 
 async function loadAdminEvents() {
-  if (!state.user || state.user.username !== "seb") return;
+  if (!state.user || (!state.user.admin && state.user.username !== "seb")) return;
 
   els.adminStatus.textContent = "Loading auth events...";
   loadSecureMessageAdmin();
@@ -3513,7 +3513,7 @@ async function loadAdminEvents() {
 }
 
 async function loadWorldWatchAdmin() {
-  if (!state.user || state.user.username !== "seb") return;
+  if (!state.user || (!state.user.admin && state.user.username !== "seb")) return;
   els.worldAdminStatus.textContent = "Loading World Watch requests...";
   try {
     const response = await fetch("/api/admin/world-news", {
@@ -3618,7 +3618,7 @@ function renderWorldWatchAdmin(data) {
 }
 
 async function loadSecureMessageAdmin() {
-  if (!state.user || state.user.username !== "seb") return;
+  if (!state.user || (!state.user.admin && state.user.username !== "seb")) return;
   els.secureAdminStatus.textContent = "Loading Secure Message access...";
   try {
     const response = await fetch("/api/admin/secure-messages", {

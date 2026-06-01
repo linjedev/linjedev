@@ -2,6 +2,7 @@ import {
   createSession,
   hashPassword,
   hasDatabase,
+  isAdminUser,
   json,
   logAuthEvent,
   normalizeUsername,
@@ -62,7 +63,10 @@ export async function onRequestPost({ request, env }) {
     const user = publicUser({ id, username, created_at: now });
     const cookie = await createSession({ request, env, userId: id });
     await logAuthEvent({ request, env, userId: id, username, event: "register", success: true, client: input.client });
-    return json({ authenticated: true, user }, { status: 201, headers: { "set-cookie": cookie } });
+    return json({
+      authenticated: true,
+      user: { ...user, admin: isAdminUser(user, env) }
+    }, { status: 201, headers: { "set-cookie": cookie } });
   } catch (error) {
     return json({ error: "Account service failed during registration." }, { status: 500 });
   }

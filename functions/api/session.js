@@ -1,4 +1,4 @@
-import { getSessionUser, hasDatabase, json } from "../_auth.js";
+import { getSessionUser, hasDatabase, isAdminUser, json } from "../_auth.js";
 
 export async function onRequestGet({ request, env }) {
   if (!hasDatabase(env)) {
@@ -8,7 +8,7 @@ export async function onRequestGet({ request, env }) {
   const user = await getSessionUser({ request, env });
   return json({
     authenticated: Boolean(user),
-    user
+    user: user ? { ...user, admin: isAdminUser(user, env) } : null
   });
 }
 
