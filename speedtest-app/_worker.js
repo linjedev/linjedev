@@ -6,6 +6,7 @@ const RETIRED_COPY = {
   linjeDemoLower: ["linje.track", "demo"].join(" "),
   privacy: ["Privacy", "Policy"].join(" "),
   terms: ["Terms", "of", "Service"].join(" "),
+  apiKeys: ["API", "Keys"].join(" "),
 };
 
 const CSP = [
@@ -53,7 +54,8 @@ function stripRetiredCopy(value) {
   return value
     .replace(/<footer[^>]*class="[^"]*\blegal-footer\b[^"]*"[^>]*>[\s\S]*?<\/footer>/gi, "")
     .replace(new RegExp(`<a[^>]*>\\s*${RETIRED_COPY.privacy}\\s*<\\/a>`, "gi"), "")
-    .replace(new RegExp(`<a[^>]*>\\s*${RETIRED_COPY.terms}\\s*<\\/a>`, "gi"), "");
+    .replace(new RegExp(`<a[^>]*>\\s*${RETIRED_COPY.terms}\\s*<\\/a>`, "gi"), "")
+    .replace(new RegExp(`<button[^>]*title="${RETIRED_COPY.apiKeys}"[^>]*>[\\s\\S]*?<\\/button>`, "gi"), "");
 }
 
 function brandPatchScript() {
