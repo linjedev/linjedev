@@ -514,6 +514,7 @@ const els = {
   siteCanvas: document.querySelector("#siteCanvas"),
   app: document.querySelector("#app"),
   appOnly: document.querySelectorAll(".app-only"),
+  siteHeader: document.querySelector(".site-header"),
   secretBrand: document.querySelector("#secretBrand"),
   authTabs: document.querySelectorAll("[data-auth-mode]"),
   registerForm: document.querySelector("#registerForm"),
@@ -948,9 +949,36 @@ async function initialize() {
   const user = await restoreSession();
   if (user) {
     await enterApp(user, { route: "current" });
+  } else if (window.location.hash === "#world-watch") {
+    await enterPublicWorldWatch();
   } else {
     showAuth();
   }
+}
+
+async function enterPublicWorldWatch() {
+  state.user = null;
+  els.body.dataset.auth = "guest";
+  els.auth.hidden = true;
+  els.appOnly.forEach((node) => {
+    node.hidden = node !== els.app;
+  });
+  if (els.siteHeader) els.siteHeader.hidden = true;
+  els.home.hidden = true;
+  els.speedView.hidden = true;
+  els.serverPingView.hidden = true;
+  els.worldWatchView.hidden = false;
+  els.secureMessageView.hidden = true;
+  els.arcadeView.hidden = true;
+  els.profileView.hidden = true;
+  els.adminView.hidden = true;
+  renderWorldWatchPublicShell();
+  window.scrollTo({ top: 0 });
+  animateView(els.worldWatchView);
+  await initWorldGlobe();
+  updateWorldGlobeData(normalizeWorldFeed({
+    status: "Log in and request World Watch access to load live signals."
+  }));
 }
 
 async function enterApp(user, { route = "home" } = {}) {
@@ -2133,7 +2161,10 @@ function showAdminView(updateHash = true) {
 }
 
 async function loadWorldWatchAccess() {
-  if (!state.user) return;
+  if (!state.user) {
+    renderWorldWatchPublicShell();
+    return;
+  }
   els.worldWatchGateStatus.textContent = "Checking World Watch access...";
   try {
     const response = await fetch("/api/world-news/access", {
@@ -2153,6 +2184,12 @@ async function loadWorldWatchAccess() {
 
 async function requestWorldWatchAccess(event) {
   event.preventDefault();
+  if (!state.user) {
+    showAuth();
+    setAuthMode("login");
+    setAuthStatus("Log in to request World Watch access.");
+    return;
+  }
   els.worldWatchGateStatus.textContent = "Registering World Watch request...";
   els.worldWatchRegisterForm.querySelectorAll("button").forEach((element) => {
     element.disabled = true;
@@ -2173,6 +2210,28 @@ async function requestWorldWatchAccess(event) {
     els.worldWatchRegisterForm.querySelectorAll("button").forEach((element) => {
       element.disabled = false;
     });
+  }
+}
+
+function renderWorldWatchPublicShell() {
+  state.worldNewsAccess = { allowed: false, status: "login_required" };
+  state.worldNewsLoaded = false;
+  els.worldWatchGate.hidden = true;
+  els.worldWatchConsole.hidden = false;
+  els.worldLayerStatus.textContent = "Public globe / live signals require World Watch access.";
+  els.worldWatchStatus.textContent = "Log in and request World Watch access to load live signals.";
+  els.worldNewsList.innerHTML = "";
+  els.worldRegionStrip.innerHTML = "";
+  const empty = document.createElement("p");
+  empty.className = "admin-empty";
+  empty.textContent = "Live articles, aircraft, and maritime data load after login and approval.";
+  els.worldNewsList.append(empty);
+  if (els.worldIntelPanel) {
+    els.worldIntelPanel.innerHTML = `
+      <p class="eyebrow">Access</p>
+      <h3>World Watch is gated.</h3>
+      <p>The globe is visible, but live signals require a Linje account with World Watch approval.</p>
+    `;
   }
 }
 
