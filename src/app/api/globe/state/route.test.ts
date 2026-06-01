@@ -114,7 +114,7 @@ describe("POST /api/globe/state -- demo edition gate", () => {
         const res = await POST(req);
         const body = await res.json();
         expect(res.status).toBe(403);
-        expect(body).toEqual({ error: "Not available in demo edition" });
+        expect(body).toEqual({ error: "Not available" });
         expect(mockWrite).not.toHaveBeenCalled();
     });
 });

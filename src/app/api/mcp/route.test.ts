@@ -185,7 +185,7 @@ describe("MCP-04: Demo edition gate (isDemo=true) returns 403 BEFORE auth runs",
         expect(res.status).toBe(403);
         expect(body).toEqual({
             jsonrpc: "2.0",
-            error: { code: -32600, message: "MCP is not available in demo mode" },
+            error: { code: -32600, message: "MCP is not available" },
             id: null,
         });
         // Gate MUST run before auth — authenticateApiKey must NOT have been called
@@ -208,7 +208,7 @@ describe("MCP-04: Demo edition gate (isDemo=true) returns 403 BEFORE auth runs",
         expect(res.status).toBe(403);
         expect(body).toEqual({
             jsonrpc: "2.0",
-            error: { code: -32600, message: "MCP is not available in demo mode" },
+            error: { code: -32600, message: "MCP is not available" },
             id: null,
         });
         expect(vi.mocked(authenticateApiKey)).not.toHaveBeenCalled();
