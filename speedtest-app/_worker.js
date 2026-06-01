@@ -236,7 +236,7 @@ async function writeAccessStore(env, store) {
   if (binding?.put) {
     try {
       await binding.put(ACCESS_STORE_KEY, value);
-      return;
+      return true;
     } catch {}
   }
 
@@ -251,8 +251,10 @@ async function writeAccessStore(env, store) {
           },
         }),
       );
+      return true;
     } catch {}
   }
+  return false;
 }
 
 async function isApprovedAccessLogin(env, login, password) {
@@ -292,6 +294,14 @@ async function saveAccessRequest(env, form) {
   }
 
   await writeAccessStore(env, store);
+  const check = await readAccessStore(env);
+  const saved = check.requests.some(req => normalizeLogin(req.email) === email && req.status === "pending");
+  if (!saved) {
+    return {
+      ok: false,
+      message: "Access storage is not connected yet. Add a Cloudflare KV binding named LINJE_ACCESS, then try again.",
+    };
+  }
   return { ok: true, message: "Access request received. An admin will review it." };
 }
 
@@ -306,7 +316,8 @@ async function updateAccessRequest(env, id, action) {
       request.status = "denied";
       request.updatedAt = new Date().toISOString();
     }
-    await writeAccessStore(env, store);
+    const written = await writeAccessStore(env, store);
+    if (!written) return { ok: false, message: "Access storage is not connected." };
     return { ok: true, message: "User access revoked." };
   }
 
@@ -328,7 +339,8 @@ async function updateAccessRequest(env, id, action) {
     });
   }
 
-  await writeAccessStore(env, store);
+  const written = await writeAccessStore(env, store);
+  if (!written) return { ok: false, message: "Access storage is not connected." };
   return { ok: true, message: request.status === "approved" ? "User approved." : "Request denied." };
 }
 
@@ -374,7 +386,8 @@ function userRows(users) {
 async function adminHtml(env, { message = "", error = "" } = {}) {
   const store = await readAccessStore(env);
   const pending = store.requests.filter(req => req.status === "pending").length;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linje.track Administrator</title>${adminStyles()}</head><body>${authGlobeFrame()}<main class="wrap"><section class="panel"><div class="top"><div class="title-row"><div class="mark">L</div><div><h1 class="title">Administrator</h1><p class="sub">Approve or deny Linje.track access requests.</p></div></div><a class="link" href="/">Back to globe</a></div>${message ? `<p class="msg">${escapeHtml(message)}</p>` : ""}${error ? `<p class="err">${escapeHtml(error)}</p>` : ""}<div class="grid"><section class="section"><div class="section-head"><h2 class="section-title">Access Requests</h2><span class="pill">${pending} pending</span></div>${requestRows(store.requests)}</section><section class="section"><div class="section-head"><h2 class="section-title">Approved Users</h2><span class="pill">${store.users.filter(user => user.status === "approved").length} active</span></div>${userRows(store.users)}</section></div></section></main></body></html>`;
+  const storageWarning = accessStoreBinding(env) ? "" : `<p class="err">Cloudflare KV is not bound. Add a KV binding named LINJE_ACCESS to make requests persist across users.</p>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linje.track Administrator</title>${adminStyles()}</head><body>${authGlobeFrame()}<main class="wrap"><section class="panel"><div class="top"><div class="title-row"><div class="mark">L</div><div><h1 class="title">Administrator</h1><p class="sub">Approve or deny Linje.track access requests.</p></div></div><a class="link" href="/">Back to globe</a></div>${storageWarning}${message ? `<p class="msg">${escapeHtml(message)}</p>` : ""}${error ? `<p class="err">${escapeHtml(error)}</p>` : ""}<div class="grid"><section class="section"><div class="section-head"><h2 class="section-title">Access Requests</h2><span class="pill">${pending} pending</span></div>${requestRows(store.requests)}</section><section class="section"><div class="section-head"><h2 class="section-title">Approved Users</h2><span class="pill">${store.users.filter(user => user.status === "approved").length} active</span></div>${userRows(store.users)}</section></div></section></main></body></html>`;
 }
 
 function htmlResponse(body, status = 200, upstream = "access-gate") {
