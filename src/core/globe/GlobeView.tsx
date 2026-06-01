@@ -48,8 +48,9 @@ const VIEWER_STYLE = {
 
 if (typeof window !== "undefined") {
     (window as any).CESIUM_BASE_URL = '/cesium/';
-    if (process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN) {
-        Ion.defaultAccessToken = process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN;
+    const ionToken = process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN || localStorage.getItem("wwv_cesium_ion_token");
+    if (ionToken) {
+        Ion.defaultAccessToken = ionToken;
     }
 }
 

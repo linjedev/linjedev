@@ -9,6 +9,8 @@
  * This script prints actionable warnings instead.
  */
 
+import { existsSync, readFileSync } from "node:fs";
+
 const checks = [
     {
         name: "NEXT_PUBLIC_CESIUM_ION_TOKEN",
@@ -17,7 +19,8 @@ const checks = [
     },
 ];
 
-const missing = checks.filter(c => !process.env[c.name]);
+const envFileValues = readEnvFiles([".env.local", ".env.production", ".env"]);
+const missing = checks.filter(c => !process.env[c.name] && !envFileValues.has(c.name));
 if (missing.length === 0) process.exit(0);
 
 const yellow = (s) => `\x1b[33m${s}\x1b[0m`;
@@ -28,3 +31,19 @@ for (const c of missing) {
     console.warn(`    Fix: ${c.how}`);
 }
 console.warn(yellow("\nContinuing build — these are warnings, not errors.\n"));
+
+function readEnvFiles(paths) {
+    const values = new Map();
+    for (const path of paths) {
+        if (!existsSync(path)) continue;
+        const content = readFileSync(path, "utf8");
+        for (const line of content.split(/\r?\n/)) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith("#")) continue;
+            const eq = trimmed.indexOf("=");
+            if (eq <= 0) continue;
+            values.set(trimmed.slice(0, eq), trimmed.slice(eq + 1));
+        }
+    }
+    return values;
+}

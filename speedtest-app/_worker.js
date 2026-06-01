@@ -1,6 +1,7 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
 const ASSET_VERSION = "linje-20260601-4";
 const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
+const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhM2E0MjQwYy0wNTU3LTQzODMtOGVmZi01YzExMTM1ZTVmYzciLCJpZCI6NDM4NzYwLCJzdWIiOiJzZWJ3aW5maWVsZCIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJMaW5qZS5kZXYiLCJpYXQiOjE3ODAyNzc5MzR9.BfH1rVscC0WBp12NorM8_TQuZY_gDaVafB3a0Eh33fA";
 const RETIRED_COPY = {
   historyUnavailable: ["History unavailable on", "demo"].join(" "),
   linjeDemoTitle: ["Linje.track", "demo"].join(" "),
@@ -55,7 +56,7 @@ function rewriteHtml(value) {
 }
 
 function googleMapsKeyScript() {
-  return `<script>try{localStorage.setItem("wwv_key_google_maps","${GOOGLE_MAPS_API_KEY}")}catch(e){}</script>`;
+  return `<script>try{localStorage.setItem("wwv_key_google_maps","${GOOGLE_MAPS_API_KEY}");localStorage.setItem("wwv_cesium_ion_token","${CESIUM_ION_TOKEN}")}catch(e){}</script>`;
 }
 
 function stripRetiredCopy(value) {
