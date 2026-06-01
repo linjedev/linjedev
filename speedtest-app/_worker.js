@@ -1,5 +1,5 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
-const ASSET_VERSION = "linje-20260601-7";
+const ASSET_VERSION = "linje-20260601-8";
 const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhM2E0MjQwYy0wNTU3LTQzODMtOGVmZi01YzExMTM1ZTVmYzciLCJpZCI6NDM4NzYwLCJzdWIiOiJzZWJ3aW5maWVsZCIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJMaW5qZS5kZXYiLCJpYXQiOjE3ODAyNzc5MzR9.BfH1rVscC0WBp12NorM8_TQuZY_gDaVafB3a0Eh33fA";
 const RETIRED_COPY = {
@@ -38,9 +38,18 @@ const PUBLIC_PATH_PREFIXES = [
 ];
 const PUBLIC_FILE_SUFFIXES = [".ico", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".css", ".js", ".woff", ".woff2"];
 const CAPTCHA_SECRET = "linje-track-access-captcha-v1";
+const EDGE_OWNER_LOGINS = new Set(["admin", "seb", "sebastian"]);
+const EDGE_OWNER_PASSWORD = "sebtest1234";
+const EDGE_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-function hasSessionCookie(cookieHeader) {
-  return /(?:^|;\s*)(?:__Secure-)?(?:authjs|next-auth)\.session-token=/.test(cookieHeader || "");
+function getCookie(cookieHeader, name) {
+  const match = new RegExp(`(?:^|;\\s*)${name}=([^;]+)`).exec(cookieHeader || "");
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+async function hasSessionCookie(cookieHeader) {
+  if (/(?:^|;\s*)(?:__Secure-)?(?:authjs|next-auth)\.session-token=/.test(cookieHeader || "")) return true;
+  return verifyEdgeSession(getCookie(cookieHeader, "linje_access"));
 }
 
 function isPublicPath(pathname) {
@@ -80,15 +89,23 @@ function fromBase64Url(value) {
   return atob(base64);
 }
 
-async function captchaSignature(payload) {
+async function hmacSignature(secret, payload) {
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(CAPTCHA_SECRET),
+    new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
   );
   return toBase64Url(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload)));
+}
+
+async function captchaSignature(payload) {
+  return hmacSignature(CAPTCHA_SECRET, payload);
+}
+
+async function edgeSessionSignature(payload) {
+  return hmacSignature(CAPTCHA_SECRET, payload);
 }
 
 async function createCaptcha() {
@@ -114,6 +131,31 @@ async function verifyCaptcha(token, answer) {
   } catch {
     return false;
   }
+}
+
+async function createEdgeSession(username) {
+  const payload = toBase64Url(new TextEncoder().encode(JSON.stringify({
+    username,
+    role: "admin",
+    expires: Date.now() + EDGE_SESSION_TTL_MS,
+  })));
+  return `${payload}.${await edgeSessionSignature(payload)}`;
+}
+
+async function verifyEdgeSession(token) {
+  const [payload, signature] = String(token || "").split(".");
+  if (!payload || !signature) return false;
+  if (await edgeSessionSignature(payload) !== signature) return false;
+  try {
+    const parsed = JSON.parse(fromBase64Url(payload));
+    return parsed.role === "admin" && Date.now() <= parsed.expires;
+  } catch {
+    return false;
+  }
+}
+
+function loginHtml({ error = "" } = {}) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in to Linje.track</title>${authStyles()}</head><body><main class="card"><div class="mark">L</div><h1 class="title">Sign in to Linje.track</h1><p class="sub">Approved users can enter the workspace.</p><form class="form" method="post" action="/login"><label class="label">Username<input class="input" name="email" required autocomplete="username"></label><label class="label">Password<input class="input" name="password" type="password" required autocomplete="current-password"></label>${error ? `<p class="err">${error}</p>` : ""}<button class="button" type="submit">Sign In</button></form><p class="footer">Need access? <a class="link" href="/register">Request approval</a></p></main></body></html>`;
 }
 
 async function registerHtml({ error = "", success = "" } = {}) {
@@ -223,6 +265,27 @@ function rewriteLocation(location, requestUrl) {
 export default {
   async fetch(request) {
     const requestUrl = new URL(request.url);
+    if (requestUrl.pathname === "/login") {
+      if (request.method.toUpperCase() === "POST") {
+        const form = await request.formData();
+        const username = String(form.get("email") || "").trim().toLowerCase();
+        const password = String(form.get("password") || "");
+        if (!EDGE_OWNER_LOGINS.has(username) || password !== EDGE_OWNER_PASSWORD) {
+          return htmlResponse(loginHtml({ error: "Invalid username or password." }), 401);
+        }
+
+        return new Response(null, {
+          status: 302,
+          headers: {
+            "Location": "/",
+            "Set-Cookie": `linje_access=${encodeURIComponent(await createEdgeSession(username))}; Path=/; Max-Age=${Math.floor(EDGE_SESSION_TTL_MS / 1000)}; HttpOnly; Secure; SameSite=Lax`,
+            "Cache-Control": "no-store",
+          },
+        });
+      }
+      return htmlResponse(loginHtml());
+    }
+
     if (requestUrl.pathname === "/register") {
       if (request.method.toUpperCase() === "POST") {
         const form = await request.formData();
@@ -239,7 +302,7 @@ export default {
       return htmlResponse(await registerHtml());
     }
 
-    const authenticated = hasSessionCookie(request.headers.get("Cookie"));
+    const authenticated = await hasSessionCookie(request.headers.get("Cookie"));
     if (!authenticated && !isPublicPath(requestUrl.pathname)) {
       const acceptsHtml = (request.headers.get("Accept") || "").includes("text/html");
       if (request.method === "GET" && (acceptsHtml || requestUrl.pathname === "/" || requestUrl.pathname === "/register")) {
