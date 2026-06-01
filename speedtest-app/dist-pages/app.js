@@ -664,7 +664,7 @@ els.loginForm.addEventListener("submit", login);
 els.secretBrand.addEventListener("click", handleSecretBrandClick);
 els.refreshRegisterCaptcha.addEventListener("click", () => loadCaptcha("register"));
 els.refreshLoginCaptcha.addEventListener("click", () => loadCaptcha("login"));
-els.toolsButton.addEventListener("click", (event) => {
+els.toolsButton?.addEventListener("click", (event) => {
   event.stopPropagation();
   toggleToolsMenu();
 });
@@ -682,20 +682,20 @@ els.toolLinks.forEach((link) => {
     }
   });
 });
-els.accountButton.addEventListener("click", (event) => {
+els.accountButton?.addEventListener("click", (event) => {
   event.stopPropagation();
   closeToolsMenu();
   toggleAccountMenu();
 });
-els.profileMenuButton.addEventListener("click", () => {
+els.profileMenuButton?.addEventListener("click", () => {
   closeAccountMenu();
   showProfileView();
 });
-els.adminLink.addEventListener("click", () => {
+els.adminLink?.addEventListener("click", () => {
   closeAccountMenu();
   showAdminView();
 });
-els.logout.addEventListener("click", logout);
+els.logout?.addEventListener("click", logout);
 els.profileForm.addEventListener("submit", saveProfile);
 els.passwordForm.addEventListener("submit", updatePassword);
 els.emailResetForm.addEventListener("submit", requestEmailReset);
@@ -750,14 +750,16 @@ els.viewLinks.forEach((link) => {
 });
 document.addEventListener("click", (event) => {
   if (
-    !els.toolsMenu.hidden
+    els.toolsMenu
+    && !els.toolsMenu.hidden
     && !event.target.closest("#toolsButton")
     && !event.target.closest("#toolsMenu")
   ) {
     closeToolsMenu();
   }
   if (
-    !els.accountMenu.hidden
+    els.accountMenu
+    && !els.accountMenu.hidden
     && !event.target.closest("#accountButton")
     && !event.target.closest("#accountMenu")
   ) {
@@ -788,7 +790,7 @@ async function register(event) {
       captchaAnswer: captcha.answer,
       client: getClientContext()
     });
-    await enterApp(user, { route: "home" });
+    await enterApp(user, { route: "world-watch" });
   } catch (error) {
     setAuthStatus(error.message || "Registration failed.", "error");
     loadCaptcha("register");
@@ -813,7 +815,7 @@ async function login(event) {
       captchaAnswer: captcha.answer,
       client: getClientContext()
     });
-    await enterApp(user, { route: "home" });
+    await enterApp(user, { route: "world-watch" });
   } catch (error) {
     setAuthStatus(error.message || "Login failed.", "error");
     loadCaptcha("login");
@@ -981,7 +983,7 @@ async function enterPublicWorldWatch() {
   }));
 }
 
-async function enterApp(user, { route = "home" } = {}) {
+async function enterApp(user, { route = "world-watch" } = {}) {
   state.user = user;
   state.secureMessageAccess = null;
   els.body.dataset.auth = "authenticated";
@@ -990,11 +992,13 @@ async function enterApp(user, { route = "home" } = {}) {
     node.hidden = false;
   });
   const isAdmin = Boolean(user.admin || user.username === "seb");
-  els.adminLink.hidden = !isAdmin;
-  els.adminLink.tabIndex = isAdmin ? 0 : -1;
-  els.adminLink.setAttribute("aria-hidden", String(!isAdmin));
-  els.adminLink.textContent = isAdmin ? "Admin" : "";
-  els.accountButton.textContent = `@${user.username || "user"}`;
+  if (els.adminLink) {
+    els.adminLink.hidden = !isAdmin;
+    els.adminLink.tabIndex = isAdmin ? 0 : -1;
+    els.adminLink.setAttribute("aria-hidden", String(!isAdmin));
+    els.adminLink.textContent = isAdmin ? "Admin" : "";
+  }
+  if (els.accountButton) els.accountButton.textContent = `@${user.username || "user"}`;
   setAuthStatus(`Signed in as @${user.username || "user"}.`, "success");
 
   state.serverCatalog = await loadServers();
@@ -1008,6 +1012,8 @@ async function enterApp(user, { route = "home" } = {}) {
   checkAllServers();
   if (route === "current") {
     applyRoute();
+  } else if (route === "world-watch") {
+    showWorldWatchView();
   } else {
     showHomeView();
   }
@@ -1018,9 +1024,11 @@ function showAuth() {
   els.appOnly.forEach((node) => {
     node.hidden = true;
   });
-  els.adminLink.hidden = true;
-  els.adminLink.tabIndex = -1;
-  els.adminLink.setAttribute("aria-hidden", "true");
+  if (els.adminLink) {
+    els.adminLink.hidden = true;
+    els.adminLink.tabIndex = -1;
+    els.adminLink.setAttribute("aria-hidden", "true");
+  }
   els.adminView.hidden = true;
   closeAccountMenu();
   els.auth.hidden = false;
@@ -1919,22 +1927,10 @@ function initSecureCipherCanvas() {
 }
 
 function applyRoute() {
-  if (window.location.hash === "#admin") {
-    showAdminView(false);
-  } else if (window.location.hash === "#profile") {
-    showProfileView(false);
-  } else if (window.location.hash === "#server-ping") {
-    showServerPingView(false);
-  } else if (window.location.hash === "#world-watch") {
-    showWorldWatchView(false);
-  } else if (window.location.hash === "#secure-message" || window.location.hash.startsWith("#message=")) {
-    showSecureMessageView(false);
-  } else if (window.location.hash === "#arcade") {
-    showArcadeView(false);
-  } else if (window.location.hash === "#speed" || window.location.hash === "#ranking") {
-    showSpeedView(false);
-  } else {
+  if (window.location.hash === "#home") {
     showHomeView(false);
+  } else {
+    showWorldWatchView(false);
   }
 }
 
@@ -3190,6 +3186,7 @@ function base64UrlDecodeBytes(value) {
 }
 
 function toggleAccountMenu() {
+  if (!els.accountMenu || !els.accountButton) return;
   const open = els.accountMenu.hidden;
   els.accountMenu.hidden = !open;
   els.accountButton.setAttribute("aria-expanded", String(open));
@@ -3197,6 +3194,7 @@ function toggleAccountMenu() {
 }
 
 function toggleToolsMenu() {
+  if (!els.toolsMenu || !els.toolsButton) return;
   const open = els.toolsMenu.hidden;
   els.toolsMenu.hidden = !open;
   els.toolsButton.setAttribute("aria-expanded", String(open));
@@ -3207,13 +3205,13 @@ function toggleToolsMenu() {
 }
 
 function closeToolsMenu() {
-  if (!els.toolsMenu) return;
+  if (!els.toolsMenu || !els.toolsButton) return;
   els.toolsMenu.hidden = true;
   els.toolsButton.setAttribute("aria-expanded", "false");
 }
 
 function closeAccountMenu() {
-  if (!els.accountMenu) return;
+  if (!els.accountMenu || !els.accountButton) return;
   els.accountMenu.hidden = true;
   els.accountButton.setAttribute("aria-expanded", "false");
 }

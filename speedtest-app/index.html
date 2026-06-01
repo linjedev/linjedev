@@ -10,7 +10,7 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
     <link rel="stylesheet" href="cesium/Widgets/widgets.css">
-    <link rel="stylesheet" href="styles.css?v=world13">
+    <link rel="stylesheet" href="styles.css?v=world14">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -107,23 +107,7 @@
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="#home" data-view-link="home">Home</a>
-        <div class="nav-dropdown">
-          <button id="toolsButton" class="nav-button" type="button" aria-expanded="false" aria-controls="toolsMenu">Tools</button>
-          <div id="toolsMenu" class="nav-menu" hidden>
-            <button type="button" data-tool-link="speed">Speed</button>
-            <button type="button" data-tool-link="server-ping">Server Ping</button>
-            <button type="button" data-tool-link="world-watch">World Watch</button>
-            <button type="button" data-tool-link="secure-message">Secure Message</button>
-          </div>
-        </div>
-        <div class="account-dropdown">
-          <button id="accountButton" class="account-button" type="button" aria-expanded="false" aria-controls="accountMenu">@user</button>
-          <div id="accountMenu" class="account-menu" hidden>
-            <button id="profileMenuButton" type="button">Profile</button>
-            <button id="adminLink" type="button" hidden>Admin</button>
-            <button id="logoutButton" type="button">Logout</button>
-          </div>
-        </div>
+        <button class="nav-button" type="button" data-tool-link="world-watch">World Watch</button>
       </nav>
     </header>
 
@@ -627,6 +611,6 @@
 
     <script src="anime.min.js?v=3.2.2" defer></script>
     <script src="cesium/Cesium.js" defer></script>
-    <script src="app.js?v=world13" defer></script>
+    <script src="app.js?v=world14" defer></script>
   </body>
 </html>
