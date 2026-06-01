@@ -62,12 +62,16 @@ export async function persistDemoAdminIfNeeded(
     cloudEdition: boolean,
 ): Promise<void> {
     if (cloudEdition || userId !== DEMO_ADMIN_ID) return;
-    await ensureLocalUserPersisted({
-        id: DEMO_ADMIN_ID,
-        email: DEMO_ADMIN_EMAIL,
-        name: DEMO_ADMIN_NAME,
-        role: DEMO_ADMIN_ROLE,
-    });
+    try {
+        await ensureLocalUserPersisted({
+            id: DEMO_ADMIN_ID,
+            email: DEMO_ADMIN_EMAIL,
+            name: DEMO_ADMIN_NAME,
+            role: DEMO_ADMIN_ROLE,
+        });
+    } catch (error) {
+        console.warn("[auth] Demo admin login continued without local user persistence.", error);
+    }
 }
 
 // Extract local credentials logic to a helper
