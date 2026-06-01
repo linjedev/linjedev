@@ -714,6 +714,8 @@ function getPreviewWorldNews() {
       domain: "example.com",
       language: "English",
       sourceCountry: "United Kingdom",
+      placeName: "London",
+      place: { name: "London", country: "United Kingdom", region: "Europe", population: 8799800, kind: "capital", lat: 51.5, lon: -0.1 },
       region: "Europe",
       lat: 51.5,
       lon: -0.1,
@@ -726,6 +728,8 @@ function getPreviewWorldNews() {
       domain: "example.com",
       language: "English",
       sourceCountry: "Japan",
+      placeName: "Tokyo",
+      place: { name: "Tokyo", country: "Japan", region: "East Asia", population: 14094000, kind: "capital", lat: 35.7, lon: 139.7 },
       region: "East Asia",
       lat: 35.7,
       lon: 139.7,
@@ -738,6 +742,8 @@ function getPreviewWorldNews() {
       domain: "example.com",
       language: "English",
       sourceCountry: "Brazil",
+      placeName: "Brasilia",
+      place: { name: "Brasilia", country: "Brazil", region: "South America", population: 2817000, kind: "capital", lat: -15.8, lon: -47.9 },
       region: "South America",
       lat: -15.8,
       lon: -47.9,
@@ -750,6 +756,8 @@ function getPreviewWorldNews() {
       domain: "example.com",
       language: "English",
       sourceCountry: "India",
+      placeName: "New Delhi",
+      place: { name: "New Delhi", country: "India", region: "South Asia", population: 11000000, kind: "capital", lat: 28.6, lon: 77.2 },
       region: "South Asia",
       lat: 28.6,
       lon: 77.2,
@@ -758,12 +766,33 @@ function getPreviewWorldNews() {
   ];
   return {
     articles,
+    flights: {
+      source: "Preview ADS-B",
+      status: "preview",
+      updatedAt,
+      aircraft: [
+        { id: "preview-ba1", callsign: "LINJE01", originCountry: "United Kingdom", lat: 52.2, lon: 1.4, altitudeMeters: 11200, speedMps: 238, track: 92, lastContact: updatedAt },
+        { id: "preview-jl2", callsign: "LINJE88", originCountry: "Japan", lat: 35.2, lon: 141.1, altitudeMeters: 9800, speedMps: 221, track: 270, lastContact: updatedAt }
+      ]
+    },
+    places: articles.map((article) => ({ ...article.place, articleCount: 1, articles: [{ id: article.id, title: article.title, url: article.url, domain: article.domain }] })),
     regions: [
       { region: "Europe", count: 1, latestAt: updatedAt },
       { region: "East Asia", count: 1, latestAt: updatedAt },
       { region: "South America", count: 1, latestAt: updatedAt },
       { region: "South Asia", count: 1, latestAt: updatedAt }
     ],
+    ships: {
+      source: "AISStream",
+      status: "AISSTREAM_KEY required for live vessel WebSocket streaming",
+      updatedAt,
+      vessels: [],
+      lanes: [
+        { name: "Strait of Hormuz", lat: 26.5667, lon: 56.25, traffic: "critical energy chokepoint" },
+        { name: "Suez Canal", lat: 30.5852, lon: 32.2654, traffic: "Europe-Asia container and tanker corridor" },
+        { name: "Strait of Malacca", lat: 2.5, lon: 101.0, traffic: "Asia-Europe trade lane" }
+      ]
+    },
     source: "Preview feed",
     updatedAt
   };

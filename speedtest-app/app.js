@@ -498,7 +498,13 @@ const state = {
   worldNewsAccess: null,
   worldNewsLoaded: false,
   worldNewsGlobe: null,
-  worldNewsArticles: []
+  worldNewsArticles: [],
+  worldNewsFeed: null,
+  worldLayers: {
+    flights: true,
+    news: true,
+    ships: true
+  }
 };
 
 const els = {
@@ -568,6 +574,9 @@ const els = {
   worldWatchConsole: document.querySelector("#worldWatchConsole"),
   worldGlobeCanvas: document.querySelector("#worldGlobeCanvas"),
   refreshWorldNews: document.querySelector("#refreshWorldNews"),
+  worldLayerButtons: document.querySelectorAll("[data-world-layer]"),
+  worldLayerStatus: document.querySelector("#worldLayerStatus"),
+  worldIntelPanel: document.querySelector("#worldIntelPanel"),
   worldWatchStatus: document.querySelector("#worldWatchStatus"),
   worldNewsList: document.querySelector("#worldNewsList"),
   worldRegionStrip: document.querySelector("#worldRegionStrip"),
@@ -693,6 +702,9 @@ els.visitProfileForm.addEventListener("submit", visitProfile);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
 els.worldWatchRegisterForm.addEventListener("submit", requestWorldWatchAccess);
 els.refreshWorldNews.addEventListener("click", () => loadWorldNews(true));
+els.worldLayerButtons.forEach((button) => {
+  button.addEventListener("click", () => toggleWorldLayer(button.dataset.worldLayer, button));
+});
 els.secureSignupButton.addEventListener("click", requestSecureMessageAccess);
 els.secureMessageForm.addEventListener("submit", createSecureMessageLink);
 els.secureCopyLink.addEventListener("click", copySecureMessageLink);
@@ -2203,9 +2215,10 @@ async function loadWorldNews(force = false) {
     }
     if (!response.ok) throw new Error(data.error || "World news feed is unavailable.");
     state.worldNewsLoaded = true;
+    state.worldNewsFeed = data;
     state.worldNewsArticles = data.articles || [];
     renderWorldNews(data);
-    updateWorldGlobeArticles(state.worldNewsArticles);
+    updateWorldGlobeData(data);
     const freshness = data.stale ? "cached" : data.source || "global feed";
     els.worldWatchStatus.textContent = `${state.worldNewsArticles.length} signals / ${freshness} / ${formatDateTime(data.updatedAt)}`;
   } catch (error) {
@@ -2217,8 +2230,11 @@ async function loadWorldNews(force = false) {
 function renderWorldNews(data) {
   const articles = data.articles || [];
   const regions = data.regions || [];
+  const aircraft = data.flights?.aircraft || [];
+  const vessels = data.ships?.vessels || [];
   els.worldNewsList.innerHTML = "";
   els.worldRegionStrip.innerHTML = "";
+  els.worldLayerStatus.textContent = `${articles.length} news / ${aircraft.length} aircraft / ${vessels.length} vessels / ${data.ships?.status || "maritime ready"}`;
 
   regions.slice(0, 6).forEach((region) => {
     const item = document.createElement("div");
@@ -2245,12 +2261,13 @@ function renderWorldNews(data) {
     item.innerHTML = `
       <div>
         <span>${String(index + 1).padStart(2, "0")}</span>
-        <strong>${escapeHtml(article.sourceCountry || "Unknown")}</strong>
+        <strong>${escapeHtml(article.placeName || article.sourceCountry || "Unknown")}</strong>
       </div>
       <a href="${escapeAttribute(article.url)}" target="_blank" rel="noreferrer">${escapeHtml(article.title)}</a>
-      <small>${escapeHtml(article.domain || "--")} / ${escapeHtml(article.language || "--")} / ${escapeHtml(article.seenAt ? formatDateTime(article.seenAt) : "--")}</small>
+      <small>${escapeHtml(article.domain || "--")} / ${escapeHtml(article.region || "--")} / ${escapeHtml(article.seenAt ? formatDateTime(article.seenAt) : "--")}</small>
     `;
-    item.addEventListener("pointerenter", () => focusWorldArticle(article.id));
+    item.addEventListener("pointerenter", () => focusWorldFeature("news", article.id));
+    item.addEventListener("click", () => showWorldIntel("news", article));
     els.worldNewsList.append(item);
   });
 }
@@ -2267,6 +2284,8 @@ async function initWorldGlobe() {
 
   const globe = new THREE.Group();
   const markerGroup = new THREE.Group();
+  const flightGroup = new THREE.Group();
+  const shipGroup = new THREE.Group();
   const arcGroup = new THREE.Group();
   scene.add(globe);
   globe.add(new THREE.Mesh(
@@ -2278,8 +2297,15 @@ async function initWorldGlobe() {
     new THREE.MeshBasicMaterial({ color: 0xf7f7f2, opacity: .045, transparent: true })
   ));
   globe.add(markerGroup);
+  globe.add(flightGroup);
+  globe.add(shipGroup);
   globe.add(arcGroup);
   scene.add(new THREE.AmbientLight(0xffffff, 1));
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -2292,8 +2318,8 @@ async function initWorldGlobe() {
 
   function draw(time) {
     resize();
-    globe.rotation.y = time * .00008;
-    markerGroup.children.forEach((marker, index) => {
+    if (!dragging) globe.rotation.y += .0012;
+    [...markerGroup.children, ...flightGroup.children, ...shipGroup.children].forEach((marker, index) => {
       const pulse = 1 + Math.sin(time * .006 + index) * .22;
       marker.scale.setScalar(marker.userData.focus ? 1.8 : pulse);
     });
@@ -2301,12 +2327,50 @@ async function initWorldGlobe() {
     state.worldNewsGlobe.frame = requestAnimationFrame(draw);
   }
 
+  function pick(event) {
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects([...markerGroup.children, ...flightGroup.children, ...shipGroup.children], false);
+    if (hits[0]?.object?.userData?.payload) {
+      showWorldIntel(hits[0].object.userData.type, hits[0].object.userData.payload);
+      focusWorldFeature(hits[0].object.userData.type, hits[0].object.userData.id);
+    }
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    globe.rotation.y += (event.clientX - lastX) * .006;
+    globe.rotation.x += (event.clientY - lastY) * .004;
+    globe.rotation.x = Math.max(-.9, Math.min(.9, globe.rotation.x));
+    lastX = event.clientX;
+    lastY = event.clientY;
+  });
+  canvas.addEventListener("pointerup", (event) => {
+    dragging = false;
+    canvas.releasePointerCapture(event.pointerId);
+    pick(event);
+  });
+  canvas.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    camera.position.z = Math.max(2.45, Math.min(7.2, camera.position.z + event.deltaY * .003));
+  }, { passive: false });
+
   state.worldNewsGlobe = {
     THREE,
     arcGroup,
     camera,
+    flightGroup,
     globe,
     markerGroup,
+    shipGroup,
     renderer,
     scene
   };
@@ -2314,13 +2378,16 @@ async function initWorldGlobe() {
   requestAnimationFrame(draw);
 }
 
-function updateWorldGlobeArticles(articles) {
+function updateWorldGlobeData(data) {
   const globe = state.worldNewsGlobe;
   if (!globe) return;
-  const { THREE, markerGroup, arcGroup } = globe;
+  const { THREE, markerGroup, flightGroup, shipGroup, arcGroup } = globe;
   markerGroup.clear();
+  flightGroup.clear();
+  shipGroup.clear();
   arcGroup.clear();
   const seen = new Set();
+  const articles = data.articles || [];
   articles.forEach((article, index) => {
     const key = `${article.lat},${article.lon}`;
     if (seen.has(key)) return;
@@ -2331,7 +2398,8 @@ function updateWorldGlobeArticles(articles) {
       new THREE.MeshBasicMaterial({ color: index < 8 ? 0xffffff : 0xbdbdb5 })
     );
     marker.position.copy(position);
-    marker.userData = { id: article.id };
+    marker.userData = { id: article.id, payload: article, type: "news" };
+    marker.visible = state.worldLayers.news;
     markerGroup.add(marker);
 
     const line = new THREE.Line(
@@ -2344,14 +2412,100 @@ function updateWorldGlobeArticles(articles) {
     );
     arcGroup.add(line);
   });
+
+  (data.flights?.aircraft || []).forEach((aircraft) => {
+    const position = latLonToVector(THREE, Number(aircraft.lat), Number(aircraft.lon), 1.72);
+    const marker = new THREE.Mesh(
+      new THREE.ConeGeometry(.026, .085, 3),
+      new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: .9 })
+    );
+    marker.position.copy(position);
+    marker.lookAt(new THREE.Vector3(0, 0, 0));
+    marker.userData = { id: aircraft.id, payload: aircraft, type: "flight" };
+    marker.visible = state.worldLayers.flights;
+    flightGroup.add(marker);
+  });
+
+  (data.ships?.lanes || []).forEach((lane) => {
+    const position = latLonToVector(THREE, Number(lane.lat), Number(lane.lon), 1.68);
+    const marker = new THREE.Mesh(
+      new THREE.BoxGeometry(.055, .026, .026),
+      new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: .9 })
+    );
+    marker.position.copy(position);
+    marker.userData = { id: lane.name, payload: lane, type: "ship" };
+    marker.visible = state.worldLayers.ships;
+    shipGroup.add(marker);
+  });
 }
 
-function focusWorldArticle(id) {
+function focusWorldFeature(type, id) {
   const globe = state.worldNewsGlobe;
   if (!globe) return;
-  globe.markerGroup.children.forEach((marker) => {
-    marker.userData.focus = marker.userData.id === id;
+  [globe.markerGroup, globe.flightGroup, globe.shipGroup].forEach((group) => {
+    group.children.forEach((marker) => {
+      marker.userData.focus = marker.userData.type === type && marker.userData.id === id;
+    });
   });
+}
+
+function toggleWorldLayer(layer, button) {
+  state.worldLayers[layer] = !state.worldLayers[layer];
+  button.classList.toggle("active", state.worldLayers[layer]);
+  const globe = state.worldNewsGlobe;
+  if (!globe) return;
+  const groups = {
+    flights: globe.flightGroup,
+    news: globe.markerGroup,
+    ships: globe.shipGroup
+  };
+  groups[layer]?.children.forEach((marker) => {
+    marker.visible = state.worldLayers[layer];
+  });
+}
+
+function showWorldIntel(type, item) {
+  if (!els.worldIntelPanel || !item) return;
+  if (type === "flight") {
+    els.worldIntelPanel.innerHTML = `
+      <p class="eyebrow">Aircraft</p>
+      <h3>${escapeHtml(item.callsign || item.id || "Unknown aircraft")}</h3>
+      <p>${escapeHtml(item.originCountry || "Unknown origin")} / ${item.onGround ? "on ground" : "airborne"}</p>
+      <dl>
+        <div><dt>Altitude</dt><dd>${formatNumber(item.altitudeMeters || 0, 0)} m</dd></div>
+        <div><dt>Speed</dt><dd>${formatNumber((item.speedMps || 0) * 3.6, 0)} km/h</dd></div>
+        <div><dt>Track</dt><dd>${formatNumber(item.track || 0, 0)} deg</dd></div>
+        <div><dt>Last contact</dt><dd>${escapeHtml(item.lastContact ? formatDateTime(item.lastContact) : "--")}</dd></div>
+      </dl>
+    `;
+    return;
+  }
+  if (type === "ship") {
+    els.worldIntelPanel.innerHTML = `
+      <p class="eyebrow">Maritime</p>
+      <h3>${escapeHtml(item.name || "Shipping lane")}</h3>
+      <p>${escapeHtml(item.traffic || "AIS provider not configured.")}</p>
+      <dl>
+        <div><dt>Latitude</dt><dd>${escapeHtml(String(item.lat || "--"))}</dd></div>
+        <div><dt>Longitude</dt><dd>${escapeHtml(String(item.lon || "--"))}</dd></div>
+        <div><dt>Live AIS</dt><dd>Configure AISSTREAM_KEY</dd></div>
+      </dl>
+    `;
+    return;
+  }
+  const place = item.place || {};
+  els.worldIntelPanel.innerHTML = `
+    <p class="eyebrow">News place</p>
+    <h3>${escapeHtml(item.placeName || place.name || item.sourceCountry || "Signal")}</h3>
+    <p>${escapeHtml(item.title || "")}</p>
+    <dl>
+      <div><dt>Country</dt><dd>${escapeHtml(place.country || item.sourceCountry || "--")}</dd></div>
+      <div><dt>Region</dt><dd>${escapeHtml(place.region || item.region || "--")}</dd></div>
+      <div><dt>Population</dt><dd>${place.population ? formatNumber(place.population, 0) : "regional centroid"}</dd></div>
+      <div><dt>Source</dt><dd>${escapeHtml(item.domain || "--")}</dd></div>
+    </dl>
+    <a href="${escapeAttribute(item.url || "#")}" target="_blank" rel="noreferrer">Open source</a>
+  `;
 }
 
 function latLonToVector(THREE, lat, lon, radius) {

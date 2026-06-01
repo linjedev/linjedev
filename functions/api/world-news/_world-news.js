@@ -1,6 +1,20 @@
 import { getSessionUser, hasDatabase, isAdminUser, json } from "../../_auth.js";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const NEWS_DOMAINS = [
+  "reuters.com",
+  "apnews.com",
+  "bbc.com",
+  "aljazeera.com",
+  "france24.com",
+  "dw.com",
+  "theguardian.com",
+  "scmp.com",
+  "japantimes.co.jp",
+  "thehindu.com",
+  "timesofindia.indiatimes.com",
+  "lemonde.fr"
+];
 
 const SOURCE_LOCATIONS = {
   argentina: { label: "Argentina", lat: -34.6, lon: -58.4, region: "South America" },
@@ -21,6 +35,50 @@ const SOURCE_LOCATIONS = {
   unitedkingdom: { label: "United Kingdom", lat: 51.5, lon: -0.1, region: "Europe" },
   unitedstates: { label: "United States", lat: 38.9, lon: -77, region: "North America" }
 };
+
+const PLACE_CATALOG = [
+  { name: "Tehran", aliases: ["tehran"], country: "Iran", region: "Middle East", lat: 35.6892, lon: 51.389, population: 9380000, kind: "capital" },
+  { name: "Isfahan", aliases: ["isfahan", "esfahan"], country: "Iran", region: "Middle East", lat: 32.6546, lon: 51.668, population: 2220000, kind: "city" },
+  { name: "Mashhad", aliases: ["mashhad"], country: "Iran", region: "Middle East", lat: 36.2605, lon: 59.6168, population: 3400000, kind: "city" },
+  { name: "Kerman", aliases: ["kerman"], country: "Iran", region: "Middle East", lat: 30.2839, lon: 57.0834, population: 738000, kind: "city" },
+  { name: "Zahedan", aliases: ["zahedan"], country: "Iran", region: "Middle East", lat: 29.4963, lon: 60.8629, population: 588000, kind: "city" },
+  { name: "London", aliases: ["london", "westminster"], country: "United Kingdom", region: "Europe", lat: 51.5072, lon: -0.1276, population: 8799800, kind: "capital" },
+  { name: "Paris", aliases: ["paris"], country: "France", region: "Europe", lat: 48.8566, lon: 2.3522, population: 2103000, kind: "capital" },
+  { name: "Berlin", aliases: ["berlin"], country: "Germany", region: "Europe", lat: 52.52, lon: 13.405, population: 3878000, kind: "capital" },
+  { name: "Kyiv", aliases: ["kyiv", "kiev"], country: "Ukraine", region: "Europe", lat: 50.4501, lon: 30.5234, population: 2952300, kind: "capital" },
+  { name: "Moscow", aliases: ["moscow"], country: "Russia", region: "Eurasia", lat: 55.7558, lon: 37.6173, population: 13010000, kind: "capital" },
+  { name: "Beijing", aliases: ["beijing"], country: "China", region: "East Asia", lat: 39.9042, lon: 116.4074, population: 21893000, kind: "capital" },
+  { name: "Shanghai", aliases: ["shanghai"], country: "China", region: "East Asia", lat: 31.2304, lon: 121.4737, population: 24870000, kind: "city" },
+  { name: "Tokyo", aliases: ["tokyo"], country: "Japan", region: "East Asia", lat: 35.6762, lon: 139.6503, population: 14094000, kind: "capital" },
+  { name: "Seoul", aliases: ["seoul"], country: "South Korea", region: "East Asia", lat: 37.5665, lon: 126.978, population: 9400000, kind: "capital" },
+  { name: "New Delhi", aliases: ["new delhi", "delhi"], country: "India", region: "South Asia", lat: 28.6139, lon: 77.209, population: 11000000, kind: "capital" },
+  { name: "Mumbai", aliases: ["mumbai", "bombay"], country: "India", region: "South Asia", lat: 19.076, lon: 72.8777, population: 12478000, kind: "city" },
+  { name: "Gaza City", aliases: ["gaza city", "gaza"], country: "Palestine", region: "Middle East", lat: 31.5017, lon: 34.4668, population: 590000, kind: "city" },
+  { name: "Rafah", aliases: ["rafah"], country: "Palestine", region: "Middle East", lat: 31.2969, lon: 34.2435, population: 171000, kind: "city" },
+  { name: "Jerusalem", aliases: ["jerusalem"], country: "Israel", region: "Middle East", lat: 31.7683, lon: 35.2137, population: 971800, kind: "city" },
+  { name: "Tel Aviv", aliases: ["tel aviv"], country: "Israel", region: "Middle East", lat: 32.0853, lon: 34.7818, population: 474500, kind: "city" },
+  { name: "Dubai", aliases: ["dubai"], country: "United Arab Emirates", region: "Middle East", lat: 25.2048, lon: 55.2708, population: 3550000, kind: "city" },
+  { name: "Riyadh", aliases: ["riyadh"], country: "Saudi Arabia", region: "Middle East", lat: 24.7136, lon: 46.6753, population: 7677000, kind: "capital" },
+  { name: "Cairo", aliases: ["cairo"], country: "Egypt", region: "Africa", lat: 30.0444, lon: 31.2357, population: 10100000, kind: "capital" },
+  { name: "Lagos", aliases: ["lagos"], country: "Nigeria", region: "West Africa", lat: 6.5244, lon: 3.3792, population: 15300000, kind: "city" },
+  { name: "Nairobi", aliases: ["nairobi"], country: "Kenya", region: "Africa", lat: -1.2921, lon: 36.8219, population: 4397000, kind: "capital" },
+  { name: "Johannesburg", aliases: ["johannesburg"], country: "South Africa", region: "Africa", lat: -26.2041, lon: 28.0473, population: 5635000, kind: "city" },
+  { name: "Washington", aliases: ["washington", "washington dc"], country: "United States", region: "North America", lat: 38.9072, lon: -77.0369, population: 678000, kind: "capital" },
+  { name: "New York", aliases: ["new york", "nyc", "manhattan"], country: "United States", region: "North America", lat: 40.7128, lon: -74.006, population: 8258000, kind: "city" },
+  { name: "Los Angeles", aliases: ["los angeles"], country: "United States", region: "North America", lat: 34.0522, lon: -118.2437, population: 3822000, kind: "city" },
+  { name: "Mexico City", aliases: ["mexico city"], country: "Mexico", region: "North America", lat: 19.4326, lon: -99.1332, population: 9209000, kind: "capital" },
+  { name: "Brasilia", aliases: ["brasilia"], country: "Brazil", region: "South America", lat: -15.7939, lon: -47.8828, population: 2817000, kind: "capital" },
+  { name: "Sao Paulo", aliases: ["sao paulo", "são paulo"], country: "Brazil", region: "South America", lat: -23.5558, lon: -46.6396, population: 11450000, kind: "city" },
+  { name: "Buenos Aires", aliases: ["buenos aires"], country: "Argentina", region: "South America", lat: -34.6037, lon: -58.3816, population: 3120000, kind: "capital" },
+  { name: "Sydney", aliases: ["sydney"], country: "Australia", region: "Oceania", lat: -33.8688, lon: 151.2093, population: 5297000, kind: "city" },
+  { name: "Jakarta", aliases: ["jakarta"], country: "Indonesia", region: "Southeast Asia", lat: -6.2088, lon: 106.8456, population: 10670000, kind: "capital" }
+];
+
+const FALLBACK_SIGNALS = [
+  { title: "Global wire monitor awaiting fresh article burst", domain: "gdeltproject.org", language: "English", place: PLACE_CATALOG[0], url: "https://www.gdeltproject.org/", seenAt: new Date().toISOString() },
+  { title: "Aviation layer checks live ADS-B state vectors", domain: "opensky-network.org", language: "English", place: PLACE_CATALOG[5], url: "https://opensky-network.org/", seenAt: new Date().toISOString() },
+  { title: "Maritime layer ready for AISStream API key", domain: "aisstream.io", language: "English", place: { name: "Strait of Hormuz", country: "International waters", region: "Shipping lanes", lat: 26.5667, lon: 56.25, population: 0, kind: "strait" }, url: "https://aisstream.io/documentation", seenAt: new Date().toISOString() }
+];
 
 export async function ensureWorldNewsTables(env) {
   await env.DB.prepare(
@@ -142,7 +200,7 @@ export async function getWorldNewsFeed(env) {
         status: error.message || "World news feed is using cached data."
       };
     }
-    throw error;
+    feed = await fallbackWorldFeed(error.message || "World news feed is using fallback signals.");
   }
   await env.DB.prepare(
     `INSERT INTO world_news_cache (cache_key, payload, updated_at)
@@ -156,15 +214,13 @@ export async function getWorldNewsFeed(env) {
 }
 
 async function fetchGdeltFeed() {
-  const query = Object.keys(SOURCE_LOCATIONS)
-    .map((country) => `sourcecountry:${country}`)
-    .join(" OR ");
+  const query = NEWS_DOMAINS.map((domain) => `domainis:${domain}`).join(" OR ");
   const url = new URL("https://api.gdeltproject.org/api/v2/doc/doc");
   url.searchParams.set("query", `(${query})`);
   url.searchParams.set("mode", "artlist");
   url.searchParams.set("format", "json");
-  url.searchParams.set("timespan", "12h");
-  url.searchParams.set("maxrecords", "50");
+  url.searchParams.set("timespan", "48h");
+  url.searchParams.set("maxrecords", "100");
   url.searchParams.set("sort", "datedesc");
 
   const response = await fetch(url.toString(), {
@@ -177,10 +233,14 @@ async function fetchGdeltFeed() {
   }
 
   const data = await response.json();
-  const articles = (data.articles || [])
-    .map(normalizeArticle)
+  let articles = (data.articles || [])
+    .map((article) => normalizeArticle(article))
     .filter(Boolean)
-    .slice(0, 36);
+    .slice(0, 72);
+
+  if (!articles.length) {
+    articles = FALLBACK_SIGNALS.map((signal, index) => normalizeFallbackSignal(signal, index));
+  }
 
   const regions = articles.reduce((items, article) => {
     const current = items.get(article.region) || { count: 0, latestAt: "" };
@@ -192,16 +252,44 @@ async function fetchGdeltFeed() {
 
   return {
     articles,
+    flights: await fetchOpenSkyFlights(),
+    places: buildPlaces(articles),
     regions: [...regions.entries()].map(([region, value]) => ({ region, ...value })),
-    source: "GDELT DOC 2.0",
+    ships: getMaritimeLayer(),
+    sources: [
+      { name: "GDELT DOC 2.0", status: "news articles", url: "https://www.gdeltproject.org/" },
+      { name: "OpenSky Network", status: "ADS-B state vectors when rate limit permits", url: "https://opensky-network.org/" },
+      { name: "AISStream", status: "configure AISSTREAM_KEY for live vessel WebSocket streaming", url: "https://aisstream.io/documentation" }
+    ],
+    source: "GDELT DOC 2.0 / OpenSky / AIS-ready",
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function fallbackWorldFeed(status) {
+  const articles = FALLBACK_SIGNALS.map((signal, index) => normalizeFallbackSignal(signal, index));
+  return {
+    articles,
+    flights: await fetchOpenSkyFlights(),
+    places: buildPlaces(articles),
+    regions: [{ region: "Fallback signals", count: articles.length, latestAt: new Date().toISOString() }],
+    ships: getMaritimeLayer(),
+    sources: [
+      { name: "GDELT DOC 2.0", status: status || "rate limited", url: "https://www.gdeltproject.org/" },
+      { name: "OpenSky Network", status: "ADS-B state vectors when rate limit permits", url: "https://opensky-network.org/" },
+      { name: "AISStream", status: "configure AISSTREAM_KEY for live vessel WebSocket streaming", url: "https://aisstream.io/documentation" }
+    ],
+    source: "fallback / OpenSky / AIS-ready",
+    stale: true,
+    status,
     updatedAt: new Date().toISOString()
   };
 }
 
 function normalizeArticle(article) {
   const sourceKey = normalizeSourceCountry(article.sourcecountry || "");
-  const location = SOURCE_LOCATIONS[sourceKey];
-  if (!location || !article.url || !article.title) return null;
+  const place = inferPlace(article, SOURCE_LOCATIONS[sourceKey]);
+  if (!place || !article.url || !article.title) return null;
 
   return {
     id: hashArticleId(article.url),
@@ -209,12 +297,135 @@ function normalizeArticle(article) {
     url: article.url,
     domain: String(article.domain || "").slice(0, 120),
     language: String(article.language || "").slice(0, 40),
-    sourceCountry: location.label,
-    region: location.region,
-    lat: location.lat,
-    lon: location.lon,
+    sourceCountry: place.country || place.label,
+    place,
+    placeName: place.name || place.label,
+    region: place.region,
+    lat: place.lat,
+    lon: place.lon,
     seenAt: normalizeGdeltDate(article.seendate || ""),
     image: article.socialimage || ""
+  };
+}
+
+function normalizeFallbackSignal(signal, index) {
+  const place = signal.place;
+  return {
+    id: `fallback-${index}`,
+    title: signal.title,
+    url: signal.url,
+    domain: signal.domain,
+    language: signal.language,
+    sourceCountry: place.country || place.label,
+    place,
+    placeName: place.name || place.label,
+    region: place.region,
+    lat: place.lat,
+    lon: place.lon,
+    seenAt: signal.seenAt,
+    image: ""
+  };
+}
+
+function inferPlace(article, sourceLocation) {
+  const haystack = `${article.title || ""} ${article.description || ""}`.toLowerCase();
+  const matched = PLACE_CATALOG.find((place) => place.aliases.some((alias) => haystack.includes(alias)));
+  if (matched) return matched;
+  if (sourceLocation) {
+    return {
+      name: sourceLocation.label,
+      country: sourceLocation.label,
+      region: sourceLocation.region,
+      lat: sourceLocation.lat,
+      lon: sourceLocation.lon,
+      population: 0,
+      kind: "country centroid"
+    };
+  }
+  const domain = String(article.domain || "").toLowerCase();
+  if (domain.endsWith(".ir")) return PLACE_CATALOG[0];
+  if (domain.includes("bbc") || domain.includes("guardian")) return PLACE_CATALOG[5];
+  if (domain.includes("lemonde")) return PLACE_CATALOG[6];
+  if (domain.includes("dw.com")) return PLACE_CATALOG[7];
+  if (domain.includes("scmp")) return PLACE_CATALOG[10];
+  if (domain.includes("japantimes")) return PLACE_CATALOG[12];
+  if (domain.includes("thehindu") || domain.includes("timesofindia")) return PLACE_CATALOG[14];
+  return PLACE_CATALOG[27];
+}
+
+function buildPlaces(articles) {
+  const places = new Map();
+  articles.forEach((article) => {
+    const place = article.place;
+    if (!place) return;
+    const key = `${place.name || place.label}:${place.country}`;
+    const current = places.get(key) || {
+      ...place,
+      articleCount: 0,
+      articles: []
+    };
+    current.articleCount += 1;
+    current.articles.push({ id: article.id, title: article.title, url: article.url, domain: article.domain });
+    places.set(key, current);
+  });
+  return [...places.values()];
+}
+
+async function fetchOpenSkyFlights() {
+  try {
+    const response = await fetch("https://opensky-network.org/api/states/all", {
+      headers: { "user-agent": "linje-world-watch" }
+    });
+    if (!response.ok) throw new Error(`OpenSky ${response.status}`);
+    const data = await response.json();
+    const states = Array.isArray(data.states) ? data.states : [];
+    return {
+      source: "OpenSky Network",
+      status: "live",
+      updatedAt: data.time ? new Date(data.time * 1000).toISOString() : new Date().toISOString(),
+      aircraft: states
+        .filter((state) => Number.isFinite(state[5]) && Number.isFinite(state[6]))
+        .slice(0, 140)
+        .map((state) => ({
+          id: state[0],
+          callsign: String(state[1] || "").trim() || state[0],
+          originCountry: state[2] || "",
+          lastContact: state[4] ? new Date(state[4] * 1000).toISOString() : "",
+          lon: state[5],
+          lat: state[6],
+          altitudeMeters: state[7] ?? state[13] ?? null,
+          onGround: Boolean(state[8]),
+          speedMps: state[9] ?? null,
+          track: state[10] ?? null,
+          verticalRate: state[11] ?? null,
+          squawk: state[14] || "",
+          positionSource: state[16] ?? null,
+          category: state[17] ?? null
+        }))
+    };
+  } catch (error) {
+    return {
+      source: "OpenSky Network",
+      status: error.message || "unavailable",
+      updatedAt: new Date().toISOString(),
+      aircraft: []
+    };
+  }
+}
+
+function getMaritimeLayer() {
+  return {
+    source: "AISStream",
+    status: "AISSTREAM_KEY required for live vessel WebSocket streaming",
+    updatedAt: new Date().toISOString(),
+    vessels: [],
+    lanes: [
+      { name: "Strait of Hormuz", lat: 26.5667, lon: 56.25, traffic: "critical energy chokepoint" },
+      { name: "Suez Canal", lat: 30.5852, lon: 32.2654, traffic: "Europe-Asia container and tanker corridor" },
+      { name: "Bab el-Mandeb", lat: 12.5833, lon: 43.3333, traffic: "Red Sea gateway" },
+      { name: "Strait of Malacca", lat: 2.5, lon: 101.0, traffic: "Asia-Europe trade lane" },
+      { name: "Panama Canal", lat: 9.08, lon: -79.68, traffic: "Atlantic-Pacific canal corridor" }
+    ]
   };
 }
 

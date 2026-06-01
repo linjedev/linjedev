@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=world3">
+    <link rel="stylesheet" href="styles.css?v=world4">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -419,9 +419,20 @@
             <div>
               <p class="eyebrow">World Watch</p>
               <h2 id="world-watch-title">Global signal map</h2>
+              <p id="worldLayerStatus" class="world-layer-status">News / flights / maritime readiness.</p>
             </div>
             <button id="refreshWorldNews" class="ghost-button" type="button">Refresh</button>
           </div>
+          <div class="world-controls" aria-label="World Watch layers">
+            <button type="button" class="active" data-world-layer="news">News</button>
+            <button type="button" class="active" data-world-layer="flights">Flights</button>
+            <button type="button" class="active" data-world-layer="ships">Ships</button>
+          </div>
+          <aside id="worldIntelPanel" class="world-intel-panel" aria-live="polite">
+            <p class="eyebrow">Selected</p>
+            <h3>Click a globe signal.</h3>
+            <p>Markers show geocoded articles, aircraft state vectors, and maritime chokepoints.</p>
+          </aside>
           <aside class="world-feed" aria-labelledby="world-feed-title">
             <div>
               <p class="eyebrow">Live feed</p>
@@ -614,6 +625,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=world3" defer></script>
+    <script src="app.js?v=world4" defer></script>
   </body>
 </html>
