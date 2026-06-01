@@ -1,5 +1,6 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
 const ASSET_VERSION = "linje-20260601-4";
+const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
 const RETIRED_COPY = {
   historyUnavailable: ["History unavailable on", "demo"].join(" "),
   linjeDemoTitle: ["Linje.track", "demo"].join(" "),
@@ -45,9 +46,16 @@ function rewriteBrandText(value) {
 
 function rewriteHtml(value) {
   return stripRetiredCopy(rewriteBrandText(value)).replace(
+    "<head>",
+    `<head>${googleMapsKeyScript()}`,
+  ).replace(
     /(src|href)="(\/_next\/static\/[^"?]+)(?:\?[^"]*)?"/g,
     `$1="$2?v=${ASSET_VERSION}"`,
   ).replace("</body>", `${brandPatchScript()}</body>`);
+}
+
+function googleMapsKeyScript() {
+  return `<script>try{localStorage.setItem("wwv_key_google_maps","${GOOGLE_MAPS_API_KEY}")}catch(e){}</script>`;
 }
 
 function stripRetiredCopy(value) {
