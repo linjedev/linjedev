@@ -1,50 +1,29 @@
 import { NextResponse } from "next/server";
 
-import https from "https";
-
 const OVERPASS_MIRRORS = [
-    "https://overpass-api.de/api/interpreter",
     "https://lz4.overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter"
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
 ];
 
 async function tryMirror(urlStr: string, query: string, timeoutMs: number) {
-    return new Promise<any>((resolve, reject) => {
-        const url = new URL(urlStr);
-        const bodyStr = `data=${encodeURIComponent(query)}`;
-
-        const req = https.request(url, {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort("timeout"), timeoutMs);
+    try {
+        return await fetch(urlStr, {
             method: "POST",
-            family: 4, // Force IPv4 to avoid Docker IPv6 dropout
             headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Content-Length": Buffer.byteLength(bodyStr),
-                "User-Agent": "Linje.track/1.11"
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                "User-Agent": "Linje.track/1.0",
+                "X-Linje-Client": "linje.track",
             },
-            timeout: timeoutMs,
-        }, (res) => {
-            let data = "";
-            res.on("data", (chunk) => data += chunk);
-            res.on("end", () => {
-                resolve({
-                    ok: res.statusCode && res.statusCode >= 200 && res.statusCode < 300,
-                    status: res.statusCode || 500,
-                    statusText: res.statusMessage || "",
-                    json: async () => JSON.parse(data),
-                    text: async () => data
-                });
-            });
+            body: `data=${encodeURIComponent(query)}`,
+            signal: controller.signal,
         });
-
-        req.on("error", reject);
-        req.on("timeout", () => {
-            req.destroy();
-            reject(new Error("Request timed out"));
-        });
-
-        req.write(bodyStr);
-        req.end();
-    });
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 export async function POST(req: Request) {
@@ -62,12 +41,17 @@ export async function POST(req: Request) {
         for (const mirror of OVERPASS_MIRRORS) {
             try {
                 console.log(`[OSMSearchProxy] Trying mirror: ${mirror}`);
-                const res = await tryMirror(mirror, query, 25000); // 25s per mirror
+                const res = await tryMirror(mirror, query, 55000);
 
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.elements) {
-                        return NextResponse.json({ data: data.elements });
+                    if (Array.isArray(data.elements)) {
+                        return NextResponse.json({
+                            data: data.elements,
+                            elements: data.elements,
+                            osm3s: data.osm3s || null,
+                            mirror,
+                        });
                     }
                     if (data.remark) {
                          console.warn(`[OSMSearchProxy] ${mirror} returned remark: ${data.remark}`);
@@ -77,9 +61,9 @@ export async function POST(req: Request) {
                 } else {
                     const text = await res.text();
                     console.warn(`[OSMSearchProxy] Mirror ${mirror} failed: ${res.status} ${res.statusText}`);
-                    lastError = { status: res.status, statusText: res.statusText, details: text };
+                    lastError = { mirror, status: res.status, statusText: res.statusText, details: text.slice(0, 1000) };
                     // If it's a 4xx error (except 429), it's probably a bad query, so don't retry
-                    if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+                    if (res.status >= 400 && res.status < 500 && res.status !== 406 && res.status !== 429) {
                         break;
                     }
                 }
@@ -92,7 +76,7 @@ export async function POST(req: Request) {
         }
 
         return NextResponse.json(
-            { error: "All Overpass mirrors failed or timed out. The OSM servers are likely under heavy load." },
+            { error: "All Overpass mirrors failed or timed out. The OSM servers are likely under heavy load.", lastError },
             { status: 504 }
         );
     } catch (e: any) {

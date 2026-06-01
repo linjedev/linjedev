@@ -2,6 +2,11 @@ const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
 const ASSET_VERSION = "linje-20260601-11";
 const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhM2E0MjQwYy0wNTU3LTQzODMtOGVmZi01YzExMTM1ZTVmYzciLCJpZCI6NDM4NzYwLCJzdWIiOiJzZWJ3aW5maWVsZCIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJMaW5qZS5kZXYiLCJpYXQiOjE3ODAyNzc5MzR9.BfH1rVscC0WBp12NorM8_TQuZY_gDaVafB3a0Eh33fA";
+const OVERPASS_MIRRORS = [
+  "https://lz4.overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
+];
 const RETIRED_COPY = {
   historyUnavailable: ["History unavailable on", "demo"].join(" "),
   linjeDemoTitle: ["Linje.track", "demo"].join(" "),
@@ -413,6 +418,116 @@ function htmlResponse(body, status = 200, upstream = "access-gate") {
   });
 }
 
+function jsonResponse(body, status = 200, upstream = "linje.dev") {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Security-Policy": CSP,
+      "Cache-Control": "no-store",
+      "X-Linje-Upstream": upstream,
+    },
+  });
+}
+
+async function readOsmSearchQuery(request) {
+  const contentType = request.headers.get("Content-Type") || "";
+  if (contentType.includes("application/json")) {
+    const body = await request.json().catch(() => ({}));
+    return String(body.query || body.data || "").trim();
+  }
+
+  const text = await request.text();
+  if (!text) return "";
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    const params = new URLSearchParams(text);
+    return String(params.get("query") || params.get("data") || "").trim();
+  }
+  return text.trim();
+}
+
+async function fetchOverpassMirror(mirror, query, timeoutMs = 55000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort("timeout"), timeoutMs);
+  try {
+    return await fetch(mirror, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        "User-Agent": "Linje.track/1.0",
+        "X-Linje-Client": "linje.track",
+      },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function osmSearchResponse(request) {
+  if (request.method.toUpperCase() !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405, "osm-search");
+  }
+
+  const query = await readOsmSearchQuery(request);
+  if (!query) return jsonResponse({ error: "Missing query" }, 400, "osm-search");
+  if (query.length > 20000) return jsonResponse({ error: "Query is too large" }, 413, "osm-search");
+
+  let lastError = null;
+  for (const mirror of OVERPASS_MIRRORS) {
+    try {
+      const response = await fetchOverpassMirror(mirror, query);
+      const text = await response.text();
+      if (response.ok) {
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          lastError = { mirror, status: 502, statusText: "Non-JSON response", details: text.slice(0, 1000) };
+          continue;
+        }
+
+        if (Array.isArray(data.elements)) {
+          return jsonResponse({
+            data: data.elements,
+            elements: data.elements,
+            osm3s: data.osm3s || null,
+            mirror,
+          }, 200, "osm-search");
+        }
+
+        if (data.remark) {
+          return jsonResponse({ error: data.remark, mirror }, 400, "osm-search");
+        }
+
+        return jsonResponse({ data: [], elements: [], mirror }, 200, "osm-search");
+      }
+
+      lastError = {
+        mirror,
+        status: response.status,
+        statusText: response.statusText,
+        details: text.slice(0, 1000),
+      };
+      if (response.status >= 400 && response.status < 500 && response.status !== 406 && response.status !== 429) break;
+    } catch (error) {
+      lastError = {
+        mirror,
+        status: 500,
+        statusText: "Fetch failed",
+        details: String(error?.message || error),
+      };
+    }
+  }
+
+  return jsonResponse({
+    error: "All Overpass mirrors failed or timed out.",
+    lastError,
+  }, 504, "osm-search");
+}
+
 const LEGACY_BRAND_PATTERNS = [
   [new RegExp(["WORLD", "WIDE", "VIEW"].join(" "), "g"), "LINJE.TRACK"],
   [new RegExp(["World", "Wide", "View"].join(" "), "g"), "Linje.track"],
@@ -603,6 +718,10 @@ export default {
           "Cache-Control": "no-store",
         },
       });
+    }
+
+    if (requestUrl.pathname === "/api/plugins/osm-search") {
+      return osmSearchResponse(request);
     }
 
     const upstreamUrl = new URL(requestUrl.pathname + requestUrl.search, UPSTREAM_ORIGIN);
