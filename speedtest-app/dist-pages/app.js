@@ -1169,7 +1169,13 @@ function renderCommitHeatmap(hourBuckets) {
       const active = index < bucket.count;
       const level = active ? Math.max(1, Math.ceil((bucket.count / maxCount) * 4)) : 0;
       cell.dataset.level = String(level);
-      cell.title = `${bucket.count} commits around ${formatHour(bucket.hour)}`;
+      const commitDetails = bucket.commits.slice(0, 4).map((commit) => {
+        const description = commit.description ? ` - ${commit.description}` : "";
+        return `${commit.message || "Commit"}${description}`;
+      }).join("\n");
+      cell.title = commitDetails
+        ? `${bucket.count} commits around ${formatHour(bucket.hour)}\n${commitDetails}`
+        : `${bucket.count} commits around ${formatHour(bucket.hour)}`;
       cells.append(cell);
     }
     hour.append(cells);
@@ -2303,7 +2309,8 @@ async function initWorldGlobe() {
   const terrain = config.cesiumIonToken && Cesium.Terrain
     ? Cesium.Terrain.fromWorldTerrain()
     : undefined;
-  const viewer = new Cesium.Viewer(els.worldGlobeCanvas, {
+  const baseLayer = await createWorldBaseLayer(config);
+  const viewerOptions = {
     animation: false,
     baseLayerPicker: false,
     fullscreenButton: false,
@@ -2314,13 +2321,16 @@ async function initWorldGlobe() {
     sceneModePicker: false,
     selectionIndicator: false,
     shouldAnimate: true,
-    timeline: false,
-    terrain
-  });
+    timeline: false
+  };
+  if (terrain) viewerOptions.terrain = terrain;
+  if (baseLayer?.layer) viewerOptions.baseLayer = baseLayer.layer;
+  if (baseLayer?.provider) viewerOptions.imageryProvider = baseLayer.provider;
+  const viewer = new Cesium.Viewer(els.worldGlobeCanvas, viewerOptions);
   viewer.scene.globe.enableLighting = true;
   viewer.scene.skyAtmosphere.show = true;
   viewer.scene.fog.enabled = true;
-  viewer.scene.screenSpaceCameraController.minimumZoomDistance = 400;
+  viewer.scene.screenSpaceCameraController.minimumZoomDistance = config.cesiumIonToken ? 400 : 80000;
   viewer.scene.screenSpaceCameraController.maximumZoomDistance = 42000000;
   viewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(18, 26, 14500000),
@@ -2367,6 +2377,60 @@ async function loadWorldMapConfig() {
   });
   if (!response.ok) return { cesiumBaseUrl: "/cesium/", cesiumIonToken: "" };
   return response.json().catch(() => ({ cesiumBaseUrl: "/cesium/", cesiumIonToken: "" }));
+}
+
+async function createWorldBaseLayer(config = {}) {
+  if (config.cesiumIonToken) return null;
+  const baseUrl = config.cesiumBaseUrl || "/cesium/";
+  const naturalEarthUrl = `${baseUrl.replace(/\/?$/, "/")}Assets/Textures/NaturalEarthII`;
+
+  try {
+    const arcGisUrl = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer";
+    if (Cesium.ArcGisMapServerImageryProvider?.fromUrl) {
+      const provider = Cesium.ArcGisMapServerImageryProvider.fromUrl(arcGisUrl);
+      if (Cesium.ImageryLayer?.fromProviderAsync) {
+        return { layer: Cesium.ImageryLayer.fromProviderAsync(provider) };
+      }
+      return { provider: await provider };
+    }
+    if (Cesium.ArcGisMapServerImageryProvider) {
+      return { provider: new Cesium.ArcGisMapServerImageryProvider({ url: arcGisUrl }) };
+    }
+  } catch (error) {
+    console.warn("ArcGIS World Imagery fallback unavailable.", error);
+  }
+
+  try {
+    if (Cesium.OpenStreetMapImageryProvider?.fromUrl) {
+      const provider = Cesium.OpenStreetMapImageryProvider.fromUrl("https://tile.openstreetmap.org/");
+      if (Cesium.ImageryLayer?.fromProviderAsync) {
+        return { layer: Cesium.ImageryLayer.fromProviderAsync(provider) };
+      }
+      return { provider: await provider };
+    }
+    if (Cesium.OpenStreetMapImageryProvider) {
+      return { provider: new Cesium.OpenStreetMapImageryProvider({ url: "https://tile.openstreetmap.org/" }) };
+    }
+  } catch (error) {
+    console.warn("OpenStreetMap fallback unavailable.", error);
+  }
+
+  try {
+    if (Cesium.TileMapServiceImageryProvider?.fromUrl) {
+      const provider = Cesium.TileMapServiceImageryProvider.fromUrl(naturalEarthUrl);
+      if (Cesium.ImageryLayer?.fromProviderAsync) {
+        return { layer: Cesium.ImageryLayer.fromProviderAsync(provider) };
+      }
+      return { provider: await provider };
+    }
+    if (Cesium.TileMapServiceImageryProvider) {
+      return { provider: new Cesium.TileMapServiceImageryProvider({ url: naturalEarthUrl }) };
+    }
+  } catch (error) {
+    console.warn("Local Cesium base map unavailable.", error);
+  }
+
+  return null;
 }
 
 function updateWorldGlobeData(data) {
@@ -2450,6 +2514,7 @@ function updateWorldGlobeData(data) {
       name: lane.name || "Maritime lane",
       position: Cesium.Cartesian3.fromDegrees(lon, lat, 500),
       ellipse: {
+        height: 0,
         semiMajorAxis: 120000,
         semiMinorAxis: 120000,
         material: Cesium.Color.fromCssColorString("#facc15").withAlpha(.13),
