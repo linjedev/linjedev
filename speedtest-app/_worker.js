@@ -1,5 +1,5 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
-const ASSET_VERSION = "linje-20260601-6";
+const ASSET_VERSION = "linje-20260601-7";
 const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhM2E0MjQwYy0wNTU3LTQzODMtOGVmZi01YzExMTM1ZTVmYzciLCJpZCI6NDM4NzYwLCJzdWIiOiJzZWJ3aW5maWVsZCIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJMaW5qZS5kZXYiLCJpYXQiOjE3ODAyNzc5MzR9.BfH1rVscC0WBp12NorM8_TQuZY_gDaVafB3a0Eh33fA";
 const RETIRED_COPY = {
@@ -50,6 +50,18 @@ function isPublicPath(pathname) {
 
 function authStyles() {
   return `<style>:root{color-scheme:dark;--bg:#09090b;--glass:rgba(9,9,11,.75);--glass2:rgba(24,24,27,.85);--border:rgba(255,255,255,.1);--text:#f4f4f5;--muted:#a1a1aa;--amber:#f59e0b}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(rgba(9,9,11,.76),rgba(9,9,11,.92)),radial-gradient(circle at 50% 110%,rgba(255,255,255,.12),transparent 42%),var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif;padding:16px;overflow:hidden}body:before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 78%);pointer-events:none}.card{position:relative;z-index:1;width:min(460px,100%);background:var(--glass);border:1px solid var(--border);border-radius:16px;box-shadow:inset 0 1px 1px rgba(255,255,255,.1),0 8px 32px rgba(0,0,0,.4);backdrop-filter:blur(24px);padding:24px;text-align:center}.mark{width:42px;height:42px;margin:0 auto 16px;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);font-weight:800}.title{margin:0 0 4px;font-size:22px;letter-spacing:0}.sub{margin:0 0 24px;color:var(--muted);font-size:13px}.form{display:grid;gap:12px;text-align:left}.label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.input{width:100%;min-height:40px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.04);color:var(--text);font:14px Inter,Arial,sans-serif;outline:0}.input:focus{border-color:rgba(255,255,255,.55);background:var(--glass2);box-shadow:0 0 0 1px rgba(255,255,255,.18)}.button{min-height:40px;padding:11px 14px;border:1px solid rgba(255,255,255,.38);border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font-weight:800;text-decoration:none;text-align:center;cursor:pointer}.button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.55)}.ghost{background:var(--glass);border-color:var(--border)}.footer{margin:18px 0 0;color:var(--muted);font-size:13px}.link{color:#fff;font-weight:800;text-decoration:none}.captcha{display:grid;grid-template-columns:1fr 40px;gap:10px;align-items:end}.question{width:max-content;padding:3px 7px;border:1px solid rgba(245,158,11,.28);border-radius:6px;background:rgba(245,158,11,.08);color:var(--amber);font-family:monospace;font-size:12px;letter-spacing:0;text-transform:none}.icon{height:40px;border:1px solid var(--border);border-radius:10px;background:var(--glass);color:#fff;cursor:pointer}.msg{margin:0;color:#22c55e;font-size:13px}.err{margin:0;color:#ef4444;font-size:13px}</style>`;
+}
+
+function loginStylePatch() {
+  return `<style id="linje-login-style">:root{color-scheme:dark;--bg:#09090b;--glass:rgba(9,9,11,.75);--glass2:rgba(24,24,27,.85);--border:rgba(255,255,255,.1);--text:#f4f4f5;--muted:#a1a1aa}html,body{background:#09090b!important}body{margin:0!important;min-height:100vh!important;display:grid!important;place-items:center!important;background:linear-gradient(rgba(9,9,11,.76),rgba(9,9,11,.92)),radial-gradient(circle at 50% 110%,rgba(255,255,255,.12),transparent 42%),var(--bg)!important;color:var(--text)!important;font-family:Inter,Arial,sans-serif!important;padding:16px!important;overflow:hidden!important}body:before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 78%);pointer-events:none}[class^="setup_container__"]{min-height:auto!important;width:min(460px,100%)!important;display:block!important;background:transparent!important;padding:0!important;position:relative!important;z-index:1!important}[class^="setup_card__"]{width:100%!important;max-width:460px!important;background:var(--glass)!important;border:1px solid var(--border)!important;border-radius:16px!important;box-shadow:inset 0 1px 1px rgba(255,255,255,.1),0 8px 32px rgba(0,0,0,.4)!important;backdrop-filter:blur(24px)!important;-webkit-backdrop-filter:blur(24px)!important;padding:24px!important;text-align:center!important}[class^="setup_logo__"]{width:42px!important;height:42px!important;margin:0 auto 16px!important;display:grid!important;place-items:center!important;border-radius:10px!important;background:rgba(255,255,255,.16)!important;border:1px solid rgba(255,255,255,.35)!important;color:#fff!important;font-size:20px!important;font-weight:800!important}[class^="setup_title__"]{margin:0 0 4px!important;color:#f4f4f5!important;font-size:22px!important;font-weight:800!important;letter-spacing:0!important;line-height:1.2!important}[class^="setup_subtitle__"]{margin:0 0 24px!important;color:var(--muted)!important;font-size:13px!important}[class^="setup_form__"]{display:grid!important;gap:12px!important;text-align:left!important}[class^="setup_label__"]{display:grid!important;gap:6px!important;color:var(--muted)!important;font-size:11px!important;font-weight:800!important;letter-spacing:.08em!important;text-transform:uppercase!important;margin:0!important}[class^="setup_input__"]{width:100%!important;min-height:50px!important;padding:10px 14px!important;border:1px solid rgba(255,255,255,.1)!important;border-radius:12px!important;background:rgba(255,255,255,.04)!important;color:#f4f4f5!important;font:16px Inter,Arial,sans-serif!important;outline:0!important;box-shadow:none!important}[class^="setup_input__"]:focus{border-color:rgba(255,255,255,.55)!important;background:var(--glass2)!important;box-shadow:0 0 0 1px rgba(255,255,255,.18)!important}[class^="setup_button__"]{min-height:50px!important;margin-top:12px!important;padding:11px 14px!important;border:1px solid rgba(255,255,255,.38)!important;border-radius:12px!important;background:rgba(255,255,255,.16)!important;color:#fff!important;font-size:16px!important;font-weight:800!important;cursor:pointer!important}[class^="setup_button__"]:hover{background:rgba(255,255,255,.24)!important;border-color:rgba(255,255,255,.55)!important}.linje-login-footer{margin:18px 0 0;color:var(--muted);font-size:13px;text-align:center}.linje-login-footer a{color:#fff;font-weight:800;text-decoration:none}</style>`;
+}
+
+function restyleLoginHtml(value) {
+  return value
+    .replace("<head>", `<head>${loginStylePatch()}`)
+    .replace(/(<div class="setup_logo__[^\"]*">)W(<\/div>)/, "$1L$2")
+    .replace("Enter your credentials to continue", "Approved users can enter the workspace")
+    .replace(/(<\/form>)(?![\s\S]*linje-login-footer)/, `$1<p class="linje-login-footer">Need access? <a href="/register">Request approval</a></p>`);
 }
 
 function accessGateHtml() {
@@ -142,8 +154,12 @@ function rewriteBrandText(value) {
   );
 }
 
-function rewriteHtml(value) {
-  return stripRetiredCopy(rewriteBrandText(value)).replace(
+function rewriteHtml(value, pathname = "") {
+  const branded = pathname === "/login"
+    ? restyleLoginHtml(stripRetiredCopy(rewriteBrandText(value)))
+    : stripRetiredCopy(rewriteBrandText(value));
+
+  return branded.replace(
     "<head>",
     `<head>${googleMapsKeyScript()}`,
   ).replace(
@@ -274,7 +290,7 @@ export default {
     ) {
       const body = await upstreamResponse.text();
       const rewritten = contentType.includes("text/html")
-        ? rewriteHtml(body)
+        ? rewriteHtml(body, requestUrl.pathname)
         : rewriteBrandText(body);
 
       return new Response(rewritten, {
