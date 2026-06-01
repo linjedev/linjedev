@@ -1,20 +1,20 @@
 <!-- Generated: 2026-04-23 06:11:00 UTC -->
 # Quickstart: Creating Your First Plugin
 
-Welcome to WorldWideView plugin development! This tutorial will guide you through creating your first custom data layer on the 3D globe. 
+Welcome to Linje.track plugin development! This tutorial will guide you through creating your first custom data layer on the 3D globe. 
 
-By the end of this guide, you will have a working plugin that plots real-time data on the WorldWideView map.
+By the end of this guide, you will have a working plugin that plots real-time data on the Linje.track map.
 
 ## 1. Prerequisites
 
 Before you start, ensure you have:
 - Node.js ≥ 18
 - `npm` or `pnpm` installed
-- A running instance of WorldWideView on your local machine (running at `http://localhost:3000`).
+- A running instance of Linje.track on your local machine (running at `http://localhost:3000`).
 
 ## 2. Scaffold Your Plugin
 
-WorldWideView plugins are built as standard packages within the monorepo workspace. To generate a new plugin sandbox, use the official interactive CLI from the root of your `worldwideview` repository:
+Linje.track plugins are built as standard packages within the monorepo workspace. To generate a new plugin sandbox, use the official interactive CLI from the root of your `worldwideview` repository:
 
 ```bash
 node packages/wwv-cli/dist/index.js create --local
@@ -48,7 +48,7 @@ pnpm dev:all
 The `dev:all` command automatically starts the frontend, the data engine, and the `dev:plugins` watcher. This watcher will automatically rebuild your plugin whenever you save a file in `local-plugins/`.
 
 > [!TIP]
-> **Debugging Registration Issues:** If your plugin doesn't appear in the WorldWideView "Installed Plugins" list, check your `package.json` inside your local plugin folder. Ensure `id`, `name`, and `version` are populated correctly. Also verify that you ran `pnpm install` from the workspace root.
+> **Debugging Registration Issues:** If your plugin doesn't appear in the Linje.track "Installed Plugins" list, check your `package.json` inside your local plugin folder. Ensure `id`, `name`, and `version` are populated correctly. Also verify that you ran `pnpm install` from the workspace root.
 
 ## 4. Explore the Code
 
@@ -109,7 +109,7 @@ export class MyFirstPlugin implements WorldPlugin {
 
 ## 5. View Your Plugin
 
-1. Ensure your WorldWideView main application is running (`pnpm dev` or `pnpm dev:all` in the main repo).
+1. Ensure your Linje.track main application is running (`pnpm dev` or `pnpm dev:all` in the main repo).
 2. Open your browser to `http://localhost:3000`.
 3. Open the **Layers** panel on the left sidebar.
 4. Locate "My First Data Layer" and toggle it on.

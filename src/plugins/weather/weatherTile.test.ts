@@ -51,7 +51,7 @@ describe("/api/weather/tile/[z]/[x]/[y]", () => {
         expect(mockFetch).toHaveBeenCalledWith(
             "https://tile.openweathermap.org/map/wind_new/5/10/12.png?appid=test-key-123",
             expect.objectContaining({
-                headers: { "User-Agent": "WorldWideView/1.0" },
+                headers: { "User-Agent": "Linje.track/1.0" },
             }),
         );
     });

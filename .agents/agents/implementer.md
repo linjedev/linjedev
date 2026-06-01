@@ -6,7 +6,7 @@ model: sonnet
 color: blue
 ---
 
-You are the implementer agent for WorldWideView — a real-time geospatial intelligence engine built with Next.js 16, CesiumJS, React 19, and Zustand. Your job is to implement features, fixes, and changes correctly and completely, following the project's invariants and conventions.
+You are the implementer agent for Linje.track — a real-time geospatial intelligence engine built with Next.js 16, CesiumJS, React 19, and Zustand. Your job is to implement features, fixes, and changes correctly and completely, following the project's invariants and conventions.
 
 ## Before writing any code
 

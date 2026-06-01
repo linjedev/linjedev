@@ -1,6 +1,6 @@
 # @worldwideview/wwv-cli
 
-The official Command Line Interface for scaffolding and publishing WorldWideView plugins.
+The official Command Line Interface for scaffolding and publishing Linje.track plugins.
 
 ## Usage
 
@@ -10,7 +10,7 @@ This CLI is designed to be run from within the `worldwideview` monorepo.
 ```bash
 node packages/wwv-cli/dist/index.js create
 ```
-This command generates a new plugin directory with a boilerplate `index.ts` and `package.json` configured for the WorldWideView plugin architecture inside the `local-plugins/` directory.
+This command generates a new plugin directory with a boilerplate `index.ts` and `package.json` configured for the Linje.track plugin architecture inside the `local-plugins/` directory.
 
 *(Note: To create a built-in plugin inside `packages/` instead, use the `--core` flag).*
 

@@ -4,7 +4,7 @@
 
 The Marketplace (`marketplace.worldwideview.dev`, repo: `c:/dev/worldwideview-marketplace`) and the Cloud App (`app.worldwideview.dev`) share one identity ecosystem. A user who creates an account on the Marketplace can use that same account to access the Cloud App, and vice versa — no second signup required. This is called **Federated Identity / Single Sign-On (SSO)** and is the same model used by GitHub (one account → GitHub + GitHub Marketplace + GitHub Actions), Atlassian (one account → Jira + Confluence + Marketplace), and Stripe (one account → Dashboard + Stripe Apps).
 
-The Marketplace has no database yet, so Supabase is the right choice: one Supabase project serves as the **shared identity store** for all WorldWideView products. Both the Marketplace and the Cloud App point at the same Supabase project URL — the same `auth.users` table — so a user is one entity across the entire ecosystem.
+The Marketplace has no database yet, so Supabase is the right choice: one Supabase project serves as the **shared identity store** for all Linje.track products. Both the Marketplace and the Cloud App point at the same Supabase project URL — the same `auth.users` table — so a user is one entity across the entire ecosystem.
 
 The Marketplace also acts as the **OAuth 2.0 Authorization Server** in the ADR-001 PKCE flow — when a Local App user clicks "Connect to Marketplace," they are redirected here to authorize, and the Marketplace issues a short-lived code that the Local App exchanges for an API Key.
 
@@ -178,7 +178,7 @@ This is the custom layer that lets the Local App "connect" to the Marketplace. S
 **`src/app/api/oauth/authorize/route.ts`**
 - Validates: `client_id`, `redirect_uri` (must match allowlist), `code_challenge`, `code_challenge_method=S256`, `state`
 - Calls `supabase.auth.getUser()` — if not logged in, redirects to `/login?redirect_to=...`
-- Shows a consent screen ("Allow WorldWideView Local App to access your account?")
+- Shows a consent screen ("Allow Linje.track Local App to access your account?")
 - On approval: stores `{ code, code_challenge, user_id, expires: now+60s }` in Supabase DB, redirects to `redirect_uri?code=...&state=...`
 
 **`src/app/api/oauth/token/route.ts`**

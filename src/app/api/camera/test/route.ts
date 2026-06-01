@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         try {
             response = await fetch(url, {
                 method: "HEAD",
-                headers: { "User-Agent": "WorldWideView/1.0" },
+                headers: { "User-Agent": "Linje.track/1.0" },
                 signal: AbortSignal.timeout(TIMEOUT_MS)
             });
         } catch (headError: unknown) {
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
             if (err.cause?.code === 'UND_ERR_SOCKET' || err.message?.includes('fetch failed')) {
                 response = await fetch(url, {
                     method: "GET",
-                    headers: { "User-Agent": "WorldWideView/1.0" },
+                    headers: { "User-Agent": "Linje.track/1.0" },
                     signal: AbortSignal.timeout(TIMEOUT_MS)
                 });
             } else {
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
         if (response.status === 405 || response.status === 403) {
             const getRes = await fetch(url, {
                 method: "GET",
-                headers: { "User-Agent": "WorldWideView/1.0" },
+                headers: { "User-Agent": "Linje.track/1.0" },
                 signal: AbortSignal.timeout(TIMEOUT_MS)
             });
             return NextResponse.json({

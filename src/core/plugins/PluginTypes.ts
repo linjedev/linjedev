@@ -1,5 +1,5 @@
 /**
- * Re-exports core types from the WorldWideView Plugin SDK.
+ * Re-exports core types from the Linje.track Plugin SDK.
  * This file serves as a local proxy for the SDK types to maintain backward compatibility
  * for the application's imports while keeping the SDK as the single source of truth.
  */

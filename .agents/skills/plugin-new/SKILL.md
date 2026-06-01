@@ -1,6 +1,6 @@
 ---
 name: plugin-new
-description: End-to-end pipeline that takes a WorldWideView plugin from idea to npm-published and cleaned up. Conducts an isolated worktree + scaffold, GSD research/plan/build/UAT, dual-repo PRs (plugin + seeder), npm publish, and teardown, with user gates only at plan approval, UAT sign-off, npm publish, and teardown. Use when the user says "/plugin-new", "new plugin", "build a plugin end to end", "ship a plugin", or "run the plugin pipeline".
+description: End-to-end pipeline that takes a Linje.track plugin from idea to npm-published and cleaned up. Conducts an isolated worktree + scaffold, GSD research/plan/build/UAT, dual-repo PRs (plugin + seeder), npm publish, and teardown, with user gates only at plan approval, UAT sign-off, npm publish, and teardown. Use when the user says "/plugin-new", "new plugin", "build a plugin end to end", "ship a plugin", or "run the plugin pipeline".
 ---
 
 # Plugin Pipeline (`/plugin-new`)

@@ -27,7 +27,7 @@ Accepted *(Phase 2A-D implementation complete 2026-05-25)*
 
 ## Context
 
-WorldWideView is growing into a multi-product ecosystem:
+Linje.track is growing into a multi-product ecosystem:
 
 | Product | URL | Purpose |
 |---|---|---|
@@ -49,7 +49,7 @@ Four interrelated problems required a unified decision:
 
 ### ADR-003A: Federated Identity — One Account Across All Products
 
-All WorldWideView products share a **single identity**. A user who creates an account anywhere in the ecosystem (Marketplace, Cloud App, or the landing site) has that same identity available everywhere else.
+All Linje.track products share a **single identity**. A user who creates an account anywhere in the ecosystem (Marketplace, Cloud App, or the landing site) has that same identity available everywhere else.
 
 This is the standard industry pattern for multi-product SaaS — used by GitHub (one account → GitHub, Marketplace, Actions, Packages), Atlassian (one account → Jira, Confluence, Marketplace), and Stripe (one account → Dashboard, Atlas, Stripe Apps).
 

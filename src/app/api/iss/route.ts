@@ -21,7 +21,7 @@ export async function GET() {
         const response = await fetch(WTIA_URL, {
             headers: {
                 Accept: "application/json",
-                "User-Agent": "WorldWideView/1.0",
+                "User-Agent": "Linje.track/1.0",
             },
             next: { revalidate },
         });

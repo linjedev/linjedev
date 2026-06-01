@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
     try {
         const upstream = await safeFetch(targetUrl, {
-            headers: { "User-Agent": "WorldWideView/1.0" },
+            headers: { "User-Agent": "Linje.track/1.0" },
             timeout: MAX_STREAM_DURATION_MS,
             streaming: true,
         });

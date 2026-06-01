@@ -2,7 +2,7 @@
 # Testing
 
 ## Overview
-WorldWideView utilizes Vitest alongside a `jsdom` environment and the React Testing Library to ensure high reliability across core application logic, server APIs, and plugin loaders. Test coverage is strategically focused on shared libraries, core state logic, and the plugin ecosystem mechanisms.
+Linje.track utilizes Vitest alongside a `jsdom` environment and the React Testing Library to ensure high reliability across core application logic, server APIs, and plugin loaders. Test coverage is strategically focused on shared libraries, core state logic, and the plugin ecosystem mechanisms.
 
 ## Test Types
 

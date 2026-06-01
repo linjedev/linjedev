@@ -30,7 +30,7 @@ const SERVER_NAME = "worldwideview" as const;
 export const MCP_SERVER_VERSION = "1.2.0" as const;
 
 export const MCP_SERVER_INSTRUCTIONS = `\
-WorldWideView MCP server. Read and control a live 3D geospatial globe for the authenticated user. Everything is scoped to your API key: you only ever see and control your own data and your own browser sessions.
+Linje.track MCP server. Read and control a live 3D geospatial globe for the authenticated user. Everything is scoped to your API key: you only ever see and control your own data and your own browser sessions.
 
 CAPABILITIES
 - Globe command tools (write/steer a live browser tab): pan_globe, focus_entity, toggle_layer, set_timeline.

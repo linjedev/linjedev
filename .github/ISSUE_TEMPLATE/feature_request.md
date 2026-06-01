@@ -1,6 +1,6 @@
 ---
 name: Core Feature Request
-about: Suggest an idea for the core WorldWideView engine
+about: Suggest an idea for the core Linje.track engine
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''

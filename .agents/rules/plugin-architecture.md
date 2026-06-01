@@ -219,7 +219,7 @@ type PluginCapability =
 | Trust Tier | Who | Capabilities Allowed | How Determined |
 |---|---|---|---|
 | **Built-in** | Ships with WWV | All | Hardcoded in `AppShell` at build time |
-| **Verified** | WorldWideView-reviewed | Any declared capability | Plugin ID in the **signed registry** |
+| **Verified** | Linje.track-reviewed | Any declared capability | Plugin ID in the **signed registry** |
 | **Unverified** | Community / 3rd-party | `data:own`, `ui:settings` only | Plugin ID NOT in the registry |
 
 ### Signed Plugin Registry
@@ -306,7 +306,7 @@ When implementing the `token-exchange` flow or communicating across domains, all
 
 ## Plugin Development Workflows
 
-Starting in 2026, WorldWideView adopted the **Architect and Toolbox** paradigm using NPM global tools, ensuring a fully decoupled developer experience. Plugin repositories contain *pure code* with absolutely no platform hosting boilerplate (e.g. no embedded docker-compose files).
+Starting in 2026, Linje.track adopted the **Architect and Toolbox** paradigm using NPM global tools, ensuring a fully decoupled developer experience. Plugin repositories contain *pure code* with absolutely no platform hosting boilerplate (e.g. no embedded docker-compose files).
 
 ### The Developer Experience
 1. **Scaffold**: `node packages/wwv-cli/dist/index.js create <name> --local` (Creates plugin inside `local-plugins/` — the community plugin repo clone)
@@ -317,7 +317,7 @@ Starting in 2026, WorldWideView adopted the **Architect and Toolbox** paradigm u
 The marketplace API natively supports hot-reloading for local plugins without rebuilding the core.
 
 **Docker-Hosted Mode (Recommended for external devs):**
-If a developer wants to build a plugin without cloning the 1GB+ WorldWideView monorepo, they can pull the official WWV Docker image and mount their compiled plugin code:
+If a developer wants to build a plugin without cloning the 1GB+ Linje.track monorepo, they can pull the official WWV Docker image and mount their compiled plugin code:
 1. Run WWV with the development flag: `WWV_PLUGIN_DEV=true`
 2. Mount the local plugin's `dist/` folder into the container's `/app/local-plugins/` directory.
 3. Because the plugin is strictly code, Vite rebuilds in <100ms, and a browser refresh instantly loads the new plugin from the Docker volume.
@@ -355,7 +355,7 @@ For file-based assets bundled alongside the plugin (such as JSON datasets or 3D 
 - **Impact:** Assets resolve properly directly from the domain they were executed on. No CORS bypasses or CDN fallbacks required.
 
 ### .env Passthrough Injection
-The WorldWideView core engine functions as a "blind pipe" for developer environment variables, allowing organizations to securely route plugins to custom backend microservices (local or cloud) without modifying the platform.
+The Linje.track core engine functions as a "blind pipe" for developer environment variables, allowing organizations to securely route plugins to custom backend microservices (local or cloud) without modifying the platform.
 1. The developer adds `NEXT_PUBLIC_WWV_PLUGIN_EXAMPLE_URL="http://localhost:5001"` to their `.env.local`.
 2. The engine detects the `NEXT_PUBLIC_WWV_PLUGIN_` prefix, strips it, and dynamically hydrates the `PluginContext`.
 3. The plugin natively retrieves `ctx.env.EXAMPLE_URL`.
@@ -466,16 +466,16 @@ See skill: `.agents/skills/data-engine-seeder-creation.md`
 
 ---
 
-## Architectural Differences: WorldWideView (WWV) vs WorldMonitor (WM)
+## Architectural Differences: Linje.track (WWV) vs WorldMonitor (WM)
 
-While WorldWideView draws UI/UX and feature inspiration from WorldMonitor as a baseline, the underlying plugin architectures are fundamentally different.
+While Linje.track draws UI/UX and feature inspiration from WorldMonitor as a baseline, the underlying plugin architectures are fundamentally different.
 
 ### WorldMonitor (The Inspiration)
 - **Monolithic Frontend**: Layers and datasets are typically hardcoded directly into the application's core logic.
 - **Custom Implementations**: Each data source usually requires its own bespoke API fetching, state management, and map rendering logic (e.g., raw Mapbox/Cesium objects).
 - **Coupled Backend**: Data ingestion is often tightly coupled to the monolithic application or spread across scattered, heterogeneous microservices without a unified cache.
 
-### WorldWideView (The Reality)
+### Linje.track (The Reality)
 - **Extensible VS Code-Style Runtime**: Plugins are wholly independent, sandboxable modules loaded dynamically via activation events. The core map knows nothing about aviation or wildfires.
 - **Unified Data Contract (`GeoEntity`)**: All data layers map their bespoke formats into a strict, unified `GeoEntity` system. The core engine handles clustering, filtering, and timeline playback generically—no custom rendering trickery needed per dataset.
 - **Shared Data Engine**: WWV enforces a strict separation of concerns. All 24/7 API polling, data normalizations, and history retention happen off-thread in the singular `wwv-data-engine` (utilizing Redis hot cache + PostgreSQL history retention), providing a clean, unified REST interface for the plugin frontend. 
@@ -484,7 +484,7 @@ While WorldWideView draws UI/UX and feature inspiration from WorldMonitor as a b
 ### Planned Features (Inspired by Monolithic Systems / WM)
 While avoiding monolithic coupling, WWV plans to implement the following high-UX features natively or via generic plugin capabilities:
 
-1. **Decentralized Plugin Connections (Agnostic Client)**: WorldWideView is entirely agnostic to the backend. It does NOT enforce a single unified pipeline. If a user activates 30 different plugins hosted on 30 different custom servers, the frontend will happily open 30 separate WebSocket connections. The client application knows absolutely nothing about the Data Engine—it only reads the `streamUrl` provided by each individual plugin's manifest.
+1. **Decentralized Plugin Connections (Agnostic Client)**: Linje.track is entirely agnostic to the backend. It does NOT enforce a single unified pipeline. If a user activates 30 different plugins hosted on 30 different custom servers, the frontend will happily open 30 separate WebSocket connections. The client application knows absolutely nothing about the Data Engine—it only reads the `streamUrl` provided by each individual plugin's manifest.
 2. **Cross-Layer Geofencing & Alerts**: A new `User Alert System` designed explicitly as a **plugin**. Utilizing the unified `GeoEntity` outputs, users can draw a polygon on the map and trigger webhooks/notifications if *any* entity from *any* active plugin crosses the boundary.
 3. **Advanced Dead-Reckoning Hooks**: Building a `useDeadReckoning()` hook directly into the `@worldwideview/wwv-plugin-sdk`. It will automatically use standard `speed` and `heading` props to smoothly glide vehicle entities across the Cesium globe at 60 FPS between data pings, preventing plugin authors from rewriting complex math logic.
 4. **Curated Workspaces / Scenarios**: The ability for users to save their current state as a "Workspace URL." This generates a shareable link that encodes the exact camera position, timeline bounds, activated plugins, and their respective layer configurations/filters.

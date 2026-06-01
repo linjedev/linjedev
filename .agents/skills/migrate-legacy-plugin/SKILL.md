@@ -1,13 +1,13 @@
 ---
 name: migrate-legacy-plugin
-description: Use when moving a WorldWideView plugin from packages/ to local-plugins/ (the wwv-plugins community repo clone), converting legacy plugins to the new Engine & Payload architecture, or when a plugin hardcodes engine URLs, bundles Node.js built-ins, or uses import.meta.url for file paths inside Docker containers
+description: Use when moving a Linje.track plugin from packages/ to local-plugins/ (the wwv-plugins community repo clone), converting legacy plugins to the new Engine & Payload architecture, or when a plugin hardcodes engine URLs, bundles Node.js built-ins, or uses import.meta.url for file paths inside Docker containers
 ---
 
 # Migrate Legacy Plugin to Modern Architecture
 
 ## Overview
 
-Moves a WorldWideView plugin from the old `packages/` monorepo location into the `local-plugins/` directory (which is a git clone of `github.com/silvertakana/wwv-plugins` — the canonical community plugin repo). Simultaneously fixes two **independent** concerns that legacy plugins always have:
+Moves a Linje.track plugin from the old `packages/` monorepo location into the `local-plugins/` directory (which is a git clone of `github.com/silvertakana/wwv-plugins` — the canonical community plugin repo). Simultaneously fixes two **independent** concerns that legacy plugins always have:
 
 1. **Frontend routing** — hardcoded engine URLs must be replaced with `resolveEngineUrl()`
 2. **Backend seeder build** — ESM bundling and container-aware file paths

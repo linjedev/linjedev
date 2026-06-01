@@ -2,7 +2,7 @@
 # Files Catalog
 
 ## Overview
-WorldWideView is structured as a pnpm monorepo. The primary application resides in the root `src/` directory, while external dependencies, plugins, and the core Plugin SDK are abstracted into the `packages/` directory.
+Linje.track is structured as a pnpm monorepo. The primary application resides in the root `src/` directory, while external dependencies, plugins, and the core Plugin SDK are abstracted into the `packages/` directory.
 
 The system is highly modularized to separate React UI rendering from heavy CesiumJS 3D operations and high-frequency real-time WebSocket state management.
 

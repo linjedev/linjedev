@@ -15,7 +15,7 @@ if [ -z "$DATABASE_URL" ]; then
   echo "────────────────────────────────────────────────────────────────"
   echo "🚨 CRITICAL: DATABASE_URL IS NOT SET"
   echo "────────────────────────────────────────────────────────────────"
-  echo "WorldWideView has migrated to PostgreSQL. If you are an old user,"
+  echo "Linje.track has migrated to PostgreSQL. If you are an old user,"
   echo "please update your docker-compose.yml to include a Postgres service."
   echo ""
   echo "To migrate your legacy data after setting up Postgres, run:"

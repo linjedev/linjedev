@@ -13,7 +13,7 @@ Proposed *(Pending Review)*
 
 ## Context
 
-The WorldWideView ecosystem faces four interlocking security and scalability problems:
+The Linje.track ecosystem faces four interlocking security and scalability problems:
 
 1. **The SSRF Liability:** The Local App uses generic proxy routes (`/api/camera/proxy`) to bypass browser CORS restrictions. These lack robust SSRF hardening (no DNS rebinding defense, no private IP blocking), exposing the host LAN.
 2. **The CORS Barrier:** Browser-enforced Cross-Origin Resource Sharing (CORS) prevents the agnostic frontend from connecting directly to independent Data Engines via standard HTTP.

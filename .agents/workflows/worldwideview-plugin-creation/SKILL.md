@@ -1,13 +1,13 @@
 ---
 name: worldwideview-plugin-creation
-description: Use when creating a new plugin, adding a new data source, or debugging missing plugin data in the WorldWideView project. Triggers on seeder creation, WebSocket streaming issues, plugin registration failures, manifest validation errors, GeoEntity rendering problems, or data engine integration
+description: Use when creating a new plugin, adding a new data source, or debugging missing plugin data in the Linje.track project. Triggers on seeder creation, WebSocket streaming issues, plugin registration failures, manifest validation errors, GeoEntity rendering problems, or data engine integration
 ---
 
-# WorldWideView Plugin Creation
+# Linje.track Plugin Creation
 
 ## Overview
 
-A WorldWideView plugin is a self-contained data source that renders geospatial entities on a 3D Cesium globe. Every plugin implements the `WorldPlugin` interface from the SDK and connects to the **V2 Data Engine** (Fastify + Redis) that streams live data over WebSocket.
+A Linje.track plugin is a self-contained data source that renders geospatial entities on a 3D Cesium globe. Every plugin implements the `WorldPlugin` interface from the SDK and connects to the **V2 Data Engine** (Fastify + Redis) that streams live data over WebSocket.
 
 **Core principle:** Plugins are code bundles. The engine pushes data. The frontend renders it. There is no REST polling between frontend and engine — only WebSocket streaming.
 

@@ -29,7 +29,7 @@ The choice was: keep client-side `getSession()` calls and accept the XSS exfiltr
 
 ## Decision
 
-**All Supabase session cookies in the WorldWideView ecosystem are set with `httpOnly: true`.** This is enforced in each app's `buildCookieOptions()` helper:
+**All Supabase session cookies in the Linje.track ecosystem are set with `httpOnly: true`.** This is enforced in each app's `buildCookieOptions()` helper:
 
 - `worldwideview-web/src/lib/supabase/cookieOptions.ts`
 - `worldwideview-marketplace/src/lib/supabase/cookieOptions.ts`

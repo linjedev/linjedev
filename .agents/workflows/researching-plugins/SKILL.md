@@ -6,7 +6,7 @@ description: Use when evaluating new data sources, researching APIs, or planning
 # Researching Plugins
 
 ## Overview
-This skill defines the rigorous process for researching, evaluating, and planning new data source plugins for WorldWideView. It combines data source validation (evaluating free tiers, rate limits, and comprehensiveness) with the generation of a placeholder-free, TDD-focused implementation plan.
+This skill defines the rigorous process for researching, evaluating, and planning new data source plugins for Linje.track. It combines data source validation (evaluating free tiers, rate limits, and comprehensiveness) with the generation of a placeholder-free, TDD-focused implementation plan.
 
 ## When to Use
 - The user requests a new data source or layer (e.g., "add weather data", "track global earthquakes")
@@ -88,7 +88,7 @@ Expected: PASS
 
 | Excuse / Rationalization | Reality / Fix |
 |--------------------------|---------------|
-| "I'll propose a paid API because the free ones are hard to find" | WorldWideView is a free tool; prioritize open data. Dig deeper into governmental or open-source datasets. |
+| "I'll propose a paid API because the free ones are hard to find" | Linje.track is a free tool; prioritize open data. Dig deeper into governmental or open-source datasets. |
 | "I left TODOs in the plan so the execution agent can fill them in" | Execution agents fail when given placeholders. The plan MUST contain the exact code to be written. |
 | "I skipped the test steps because it's just an API wrapper" | Every feature requires tests. Draft a test that mocks the API response. |
 | "I forgot to specify the architecture type" | You must decide if it's a Static, Proxy, or Microservice plugin during the research phase. |

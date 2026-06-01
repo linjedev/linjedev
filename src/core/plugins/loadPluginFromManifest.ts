@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 /**
  * @file loadPluginFromManifest.ts
- * @description Handles the dynamic loading and instantiation of WorldWideView plugins from ES module bundles.
+ * @description Handles the dynamic loading and instantiation of Linje.track plugins from ES module bundles.
  */
 
 import type { WorldPlugin } from "./PluginTypes";

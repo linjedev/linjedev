@@ -168,7 +168,7 @@ function CopyField({ value, label, multiline = false }: CopyFieldProps) {
 // Tool-agnostic: Phase 17 ships no tools; tools arrive in Phase 18+.
 // ---------------------------------------------------------------------------
 
-const AGENT_PROMPT = `You have access to the WorldWideView (WWV) geospatial intelligence engine via MCP.
+const AGENT_PROMPT = `You have access to the Linje.track (WWV) geospatial intelligence engine via MCP.
 WWV visualizes real-time global data on an interactive 3D CesiumJS globe, including aviation,
 incidents, weather, and custom data plugins.
 

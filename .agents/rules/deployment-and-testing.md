@@ -50,7 +50,7 @@ Frontend runs at `http://localhost:3000`.
 
 ### E2E Testing (Playwright)
 
-WorldWideView uses Playwright for End-to-End browser testing to verify the complete UI integration including NextAuth.
+Linje.track uses Playwright for End-to-End browser testing to verify the complete UI integration including NextAuth.
 
 - **Run**: `pnpm run test:e2e` (Ensure your database is running before executing)
 - **Auth Bypass**: Playwright uses a `global.setup.ts` to directly insert a test user into the database and simulate a UI login to capture a `storageState.json` cookie file. This allows all tests to run pre-authenticated without bypassing production security logic.

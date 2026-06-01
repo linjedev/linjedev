@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Create a report to help us improve WorldWideView
+about: Create a report to help us improve Linje.track
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -26,4 +26,4 @@ If applicable, add screenshots or console output to help explain your problem.
 **Environment (please complete the following information):**
  - OS: [e.g. Windows, macOS]
  - Browser [e.g. chrome, safari, firefox]
- - WorldWideView Edition [e.g. local, demo, cloud]
+ - Linje.track Edition [e.g. local, demo, cloud]

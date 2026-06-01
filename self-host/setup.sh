@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🌍 Setting up WorldWideView for local self-hosting..."
+echo "🌍 Setting up Linje.track for local self-hosting..."
 
 # Check if docker is actually available and running
 if ! docker info > /dev/null 2>&1; then
@@ -48,7 +48,7 @@ echo "🚀 Starting Docker container..."
 docker compose up -d
 
 echo ""
-echo "✅ WorldWideView is running at http://localhost:3000"
+echo "✅ Linje.track is running at http://localhost:3000"
 echo "   Data is persisted in Docker volume 'wwv-data'"
 echo "   Auth secret is saved in .env (don't delete this file)"
 echo ""

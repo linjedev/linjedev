@@ -43,7 +43,7 @@ export default {
 
     // Provide a bottom panel UI component using the host's React instance
     getBottomPanelComponent: () => {
-        // Access React from the global host object injected by WorldWideView
+        // Access React from the global host object injected by Linje.track
         const React = globalThis.__WWV_HOST__.React;
         
         if (!React) {

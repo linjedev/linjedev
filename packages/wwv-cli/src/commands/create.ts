@@ -28,7 +28,7 @@ function assertChoice(label: string, value: string | undefined, valid: string[])
 }
 
 export const createCommand = new Command('create')
-  .description('Scaffold a new WorldWideView plugin (flags skip the matching prompt; omit them for interactive mode)')
+  .description('Scaffold a new Linje.track plugin (flags skip the matching prompt; omit them for interactive mode)')
   .argument('[pluginId]', 'Unique kebab-case plugin ID (e.g. my-tracker)')
   .option('-c, --core', 'Create inside packages instead of local-plugins (for core contributors)')
   .option('-n, --display-name <name>', 'Display name (e.g. "My Live Tracker")')

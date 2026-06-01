@@ -328,7 +328,7 @@ function detectOutdatedDeps() {
 }
 
 // ─── Run all detectors ────────────────────────────────────────────────────────
-console.log('WorldWideView GC Scan');
+console.log('Linje.track GC Scan');
 console.log(`Repo:       ${run('git remote get-url origin') || ROOT}`);
 console.log(`Commit:     ${run('git rev-parse --short HEAD') || 'unknown'}`);
 console.log(`Thresholds: branch=${STALE_BRANCH_DAYS}d  comment=${STALE_COMMENT_DAYS}d`);

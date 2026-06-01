@@ -12,7 +12,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "WorldWideView | Geospatial Intelligence",
+  title: "Linje.track | Geospatial Intelligence",
   description: "Next-generation, open-source geospatial intelligence platform.",
 };
 

@@ -24,11 +24,11 @@ const SAFE_TOOL_NAME = /^[a-zA-Z0-9_-]+$/;
 
 /**
  * Validates a plugin manifest for structural integrity and security compliance.
- * This is the primary security gate for the WorldWideView plugin ecosystem.
+ * This is the primary security gate for the Linje.track plugin ecosystem.
  * It ensures that all required fields are present and, crucially, enforces
  * an 'Entry URL Allowlist' to prevent Remote Code Execution (RCE) from
  * untrusted domains. All external bundles must originate from approved
- * CDNs or official WorldWideView infrastructure.
+ * CDNs or official Linje.track infrastructure.
  *
  * @param manifest - The manifest object to validate (potentially partial during parsing).
  * @returns A ValidationResult indicating success or a list of identified security/structural risks.

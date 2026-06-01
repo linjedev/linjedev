@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Flip the production WorldWideView data engine from "auth disabled" (`WWV_SKIP_WS_AUTH=true`) to "auth enforced" (`JWKS_URL` set + ticket-auth plugin allowlist enumerated) in a single atomic redeploy window, with smoke tests proving every plugin still works.
+**Goal:** Flip the production Linje.track data engine from "auth disabled" (`WWV_SKIP_WS_AUTH=true`) to "auth enforced" (`JWKS_URL` set + ticket-auth plugin allowlist enumerated) in a single atomic redeploy window, with smoke tests proving every plugin still works.
 
 **Architecture:** Pure ops change — no source code modifications. Two Coolify services receive env-var updates (`wwv-data-engine` and `wwv` frontend), both are redeployed near-simultaneously, smoke-tested through the live UI. Rollback is a single env-var revert + redeploy.
 
@@ -375,7 +375,7 @@ Expected: connection closes immediately with code `4003`. If the connection stay
 
 - [ ] **Step 1: Open the production app in a browser**
 
-Navigate to `https://worldwideview.dev` (or whatever the production frontend URL is). Sign in if not already.
+Navigate to `https://linje.dev` (or whatever the production frontend URL is). Sign in if not already.
 
 - [ ] **Step 2: Open browser DevTools — Network tab, filter "WS"**
 
@@ -571,7 +571,7 @@ The Coolify dashboard should show both services healthy and the deploy timestamp
 1. The Coolify CLI is installed and the `wwv` context is pre-configured (per personal memory). If not, fall back to the Coolify web dashboard for the same actions — the env-set + deploy-trigger workflow is identical, just clicked instead of typed.
 2. The production data engine URL is `https://dataenginev2.worldwideview.dev`. If it's something different, substitute throughout.
 3. The production marketplace URL is `https://marketplace.worldwideview.dev`. Confirmed in Task 2.
-4. The production frontend URL is `https://worldwideview.dev`. If it's `app.worldwideview.dev` or similar, substitute in Task 10.
+4. The production frontend URL is `https://linje.dev`. If it's `app.worldwideview.dev` or similar, substitute in Task 10.
 5. The data engine reads `JWKS_URL` at boot — confirmed via `startup-checks.ts` in PR #10. The cutover redeploy triggers a fresh boot.
 6. The frontend reads `NEXT_PUBLIC_*` vars at BUILD time — Coolify's `deploy trigger wwv` does a rebuild, so the new env var is baked into the bundle.
 7. The PKCE flow has already been used at least once on the production marketplace by an actual user, so `MarketplaceCredential` rows exist for that user. If you're testing as a fresh user, you'll need to complete `/api/marketplace/connect` once before Task 10 Step 3 — otherwise `/api/auth/ticket` will fail with "no marketplace credential."

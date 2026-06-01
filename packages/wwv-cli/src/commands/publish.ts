@@ -111,7 +111,7 @@ export const publishCommand = new Command('publish')
       execSync('npm publish --access public', { stdio: 'inherit', cwd });
       
       console.log('[wwv-cli] Successfully published to NPM!');
-      console.log('[wwv-cli] To submit this plugin to the WorldWideView Marketplace, please visit: https://marketplace.worldwideview.dev/submit');
+      console.log('[wwv-cli] To submit this plugin to the Linje.track Marketplace, please visit: https://marketplace.worldwideview.dev/submit');
       console.log(`[wwv-cli] Package Name: ${publishedName}`);
 
     } catch (err: any) {

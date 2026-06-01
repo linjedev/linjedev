@@ -1,4 +1,4 @@
-# WorldWideView Auth Rollout — ADR-001 + ADR-003
+# Linje.track Auth Rollout — ADR-001 + ADR-003
 
 > **For agentic workers:** REQUIRED SUB-SKILL: use `superpowers:executing-plans` to implement
 > this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -51,8 +51,8 @@ These cannot be automated — they need accounts, browsers, admin rights, or a D
     callback URL: `https://<project-ref>.supabase.co/auth/v1/callback`. Paste Client ID +
     Secret into Supabase.
 - [ ] **0.3 Set URL configuration** (Authentication → URL Configuration):
-  - Site URL: `https://worldwideview.dev`
-  - Redirect URLs (add all): `https://worldwideview.dev/**`,
+  - Site URL: `https://linje.dev`
+  - Redirect URLs (add all): `https://linje.dev/**`,
     `https://*.worldwideview.dev/**`, `https://wwv.local/**`, `https://*.wwv.local/**`
 - [ ] **0.4 Install mkcert** (one-time, per dev machine). PowerShell as admin:
   `choco install mkcert` then `mkcert -install`.
@@ -497,7 +497,7 @@ export default async function LoginPage({
       <div className={styles.glassCard} style={{ maxWidth: '400px', marginTop: '10vh' }}>
         <h1 className={styles.title}>Welcome Back</h1>
         <p style={{ textAlign: 'center', marginBottom: 'var(--space-lg)', color: 'var(--text-secondary)' }}>
-          Sign in to your WorldWideView account
+          Sign in to your Linje.track account
         </p>
 
         <form action={signInWithPassword}>
@@ -572,7 +572,7 @@ export async function signUp(formData: FormData) {
 }
 ```
 Note: add `NEXT_PUBLIC_SITE_URL` to `.env.local` (`https://wwv.local`) and to Coolify
-(`https://worldwideview.dev`).
+(`https://linje.dev`).
 
 - [ ] **Step 2: Create `src/app/signup/page.tsx`.**
 ```tsx

@@ -1,4 +1,4 @@
-# WorldWideView — Implementation Roadmap
+# Linje.track — Implementation Roadmap
 
 Each stage is **self-contained and demo-able**. Any stage can be shipped independently.
 
@@ -139,7 +139,7 @@ Each stage is **self-contained and demo-able**. Any stage can be shipped indepen
 
 | Decision | Resolution |
 |---|---|
-| **License** | EL2.0 for WorldWideView core; Open Source for marketplace |
+| **License** | EL2.0 for Linje.track core; Open Source for marketplace |
 | **Shared types** | `@worldwideview/plugin-sdk` npm package (MIT) |
 | **Hosting** | Coolify (ThinkPad T480s). Landing page on Vercel (static export) |
 | **Database** | PostgreSQL, Prisma ORM |

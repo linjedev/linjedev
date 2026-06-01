@@ -1,7 +1,7 @@
 {
   "name": "@worldwideview/wwv-plugin-sdk",
   "version": "1.7.1",
-  "description": "Plugin SDK — types, interfaces, and utilities for building WorldWideView globe plugins",
+  "description": "Plugin SDK — types, interfaces, and utilities for building Linje.track globe plugins",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -29,7 +29,7 @@
     "url": "https://github.com/silvertakana/worldwideview/issues"
   },
   "license": "ISC",
-  "author": "WorldWideView",
+  "author": "Linje.track",
   "peerDependencies": {
     "react": ">=18"
   },

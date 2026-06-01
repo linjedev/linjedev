@@ -1,18 +1,18 @@
 <!-- Generated: 2026-04-23 06:11:00 UTC -->
 # Advanced Plugin Guide
 
-This guide covers complex architectures, real-time telemetry streaming, and the deployment lifecycle for WorldWideView plugins. If you haven't built a basic plugin yet, start with the **[Quickstart](plugin-quickstart.md)**.
+This guide covers complex architectures, real-time telemetry streaming, and the deployment lifecycle for Linje.track plugins. If you haven't built a basic plugin yet, start with the **[Quickstart](plugin-quickstart.md)**.
 
 ## Architecture Paradigm: The All-Bundle Model
 
-WorldWideView operates on a strict **Dynamic CDN Loaded (Bundle)** architecture. 
+Linje.track operates on a strict **Dynamic CDN Loaded (Bundle)** architecture. 
 
 > [!WARNING]
 > **Deprecation Notice:** The legacy `StaticDataPlugin` (GeoJSON loaders) and `DeclarativePlugin` runtimes are fully deprecated. All new plugins must be dynamically imported at runtime as ES module bundles via `import(/* webpackIgnore: true */ entry)`.
 
 ### How Plugins Load
 1. A user clicks "Install" in the **Marketplace**.
-2. The marketplace sends the plugin manifest (containing an ES Module CDN URL, like `unpkg.com`) to the WorldWideView database.
+2. The marketplace sends the plugin manifest (containing an ES Module CDN URL, like `unpkg.com`) to the Linje.track database.
 3. At runtime, the `InstalledPluginsLoader` dynamically fetches the JavaScript bundle.
 4. The plugin is instantiated, and its `initialize(ctx)` method is invoked.
 
@@ -20,14 +20,14 @@ WorldWideView operates on a strict **Dynamic CDN Loaded (Bundle)** architecture.
 
 Relying on the frontend `fetch()` method is insufficient for high-frequency real-time tracking (like aviation or maritime). For continuous telemetry, you must build a **Data Engine Seeder** — a lightweight Javascript data polling script.
 
-WorldWideView is a completely agnostic renderer. It has absolutely no concept of a "unified" Data Engine. If 30 plugins require 30 different WebSocket servers, the application will blindly open 30 connections. Each plugin is a self-contained package and **MUST explicitly declare its own `streamUrl` in its manifest or config**. Do NOT assume the frontend acts as a unified pipe.
+Linje.track is a completely agnostic renderer. It has absolutely no concept of a "unified" Data Engine. If 30 plugins require 30 different WebSocket servers, the application will blindly open 30 connections. Each plugin is a self-contained package and **MUST explicitly declare its own `streamUrl` in its manifest or config**. Do NOT assume the frontend acts as a unified pipe.
 
 While you can host your own backend, we provide the `DataEngineV2` runner as a standardized environment for seeders.
 
 ### Data Engine V2 Seeder Architecture
 Instead of the frontend fetching data, you write a lightweight seeder script that connects to an upstream source, normalizes the data, and is executed by the central `wwv-data-engine-v2` host runner.
 
-1. **Create a Seeder Directory:** Inside your WorldWideView project, create a folder under `local-seeders/` (e.g., `local-seeders/community/my-plugin/`). Note that seeders are split into `community` and `private` tiers to prevent namespace collisions.
+1. **Create a Seeder Directory:** Inside your Linje.track project, create a folder under `local-seeders/` (e.g., `local-seeders/community/my-plugin/`). Note that seeders are split into `community` and `private` tiers to prevent namespace collisions.
 2. **Write the Seeder Script:** Create a `seeder.mjs` file that exports a `fetch(ctx)` function.
 3. **Engine Auto-Discovery:** The local Docker-based `wwv-data-engine-v2` automatically mounts this directory, discovers your script, and runs it on the defined interval.
 4. **WebSocket & REST Delivery:** Seeders in V2 expose both a WebSocket stream (`/stream`) for real-time instantaneous updates, and a REST API endpoint (`/api/:id`) for fetching live data snapshots directly from Redis.
@@ -48,7 +48,7 @@ Seeders within `local-seeders/` are strictly orchestrated within the pnpm worksp
 When returning `CesiumEntityOptions` in `renderEntity(entity)`, you have direct access to the 3D engine's capabilities.
 
 ### 3D Models vs. Billboards (LOD Strategy)
-To maintain 60 FPS with tens of thousands of entities, use WorldWideView's Level of Detail (LOD) promotion system.
+To maintain 60 FPS with tens of thousands of entities, use Linje.track's Level of Detail (LOD) promotion system.
 - Render distant entities as simple `billboard` or `point` primitives.
 - When the camera gets close, the system's `useModelRendering` hook can promote the entity to a full 3D glTF model.
 
@@ -83,7 +83,7 @@ To distribute your plugin globally:
    *(Or `npx wwv publish <plugin-name> [--org <your-org>]` if installed globally)*
 2. **Submit:** Navigate to `https://marketplace.worldwideview.dev/submit`.
 3. **Register:** Enter your NPM package name. The marketplace automatically scrapes your `package.json` for the required `"worldwideview"` object block (containing your `id`, `icon`, and `category`).
-4. **Review:** Once approved, your plugin's ES Module bundle will be served via CDN to all WorldWideView instances worldwide.
+4. **Review:** Once approved, your plugin's ES Module bundle will be served via CDN to all Linje.track instances worldwide.
 
 ### Debugging Marketplace Submissions
 - **"Invalid Manifest" Error:** Ensure you are using `@worldwideview/wwv-plugin-sdk` as a `peerDependency` (not a direct dependency) so the host application injects the context correctly.

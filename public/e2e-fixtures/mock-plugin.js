@@ -44,7 +44,7 @@ export default {
     
     // Provide a UI component using the host's React instance
     getSidebarComponent: () => {
-        // Access React from the global host object injected by WorldWideView
+        // Access React from the global host object injected by Linje.track
         const React = globalThis.__WWV_HOST__.React;
         
         if (!React) {

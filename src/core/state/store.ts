@@ -1,6 +1,6 @@
 /**
  * @file store.ts
- * @description The central state management hub for WorldWideView.
+ * @description The central state management hub for Linje.track.
  * Combines multiple Zustand slices into a single unified store for the entire application.
  */
 

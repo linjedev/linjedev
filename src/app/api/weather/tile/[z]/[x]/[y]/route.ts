@@ -60,7 +60,7 @@ export async function GET(
 
     try {
         const response = await fetch(tileUrl, {
-            headers: { "User-Agent": "WorldWideView/1.0" },
+            headers: { "User-Agent": "Linje.track/1.0" },
             next: { revalidate },
         });
 

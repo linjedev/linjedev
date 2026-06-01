@@ -9,21 +9,21 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-console.log('🧹 Starting Garbage Collection for orphaned WorldWideView Docker volumes...');
+console.log('🧹 Starting Garbage Collection for orphaned Linje.track Docker volumes...');
 
 try {
   // Get all docker volumes
   const volumesOutput = execSync('docker volume ls --format "{{.Name}}"').toString();
   const volumes = volumesOutput.split('\n').map(v => v.trim()).filter(Boolean);
 
-  // Identify WorldWideView volumes
+  // Identify Linje.track volumes
   const wwvVolumes = volumes.filter(v => 
     (v.startsWith('worldwideview') && v.endsWith('_postgres-data')) || 
     (v.startsWith('worldwideview') && v.endsWith('_wwv-data'))
   );
 
   if (wwvVolumes.length === 0) {
-    console.log('✅ No WorldWideView volumes found.');
+    console.log('✅ No Linje.track volumes found.');
     process.exit(0);
   }
 

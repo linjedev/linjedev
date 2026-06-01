@@ -2,7 +2,7 @@
   "name": "@worldwideview/wwv-cli",
   "version": "1.3.1",
   "type": "module",
-  "description": "WorldWideView CLI",
+  "description": "Linje.track CLI",
   "main": "dist/index.js",
   "bin": {
     "wwv": "dist/index.js"

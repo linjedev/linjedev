@@ -5,12 +5,12 @@ description: Use when creating or modifying Playwright end-to-end tests, especia
 
 # Playwright E2E Testing & Mock Plugin Guide
 
-When you are tasked with testing a new feature or plugin in WorldWideView using Playwright, you must use this skill to ensure you follow the strict architecture rules of the platform.
+When you are tasked with testing a new feature or plugin in Linje.track using Playwright, you must use this skill to ensure you follow the strict architecture rules of the platform.
 
 ## 1. Mock Plugin Requirements
 When creating a mock plugin (e.g., `public/e2e-fixtures/my-mock-plugin.js`) to test a specific UI feature, **you MUST implement the full Data Plugin interface**.
 
-WorldWideView's `PluginManager` throws fatal runtime errors if a plugin is missing core data fetching methods, even if your plugin only tests a UI component like a bottom panel.
+Linje.track's `PluginManager` throws fatal runtime errors if a plugin is missing core data fetching methods, even if your plugin only tests a UI component like a bottom panel.
 
 **Required Methods for EVERY Mock Plugin:**
 ```javascript

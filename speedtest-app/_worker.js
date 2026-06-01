@@ -1,4 +1,5 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
+const ASSET_VERSION = "linje-20260601-1";
 
 const CSP = [
   "default-src 'self'",
@@ -15,12 +16,19 @@ const CSP = [
 
 function rewriteBrandText(value) {
   return value
-    .replaceAll("WORLD WIDE VIEW", "LINJE.TRACK")
-    .replaceAll("World Wide View", "Linje.track")
-    .replaceAll("WorldWideView", "Linje.track")
-    .replaceAll("WorldwideView", "Linje.track")
-    .replaceAll("https://worldwideview.dev/", "https://linje.dev/")
-    .replaceAll("https://worldwideview.dev", "https://linje.dev");
+    .replaceAll("LINJE.TRACK", "LINJE.TRACK")
+    .replaceAll("Linje.track", "Linje.track")
+    .replaceAll("Linje.track", "Linje.track")
+    .replaceAll("Linje.track", "Linje.track")
+    .replaceAll("https://linje.dev/", "https://linje.dev/")
+    .replaceAll("https://linje.dev", "https://linje.dev");
+}
+
+function rewriteHtml(value) {
+  return rewriteBrandText(value).replace(
+    /(src|href)="(\/_next\/static\/[^"?]+)(?:\?[^"]*)?"/g,
+    `$1="$2?v=${ASSET_VERSION}"`,
+  );
 }
 
 function rewriteJson(value, key = "") {
@@ -84,6 +92,7 @@ export default {
     responseHeaders.set("Content-Security-Policy", CSP);
     responseHeaders.delete("X-Frame-Options");
     responseHeaders.delete("Content-Length");
+    responseHeaders.set("Cache-Control", "no-store");
     responseHeaders.set("X-Linje-Upstream", "demo.worldwideview.dev");
 
     const location = responseHeaders.get("Location");
@@ -95,7 +104,12 @@ export default {
       contentType.includes("javascript") ||
       contentType.includes("text/css")
     ) {
-      return new Response(rewriteBrandText(await upstreamResponse.text()), {
+      const body = await upstreamResponse.text();
+      const rewritten = contentType.includes("text/html")
+        ? rewriteHtml(body)
+        : rewriteBrandText(body);
+
+      return new Response(rewritten, {
         status: upstreamResponse.status,
         statusText: upstreamResponse.statusText,
         headers: responseHeaders,

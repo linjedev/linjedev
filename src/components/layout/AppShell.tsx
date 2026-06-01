@@ -1,6 +1,6 @@
 /**
  * @file AppShell.tsx
- * @description The root layout and orchestration component for WorldWideView.
+ * @description The root layout and orchestration component for Linje.track.
  * Responsible for platform initialization, plugin registration, global state hydration,
  * and managing the transition from boot sequence to interactive state.
  * @module src/components/layout

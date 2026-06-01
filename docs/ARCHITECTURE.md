@@ -1,6 +1,6 @@
 # Architecture
 
-WorldWideView is a **real-time geospatial intelligence engine**: a Next.js 16 frontend that renders live global data on a CesiumJS 3D globe, fed by a network of independent data seeders streaming over WebSockets. The whole platform is built on an "All-Bundle" plugin architecture, so data sources are decoupled from the core viewer and can be added, removed, or hot-swapped without touching rendering code.
+Linje.track is a **real-time geospatial intelligence engine**: a Next.js 16 frontend that renders live global data on a CesiumJS 3D globe, fed by a network of independent data seeders streaming over WebSockets. The whole platform is built on an "All-Bundle" plugin architecture, so data sources are decoupled from the core viewer and can be added, removed, or hot-swapped without touching rendering code.
 
 This document is the deep-dive companion to the [README](../README.md). It is intended for human contributors who want to understand how the pieces fit before opening their first PR. For agent-facing rules and conventions, see [`AGENTS.md`](../AGENTS.md) at the repo root and the documents under [`.agents/rules/`](../.agents/rules/).
 
@@ -35,7 +35,7 @@ The strict unidirectional flow — engine → bus → store → renderer — is 
 
 ## Plugin System (Core Abstraction)
 
-Every data source in WorldWideView is a **plugin** implementing the `WorldPlugin` interface from [`@worldwideview/wwv-plugin-sdk`](../packages/wwv-plugin-sdk/). The plugin's lifecycle plugs into a real-time WebSocket firehose:
+Every data source in Linje.track is a **plugin** implementing the `WorldPlugin` interface from [`@worldwideview/wwv-plugin-sdk`](../packages/wwv-plugin-sdk/). The plugin's lifecycle plugs into a real-time WebSocket firehose:
 
 ```text
 PluginRegistry.register() → PluginManager.registerPlugin()
@@ -63,7 +63,7 @@ For the contributor checklist when authoring a plugin, see [`.agents/skills/worl
 
 ## State Management
 
-WorldWideView uses a Zustand store split into **nine slices**, each in its own file under [`src/core/state/`](../src/core/state/):
+Linje.track uses a Zustand store split into **nine slices**, each in its own file under [`src/core/state/`](../src/core/state/):
 
 | Slice | Responsibility |
 |---|---|
@@ -112,7 +112,7 @@ The data engine ([`wwv-data-engine`](https://github.com/silvertakana/wwv-data-en
 
 ### Agnostic Frontend
 
-WorldWideView's frontend is a **completely agnostic renderer**. It has no concept of a "unified" data engine. If 30 plugins each declare a different `streamUrl`, the application opens 30 WebSocket connections; it just so happens that the default plugin set shares `wwv-data-engine`, but the platform is 100% decentralised.
+Linje.track's frontend is a **completely agnostic renderer**. It has no concept of a "unified" data engine. If 30 plugins each declare a different `streamUrl`, the application opens 30 WebSocket connections; it just so happens that the default plugin set shares `wwv-data-engine`, but the platform is 100% decentralised.
 
 > [!IMPORTANT]
 > Each plugin is a self-contained package and **MUST explicitly declare its own `streamUrl` in its manifest or config.** Do not assume the frontend acts as a unified pipe.
@@ -127,7 +127,7 @@ The engine handles standard caching and broadcasting — the 99% case. Plugins t
 
 ## Rendering Pipeline
 
-The renderer is where most of WorldWideView's engineering depth lives. Three design choices drive the performance envelope:
+The renderer is where most of Linje.track's engineering depth lives. Three design choices drive the performance envelope:
 
 ### Primitive-based rendering
 
@@ -160,7 +160,7 @@ When multiple entities share a screen-space cluster (busy ports, busy airspaces)
 
 ## Edition System
 
-WorldWideView ships in three editions, controlled by the `NEXT_PUBLIC_WWV_EDITION` environment variable. Feature flags are derived from this in [`src/core/edition.ts`](../src/core/edition.ts).
+Linje.track ships in three editions, controlled by the `NEXT_PUBLIC_WWV_EDITION` environment variable. Feature flags are derived from this in [`src/core/edition.ts`](../src/core/edition.ts).
 
 | Edition | Auth | Use case |
 |---|---|---|

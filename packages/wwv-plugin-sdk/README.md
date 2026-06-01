@@ -1,6 +1,6 @@
 # @worldwideview/wwv-plugin-sdk
 
-Plugin SDK for building [WorldWideView](https://github.com/silvertakana/worldwideview) globe plugins. Provides TypeScript types, interfaces, and utilities that all plugins depend on.
+Plugin SDK for building [Linje.track](https://github.com/silvertakana/worldwideview) globe plugins. Provides TypeScript types, interfaces, and utilities that all plugins depend on.
 
 ## Installation
 
@@ -29,7 +29,7 @@ import type { WorldPlugin, GeoEntity, TimeRange, PluginContext, LayerConfig, Ces
 export class MyPlugin implements WorldPlugin {
   id = "my-plugin";
   name = "My Plugin";
-  description = "A custom WorldWideView plugin";
+  description = "A custom Linje.track plugin";
   icon = "🌍";
   category = "custom";
   version = "1.0.0";
@@ -54,7 +54,7 @@ export class MyPlugin implements WorldPlugin {
 
 ## Property Tag Helpers
 
-Wrap entity property values with these helpers so the WorldWideView Intel panel renders them as rich UI elements instead of plain text.
+Wrap entity property values with these helpers so the Linje.track Intel panel renders them as rich UI elements instead of plain text.
 
 ```ts
 import { dtProp, urlProp, imageProp, videoProp } from "@worldwideview/wwv-plugin-sdk";

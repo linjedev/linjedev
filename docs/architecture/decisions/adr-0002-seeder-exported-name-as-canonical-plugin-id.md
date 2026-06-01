@@ -12,7 +12,7 @@ Two related problems in the plugin system surfaced in the same period, and both 
 
 ### Problem 1 — Engine seeder ID derived from folder name
 
-The WorldWideView local data engine discovers seeders by scanning the filesystem under `/app/seeders`. Historically, the engine assigned each seeder an ID equal to its **folder name** (e.g., the folder `gpsjam/` became plugin ID `"gpsjam"`).
+The Linje.track local data engine discovers seeders by scanning the filesystem under `/app/seeders`. Historically, the engine assigned each seeder an ID equal to its **folder name** (e.g., the folder `gpsjam/` became plugin ID `"gpsjam"`).
 
 The frontend, however, identifies plugins by a separate **`id` field** declared in each plugin class (e.g., `"gps-jamming"`). The engine's `/manifest` endpoint listed available plugins using folder-derived IDs, and the frontend's `localEngineHasPlugin(pluginId)` performed an exact string match against that list.
 

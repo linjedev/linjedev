@@ -1,13 +1,13 @@
-# Design System: WorldWideView
+# Design System: Linje.track
 **Project ID:** local-worldwideview-app
 
 ## 1. Visual Theme & Atmosphere
-The WorldWideView platform employs an **"Airy, High-Tech, and Geospatial-Focused"** aesthetic. The design philosophy centers around "Glassmorphism Pro Max"—keeping the user's primary focus on the rich, underlying 3D globe visualization while providing highly legible, structured, and floating Heads-Up Display (HUD) elements. 
+The Linje.track platform employs an **"Airy, High-Tech, and Geospatial-Focused"** aesthetic. The design philosophy centers around "Glassmorphism Pro Max"—keeping the user's primary focus on the rich, underlying 3D globe visualization while providing highly legible, structured, and floating Heads-Up Display (HUD) elements. 
 
 The mood is utilitarian yet premium, heavily relying on dense background blurring, delicate inner borders, and vibrant glowing accent states to establish depth, interactivity, and a sense of "live" intelligence.
 
 ## 2. Color Palette & Roles
-WorldWideView operates using a multi-theme architecture (Default Dark, Pure Black, Legacy OLED, and Light). The core semantic roles for the **Default Dark Theme** are outlined below:
+Linje.track operates using a multi-theme architecture (Default Dark, Pure Black, Legacy OLED, and Light). The core semantic roles for the **Default Dark Theme** are outlined below:
 
 * **Obsidian Canvas** (`#171717`) - `--bg-primary`: The foundational layer behind the application shell and globe.
 * **Translucent Slate Glass** (`rgba(38, 38, 38, 0.85)`) - `--bg-glass`: The primary background for floating HUD panels, sidebars, and dialogs. Provides a frosted glass effect that allows the map to bleed through.

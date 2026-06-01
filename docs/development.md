@@ -2,7 +2,7 @@
 # Development
 
 ## Overview
-Development on WorldWideView prioritizes modularity, high performance, and strict architectural boundaries between the UI and the 3D rendering context. We adhere to rigorous file size constraints and rely heavily on Vanilla CSS and Zustand slice-patterns to maintain clarity across the large ecosystem.
+Development on Linje.track prioritizes modularity, high performance, and strict architectural boundaries between the UI and the 3D rendering context. We adhere to rigorous file size constraints and rely heavily on Vanilla CSS and Zustand slice-patterns to maintain clarity across the large ecosystem.
 
 ## Code Style
 

@@ -1,4 +1,4 @@
-Write-Host "[*] Setting up WorldWideView for local self-hosting..."
+Write-Host "[*] Setting up Linje.track for local self-hosting..."
 
 # Check Docker
 try {
@@ -45,7 +45,7 @@ docker compose pull
 Write-Host "[*] Starting Docker container..."
 docker compose up -d
 
-Write-Host "`n[Success] WorldWideView is running at http://localhost:3000"
+Write-Host "`n[Success] Linje.track is running at http://localhost:3000"
 Write-Host "   Data is persisted in Docker volume 'wwv-data'"
 Write-Host "   Auth secret is saved in .env (don't delete this file)`n"
 Write-Host "To stop the server: docker compose down"

@@ -11,7 +11,7 @@ paths:
 > **SUPERSEDED by ADR-003** (`docs/architecture/decisions/adr-0003-shared-identity-and-ecosystem-auth-host.md`).
 > The auth host is `worldwideview.dev` (worldwideview-web repo), not `app.worldwideview.dev`. Read ADR-003 first.
 
-# WorldWideView — Cloud & Auth Architecture
+# Linje.track — Cloud & Auth Architecture
 
 
 > [!NOTE]

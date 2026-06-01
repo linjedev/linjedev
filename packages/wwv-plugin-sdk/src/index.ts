@@ -1,6 +1,6 @@
 /**
  * @file index.ts
- * @description Core SDK for WorldWideView plugin development.
+ * @description Core SDK for Linje.track plugin development.
  * Defines the foundational types, interfaces, and utilities required 
  * to build data seeders, visualizers, and UI extensions.
  * @module @worldwideview/wwv-plugin-sdk
@@ -244,7 +244,7 @@ export type FilterValue =
 
 /**
  * @interface WorldPlugin
- * @description The core lifecycle interface for all WorldWideView extensions.
+ * @description The core lifecycle interface for all Linje.track extensions.
  * Every plugin (built-in or marketplace) must implement this interface.
  */
 export interface WorldPlugin {

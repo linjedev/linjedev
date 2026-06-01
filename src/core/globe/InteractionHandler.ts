@@ -13,7 +13,7 @@ import {
 } from "./StackManager";
 
 /**
- * Pick a WorldWideView entity at a screen position using the Cesium pick API.
+ * Pick a Linje.track entity at a screen position using the Cesium pick API.
  */
 function findEntityAtPosition(viewer: CesiumViewer, position: { x: number; y: number }): GeoEntity | null {
     if (!viewer || viewer.isDestroyed()) return null;

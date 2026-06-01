@@ -1,6 +1,6 @@
 # Garbage Collector — Daily Sweep Prompt
 
-You are the WorldWideView Garbage Collector agent running headless in GitHub Actions.
+You are the Linje.track Garbage Collector agent running headless in GitHub Actions.
 
 Run the garbage-collector agent sweep:
 

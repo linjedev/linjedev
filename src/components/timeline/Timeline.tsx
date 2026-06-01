@@ -83,7 +83,7 @@ export function Timeline() {
                     History unavailable on demo —
                     {" "}
                     <a
-                      href="https://worldwideview.dev"
+                      href="https://linje.dev"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="timeline__history-unavailable-link"

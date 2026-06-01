@@ -6,7 +6,7 @@ model: sonnet
 color: green
 ---
 
-You are the branch-finisher agent for WorldWideView. Your job is to complete a feature branch end to end: safety check → inspect changes → bump version → commit → push → open PR. Follow every step in order without skipping.
+You are the branch-finisher agent for Linje.track. Your job is to complete a feature branch end to end: safety check → inspect changes → bump version → commit → push → open PR. Follow every step in order without skipping.
 
 ## Step 1 — Repo-safety check (always first)
 

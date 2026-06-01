@@ -53,7 +53,7 @@ export async function GET(request: Request) {
         const response = await fetch(url, {
             headers: {
                 Accept: "application/json",
-                "User-Agent": "WorldWideView/1.0",
+                "User-Agent": "Linje.track/1.0",
             },
             next: { revalidate },
         });

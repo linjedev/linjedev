@@ -49,7 +49,7 @@ jobs:
 
       - name: Configure git user
         run: |
-          git config user.name 'WorldWideView GC Bot'
+          git config user.name 'Linje.track GC Bot'
           git config user.email 'gc-bot@users.noreply.github.com'
 
       - name: Setup pnpm
@@ -84,7 +84,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
           prompt: |
-            You are the WorldWideView Garbage Collector agent running headless in GitHub Actions.
+            You are the Linje.track Garbage Collector agent running headless in GitHub Actions.
 
             Read `.agents/rules/garbage-collection.md` for your charter and all guard rails.
             Read `gc-findings.json` for the pre-scanned findings produced by `scripts/gc-scan.mjs`.

@@ -7,7 +7,7 @@ description: User-triggered only. Invoke when the user explicitly runs /full-man
 
 ## Overview
 
-The WorldWideView ecosystem is three Next.js apps that share a Supabase session via cookies scoped to `.wwv.local`. Testing the full install flow requires all three running simultaneously on HTTPS at sibling hostnames so the cookie domain trick works. This skill covers the exact commands, the gotchas that bite every time, and how to drive the browser via chrome-devtools MCP to validate each step.
+The Linje.track ecosystem is three Next.js apps that share a Supabase session via cookies scoped to `.wwv.local`. Testing the full install flow requires all three running simultaneously on HTTPS at sibling hostnames so the cookie domain trick works. This skill covers the exact commands, the gotchas that bite every time, and how to drive the browser via chrome-devtools MCP to validate each step.
 
 ## Architecture quick reference
 

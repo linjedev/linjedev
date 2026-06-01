@@ -1,6 +1,6 @@
-# Contributing to WorldWideView
+# Contributing to Linje.track
 
-Thank you for your interest in contributing to **WorldWideView** — a modular, real-time geospatial intelligence engine!
+Thank you for your interest in contributing to **Linje.track** — a modular, real-time geospatial intelligence engine!
 
 This project is licensed under the [Elastic License 2.0](./LICENSE). By submitting a contribution, you agree that your code will be made available under those same terms.
 
@@ -87,7 +87,7 @@ For large features, **open an issue first** to discuss the design before writing
 
 ## Plugin Contributions
 
-The core extension point of WorldWideView is its **plugin system**. Each plugin is a self-contained data layer that:
+The core extension point of Linje.track is its **plugin system**. Each plugin is a self-contained data layer that:
 
 1. Fetches or subscribes to a data source
 2. Transforms raw data into Cesium-ready primitives

@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- Generated: 2026-04-23 06:11:00 UTC -->
-# WorldWideView
+# Linje.track
 
 **The Open-Source, Plugin-Driven Geospatial Intelligence Engine**
 
@@ -21,13 +21,13 @@
 [![Discord](https://img.shields.io/discord/1481088998750294139?color=7289da&label=discord&logo=discord)](#)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://makeapullrequest.com)
 
-![WorldWideView Interface](docs/assets/screenshot.png)
+![Linje.track Interface](docs/assets/screenshot.png)
 
 </div>
 
 ---
 
-WorldWideView is a real-time geospatial engine visualizing live global data on an interactive 3D globe. Utilizing a dynamic "All-Bundle" plugin architecture, independent data sources—like live aircraft, maritime vessels, or conflict events—are ingested and rendered decoupled from the core 3D viewer.
+Linje.track is a real-time geospatial engine visualizing live global data on an interactive 3D globe. Utilizing a dynamic "All-Bundle" plugin architecture, independent data sources—like live aircraft, maritime vessels, or conflict events—are ingested and rendered decoupled from the core 3D viewer.
 
 ## Key Features
 
@@ -49,7 +49,7 @@ WorldWideView is a real-time geospatial engine visualizing live global data on a
 
 ## Project Architecture
 
-WorldWideView separates the data acquisition layer from the frontend rendering loop, using a real-time event bus to bridge them.
+Linje.track separates the data acquisition layer from the frontend rendering loop, using a real-time event bus to bridge them.
 
 ```mermaid
 flowchart TD
@@ -82,7 +82,7 @@ Before running the application, ensure you have the following installed:
 
 ## Quick Start (Self-Hosting)
 
-WorldWideView uses a multi-stage Dockerfile designed for standalone output. To deploy instantly on your own server:
+Linje.track uses a multi-stage Dockerfile designed for standalone output. To deploy instantly on your own server:
 
 **Mac/Linux:**
 ```bash
@@ -132,14 +132,14 @@ worldwideview/
 
 ## Plugin Ecosystem
 
-WorldWideView operates on an open-core philosophy. The platform itself is data-agnostic; all data sources are dynamically imported as plugins at runtime.
+Linje.track operates on an open-core philosophy. The platform itself is data-agnostic; all data sources are dynamically imported as plugins at runtime.
 
 - **[Plugin Quickstart Guide](docs/plugin-quickstart.md)**: Learn how to scaffold and link your first plugin using the `@worldwideview/cli`.
 - **[Advanced Plugin Guide](docs/plugin-advanced.md)**: Deep dive into microservice data seeders, WebSockets, complex 3D rendering, and Marketplace publishing.
 
 ## Repository Ecosystem
 
-WorldWideView is distributed across several specialized repositories:
+Linje.track is distributed across several specialized repositories:
 
 1. **`worldwideview`** (This Repo): Main frontend, CesiumJS rendering engine, and core plugin framework.
 2. **`wwv-data-engine`**: Open-source community data backend for polling public APIs.
@@ -150,7 +150,7 @@ WorldWideView is distributed across several specialized repositories:
 
 ## MCP (Model Context Protocol)
 
-WorldWideView exposes a built-in MCP endpoint at `/api/mcp`. Any MCP-compatible client (Claude Desktop, Claude Code, Cursor, Cline, etc.) can connect to it directly without a separate sidecar server.
+Linje.track exposes a built-in MCP endpoint at `/api/mcp`. Any MCP-compatible client (Claude Desktop, Claude Code, Cursor, Cline, etc.) can connect to it directly without a separate sidecar server.
 
 ### Authentication
 
@@ -158,7 +158,7 @@ Generate an API key from the `/setup` page (Settings > API Keys). Pass it as a B
 
 ### Client config
 
-Add the following block to your MCP client configuration. Replace `https://your-host` with the actual origin where WorldWideView is running (e.g. `http://localhost:3000` for local development).
+Add the following block to your MCP client configuration. Replace `https://your-host` with the actual origin where Linje.track is running (e.g. `http://localhost:3000` for local development).
 
 ```json
 {
@@ -176,7 +176,7 @@ Add the following block to your MCP client configuration. Replace `https://your-
 
 ### Plugin tools and tools/list
 
-Plugin tools (tools contributed by loaded plugins) appear in `tools/list` only after the browser tab that is running WorldWideView has loaded the relevant plugin and published its catalog. The server snapshots the catalog at the moment each request arrives.
+Plugin tools (tools contributed by loaded plugins) appear in `tools/list` only after the browser tab that is running Linje.track has loaded the relevant plugin and published its catalog. The server snapshots the catalog at the moment each request arrives.
 
 Because the server is stateless and per-request, it cannot push `list_changed` notifications proactively. If you load a new plugin in the browser after your MCP client has already called `tools/list`, call `tools/list` again to pick up the new tools.
 

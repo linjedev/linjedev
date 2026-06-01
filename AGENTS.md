@@ -1,8 +1,8 @@
-# WorldWideView — Agent Rules
+# Linje.track — Agent Rules
 
 ## 1. Project Identity
 
-WorldWideView is a **real-time geospatial intelligence engine** visualizing live global data on an interactive 3D globe. Built with **Next.js 16**, **CesiumJS**, **React 19**, and **Zustand**. Design/feature target: `www.worldmonitor.app` ([reference repo](https://github.com/koala73/worldmonitor)).
+Linje.track is a **real-time geospatial intelligence engine** visualizing live global data on an interactive 3D globe. Built with **Next.js 16**, **CesiumJS**, **React 19**, and **Zustand**. Design/feature target: `www.worldmonitor.app` ([reference repo](https://github.com/koala73/worldmonitor)).
 
 ---
 
