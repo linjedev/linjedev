@@ -50,7 +50,7 @@ function rewriteJson(value, key = "") {
   ]);
 
   if (typeof value === "string") {
-    if (passthroughKeys.has(key) || value.includes("@worldwideview/")) return value;
+    if (passthroughKeys.has(key)) return value;
     return rewriteBrandText(value);
   }
 
