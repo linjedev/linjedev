@@ -160,8 +160,6 @@ export function BottomPanelManager() {
                 ))}
             </div>
 
-            <a className="administrator-link" href="/admin">Administrator</a>
-
             {/* Active Panel Shell */}
             <div 
                 className={`bottom-panel glass-panel ${activeBottomPanel ? "open" : "closed"}`}

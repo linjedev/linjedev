@@ -7,7 +7,7 @@
  * @module src/components/layout
  */
 
-import { useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { useStore } from "@/core/state/store";
 import { dataBus } from "@/core/data/DataBus";
 import { pluginManager } from "@/core/plugins/PluginManager";
@@ -61,6 +61,7 @@ export function Header() {
     const setTheme = useStore((s) => s.setTheme);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const adminClickRef = useRef({ count: 0, lastClickAt: 0 });
     const [isDemoAdmin, setIsDemoAdmin] = useState(false);
 
     const [timeOpen, setTimeOpen] = useState(false);
@@ -95,6 +96,24 @@ export function Header() {
         return () => el.removeEventListener("wheel", handleWheel);
     }, []);
 
+    const handleBrandClick = (event: MouseEvent<HTMLAnchorElement>) => {
+        const now = Date.now();
+        const nextCount = now - adminClickRef.current.lastClickAt > 1200
+            ? 1
+            : adminClickRef.current.count + 1;
+
+        adminClickRef.current = { count: nextCount, lastClickAt: now };
+
+        if (nextCount < 3) {
+            event.preventDefault();
+            return;
+        }
+
+        event.preventDefault();
+        adminClickRef.current = { count: 0, lastClickAt: 0 };
+        window.location.href = "/admin";
+    };
+
     // Mobile: compact header with persistent centered search
     if (isMobile) {
         return (
@@ -103,8 +122,7 @@ export function Header() {
               <div className="header__brand">
                 <a
                   href="https://linje.dev/"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={handleBrandClick}
                   style={{
  display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "inherit"
 }}
@@ -203,7 +221,7 @@ export function Header() {
       <>
         <header className="header glass-panel">
           <div className="header__brand">
-            <a href="https://linje.dev/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}>
+            <a href="/" onClick={handleBrandClick} style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <Image src="/logo/logo-icon.svg" alt="Logo" width={22} height={22} style={{ objectFit: "contain" }} />
                 <div className="header__logo">LINJE.TRACK</div>
