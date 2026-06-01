@@ -2296,198 +2296,253 @@ function renderWorldNews(data) {
 
 async function initWorldGlobe() {
   if (state.worldNewsGlobe || !els.worldGlobeCanvas) return;
-  const THREE = await import("./three.module.min.js");
-  const canvas = els.worldGlobeCanvas;
-  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, canvas });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(42, 1, .1, 100);
-  camera.position.set(0, 0, 5.2);
-
-  const globe = new THREE.Group();
-  const markerGroup = new THREE.Group();
-  const flightGroup = new THREE.Group();
-  const shipGroup = new THREE.Group();
-  const arcGroup = new THREE.Group();
-  scene.add(globe);
-  globe.add(new THREE.Mesh(
-    new THREE.SphereGeometry(1.56, 64, 32),
-    new THREE.MeshBasicMaterial({ color: 0xf7f7f2, opacity: .055, transparent: true, wireframe: true })
-  ));
-  globe.add(new THREE.Mesh(
-    new THREE.SphereGeometry(1.53, 48, 24),
-    new THREE.MeshBasicMaterial({ color: 0xf7f7f2, opacity: .045, transparent: true })
-  ));
-  globe.add(markerGroup);
-  globe.add(flightGroup);
-  globe.add(shipGroup);
-  globe.add(arcGroup);
-  scene.add(new THREE.AmbientLight(0xffffff, 1));
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2();
-  let dragging = false;
-  let lastX = 0;
-  let lastY = 0;
-
-  function resize() {
-    const rect = canvas.getBoundingClientRect();
-    const width = Math.max(320, Math.floor(rect.width));
-    const height = Math.max(320, Math.floor(rect.height));
-    renderer.setSize(width, height, false);
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-  }
-
-  function draw(time) {
-    resize();
-    if (!dragging) globe.rotation.y += .0012;
-    [...markerGroup.children, ...flightGroup.children, ...shipGroup.children].forEach((marker, index) => {
-      const pulse = 1 + Math.sin(time * .006 + index) * .22;
-      marker.scale.setScalar(marker.userData.focus ? 1.8 : pulse);
-    });
-    renderer.render(scene, camera);
-    state.worldNewsGlobe.frame = requestAnimationFrame(draw);
-  }
-
-  function pick(event) {
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects([...markerGroup.children, ...flightGroup.children, ...shipGroup.children], false);
-    if (hits[0]?.object?.userData?.payload) {
-      showWorldIntel(hits[0].object.userData.type, hits[0].object.userData.payload);
-      focusWorldFeature(hits[0].object.userData.type, hits[0].object.userData.id);
+  await waitForCesium();
+  const config = await loadWorldMapConfig();
+  window.CESIUM_BASE_URL = config.cesiumBaseUrl || "/cesium/";
+  if (config.cesiumIonToken) Cesium.Ion.defaultAccessToken = config.cesiumIonToken;
+  const terrain = config.cesiumIonToken && Cesium.Terrain
+    ? Cesium.Terrain.fromWorldTerrain()
+    : undefined;
+  const viewer = new Cesium.Viewer(els.worldGlobeCanvas, {
+    animation: false,
+    baseLayerPicker: false,
+    fullscreenButton: false,
+    geocoder: false,
+    homeButton: false,
+    infoBox: false,
+    navigationHelpButton: false,
+    sceneModePicker: false,
+    selectionIndicator: false,
+    shouldAnimate: true,
+    timeline: false,
+    terrain
+  });
+  viewer.scene.globe.enableLighting = true;
+  viewer.scene.skyAtmosphere.show = true;
+  viewer.scene.fog.enabled = true;
+  viewer.scene.screenSpaceCameraController.minimumZoomDistance = 400;
+  viewer.scene.screenSpaceCameraController.maximumZoomDistance = 42000000;
+  viewer.camera.setView({
+    destination: Cesium.Cartesian3.fromDegrees(18, 26, 14500000),
+    orientation: {
+      heading: 0,
+      pitch: Cesium.Math.toRadians(-82),
+      roll: 0
     }
-  }
-
-  canvas.addEventListener("pointerdown", (event) => {
-    dragging = true;
-    lastX = event.clientX;
-    lastY = event.clientY;
-    canvas.setPointerCapture(event.pointerId);
   });
-  canvas.addEventListener("pointermove", (event) => {
-    if (!dragging) return;
-    globe.rotation.y += (event.clientX - lastX) * .006;
-    globe.rotation.x += (event.clientY - lastY) * .004;
-    globe.rotation.x = Math.max(-.9, Math.min(.9, globe.rotation.x));
-    lastX = event.clientX;
-    lastY = event.clientY;
-  });
-  canvas.addEventListener("pointerup", (event) => {
-    dragging = false;
-    canvas.releasePointerCapture(event.pointerId);
-    pick(event);
-  });
-  canvas.addEventListener("wheel", (event) => {
-    event.preventDefault();
-    camera.position.z = Math.max(2.45, Math.min(7.2, camera.position.z + event.deltaY * .003));
-  }, { passive: false });
 
   state.worldNewsGlobe = {
-    THREE,
-    arcGroup,
-    camera,
-    flightGroup,
-    globe,
-    markerGroup,
-    shipGroup,
-    renderer,
-    scene
+    config,
+    data: normalizeWorldFeed(),
+    entities: {
+      flights: [],
+      news: [],
+      ships: []
+    },
+    focus: null,
+    viewer
   };
-  window.addEventListener("resize", resize);
-  requestAnimationFrame(draw);
+}
+
+function waitForCesium() {
+  if (window.Cesium) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (window.Cesium) {
+        clearInterval(timer);
+        resolve();
+      } else if (Date.now() - started > 8000) {
+        clearInterval(timer);
+        reject(new Error("3D globe engine did not load."));
+      }
+    }, 50);
+  });
+}
+
+async function loadWorldMapConfig() {
+  const response = await fetch("/api/world-news/config", {
+    cache: "no-store",
+    credentials: "same-origin"
+  });
+  if (!response.ok) return { cesiumBaseUrl: "/cesium/", cesiumIonToken: "" };
+  return response.json().catch(() => ({ cesiumBaseUrl: "/cesium/", cesiumIonToken: "" }));
 }
 
 function updateWorldGlobeData(data) {
   const globe = state.worldNewsGlobe;
-  if (!globe) return;
-  const { THREE, markerGroup, flightGroup, shipGroup, arcGroup } = globe;
-  markerGroup.clear();
-  flightGroup.clear();
-  shipGroup.clear();
-  arcGroup.clear();
-  const seen = new Set();
-  const articles = data.articles || [];
-  articles.forEach((article, index) => {
-    const key = `${article.lat},${article.lon}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    const position = latLonToVector(THREE, Number(article.lat), Number(article.lon), 1.65);
-    const marker = new THREE.Mesh(
-      new THREE.SphereGeometry(.035, 14, 14),
-      new THREE.MeshBasicMaterial({ color: index < 8 ? 0xffffff : 0xbdbdb5 })
-    );
-    marker.position.copy(position);
-    marker.userData = { id: article.id, payload: article, type: "news" };
-    marker.visible = state.worldLayers.news;
-    markerGroup.add(marker);
+  if (!globe?.viewer) return;
+  globe.data = data;
+  Object.values(globe.entities).flat().forEach((entity) => globe.viewer.entities.remove(entity));
+  globe.entities = { flights: [], news: [], ships: [] };
 
-    const line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        latLonToVector(THREE, 51.5, -0.1, 1.6),
-        position.clone().multiplyScalar(1.12),
-        position
-      ]),
-      new THREE.LineBasicMaterial({ color: 0xf7f7f2, transparent: true, opacity: .18 })
-    );
-    arcGroup.add(line);
+  const newsByPlace = new Map();
+  (data.articles || []).forEach((article) => {
+    const lat = Number(article.lat);
+    const lon = Number(article.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+    const current = newsByPlace.get(key) || { ...article, count: 0, headlines: [] };
+    current.count += 1;
+    current.headlines.push(article.title);
+    newsByPlace.set(key, current);
+  });
+  [...newsByPlace.values()].forEach((article) => {
+    const signalColor = article.signalType === "earthquake" ? "#fb7185" : article.signalType === "natural event" ? "#f97316" : "#f7f7f2";
+    const entity = globe.viewer.entities.add({
+      name: article.placeName || article.sourceCountry || "News signal",
+      position: Cesium.Cartesian3.fromDegrees(Number(article.lon), Number(article.lat), 1200),
+      point: {
+        color: Cesium.Color.fromCssColorString(signalColor).withAlpha(.92),
+        outlineColor: Cesium.Color.BLACK.withAlpha(.75),
+        outlineWidth: 1,
+        pixelSize: Math.min(20, 8 + article.count * 1.4),
+        scaleByDistance: new Cesium.NearFarScalar(200000, 1.4, 14000000, .45)
+      },
+      label: {
+        text: article.count > 1 ? String(article.count) : "",
+        font: "700 11px Inter, sans-serif",
+        fillColor: Cesium.Color.BLACK,
+        pixelOffset: new Cesium.Cartesian2(0, 0),
+        scaleByDistance: new Cesium.NearFarScalar(200000, 1, 9000000, 0)
+      },
+      properties: { payload: article, type: "news" }
+    });
+    globe.entities.news.push(entity);
   });
 
   (data.flights?.aircraft || []).forEach((aircraft) => {
-    const position = latLonToVector(THREE, Number(aircraft.lat), Number(aircraft.lon), 1.72);
-    const marker = new THREE.Mesh(
-      new THREE.ConeGeometry(.026, .085, 3),
-      new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: .9 })
-    );
-    marker.position.copy(position);
-    marker.lookAt(new THREE.Vector3(0, 0, 0));
-    marker.userData = { id: aircraft.id, payload: aircraft, type: "flight" };
-    marker.visible = state.worldLayers.flights;
-    flightGroup.add(marker);
+    const lat = Number(aircraft.lat);
+    const lon = Number(aircraft.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const altitude = Math.max(2000, Number(aircraft.altitudeMeters) || 9000);
+    const entity = globe.viewer.entities.add({
+      name: aircraft.callsign || aircraft.id || "Aircraft",
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, altitude),
+      billboard: {
+        image: createWorldIconDataUri("flight", "#7dd3fc"),
+        rotation: Cesium.Math.toRadians(Number(aircraft.track) || 0),
+        alignedAxis: Cesium.Cartesian3.ZERO,
+        heightReference: Cesium.HeightReference.NONE,
+        scale: .72,
+        scaleByDistance: new Cesium.NearFarScalar(200000, 1, 12000000, .35)
+      },
+      label: {
+        text: aircraft.callsign || "",
+        font: "800 10px Inter, sans-serif",
+        fillColor: Cesium.Color.fromCssColorString("#d9f7ff"),
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        pixelOffset: new Cesium.Cartesian2(0, -24),
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        scaleByDistance: new Cesium.NearFarScalar(200000, 1, 6000000, 0)
+      },
+      properties: { payload: aircraft, type: "flight" }
+    });
+    globe.entities.flights.push(entity);
   });
 
-  const maritimeMarkers = [
-    ...(data.ships?.vessels || []),
-    ...(data.ships?.lanes || [])
-  ];
-  maritimeMarkers.forEach((ship) => {
-    const position = latLonToVector(THREE, Number(ship.lat), Number(ship.lon), 1.68);
-    const marker = new THREE.Mesh(
-      new THREE.BoxGeometry(.055, .026, .026),
-      new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: .9 })
-    );
-    marker.position.copy(position);
-    marker.userData = { id: ship.id || ship.name, payload: ship, type: "ship" };
-    marker.visible = state.worldLayers.ships;
-    shipGroup.add(marker);
+  (data.ships?.lanes || []).forEach((lane) => {
+    const lat = Number(lane.lat);
+    const lon = Number(lane.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const entity = globe.viewer.entities.add({
+      name: lane.name || "Maritime lane",
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, 500),
+      ellipse: {
+        semiMajorAxis: 120000,
+        semiMinorAxis: 120000,
+        material: Cesium.Color.fromCssColorString("#facc15").withAlpha(.13),
+        outline: true,
+        outlineColor: Cesium.Color.fromCssColorString("#facc15").withAlpha(.7)
+      },
+      label: {
+        text: lane.name || "",
+        font: "800 11px Inter, sans-serif",
+        fillColor: Cesium.Color.fromCssColorString("#facc15"),
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        pixelOffset: new Cesium.Cartesian2(0, -16),
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        scaleByDistance: new Cesium.NearFarScalar(200000, 1, 8000000, .2)
+      },
+      properties: { payload: lane, type: "ship" }
+    });
+    globe.entities.ships.push(entity);
   });
+
+  (data.ships?.vessels || []).forEach((ship) => {
+    const lat = Number(ship.lat);
+    const lon = Number(ship.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const entity = globe.viewer.entities.add({
+      name: ship.name || ship.mmsi || "Vessel",
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, 200),
+      billboard: {
+        image: createWorldIconDataUri("ship", "#facc15"),
+        rotation: Cesium.Math.toRadians(Number(ship.course ?? ship.heading) || 0),
+        alignedAxis: Cesium.Cartesian3.ZERO,
+        heightReference: Cesium.HeightReference.NONE,
+        scale: .68,
+        scaleByDistance: new Cesium.NearFarScalar(150000, 1, 9000000, .3)
+      },
+      label: {
+        text: ship.name || "",
+        font: "800 10px Inter, sans-serif",
+        fillColor: Cesium.Color.fromCssColorString("#fff5b8"),
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
+        pixelOffset: new Cesium.Cartesian2(0, -22),
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        scaleByDistance: new Cesium.NearFarScalar(150000, 1, 4000000, 0)
+      },
+      properties: { payload: ship, type: "ship" }
+    });
+    globe.entities.ships.push(entity);
+  });
+
+  Object.entries(state.worldLayers).forEach(([layer, active]) => setWorldMapLayer(layer, active));
+  wireCesiumSelection(globe);
 }
 
 function focusWorldFeature(type, id) {
-  const globe = state.worldNewsGlobe;
-  if (!globe) return;
-  [globe.markerGroup, globe.flightGroup, globe.shipGroup].forEach((group) => {
-    group.children.forEach((marker) => {
-      marker.userData.focus = marker.userData.type === type && marker.userData.id === id;
-    });
-  });
+  if (!state.worldNewsGlobe) return;
+  state.worldNewsGlobe.focus = { type, id };
 }
 
 function toggleWorldLayer(layer, button) {
   state.worldLayers[layer] = !state.worldLayers[layer];
   button.classList.toggle("active", state.worldLayers[layer]);
+  setWorldMapLayer(layer, state.worldLayers[layer]);
+}
+
+function setWorldMapLayer(layer, active) {
   const globe = state.worldNewsGlobe;
-  if (!globe) return;
-  const groups = {
-    flights: globe.flightGroup,
-    news: globe.markerGroup,
-    ships: globe.shipGroup
-  };
-  groups[layer]?.children.forEach((marker) => {
-    marker.visible = state.worldLayers[layer];
+  const entities = globe?.entities?.[layer] || [];
+  entities.forEach((entity) => {
+    entity.show = active;
   });
+}
+
+function wireCesiumSelection(globe) {
+  if (globe.selectionHandler) return;
+  globe.selectionHandler = new Cesium.ScreenSpaceEventHandler(globe.viewer.scene.canvas);
+  globe.selectionHandler.setInputAction((movement) => {
+    const picked = globe.viewer.scene.pick(movement.position);
+    const entity = picked?.id;
+    const type = entity?.properties?.type?.getValue?.();
+    const payload = entity?.properties?.payload?.getValue?.();
+    if (!type || !payload) return;
+    showWorldIntel(type, payload);
+    focusWorldFeature(type, payload.id || payload.mmsi || payload.name);
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
+
+function createWorldIconDataUri(type, color) {
+  const svg = type === "flight"
+    ? `<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42"><path d="M21 3l6 24 10 5-2 4-10-3-4 6-4-6-10 3-2-4 10-5z" fill="${color}" stroke="#050505" stroke-width="2"/></svg>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42"><path d="M21 4l14 15-6 17H13L7 19z" fill="${color}" stroke="#050505" stroke-width="2"/><path d="M13 24h16" stroke="#050505" stroke-width="2"/></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
 function showWorldIntel(type, item) {
@@ -2536,14 +2591,248 @@ function showWorldIntel(type, item) {
   `;
 }
 
-function latLonToVector(THREE, lat, lon, radius) {
-  const phi = (90 - lat) * Math.PI / 180;
-  const theta = (lon + 180) * Math.PI / 180;
-  return new THREE.Vector3(
-    -radius * Math.sin(phi) * Math.cos(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.sin(theta)
-  );
+function drawWorldMap(map, time) {
+  const { context: ctx, width, height } = map;
+  if (!width || !height) return;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#050505";
+  ctx.fillRect(0, 0, width, height);
+  drawMapGrid(map);
+  drawCountries(map);
+  drawSignalDensity(map);
+  map.markers = [];
+  drawNewsMarkers(map, time);
+  drawFlightMarkers(map);
+  drawShipMarkers(map);
+  drawMapScale(map);
+}
+
+function drawMapGrid(map) {
+  const ctx = map.context;
+  ctx.save();
+  ctx.strokeStyle = "rgba(247,247,242,.08)";
+  ctx.lineWidth = 1;
+  for (let lon = -180; lon <= 180; lon += 20) {
+    const a = worldToScreen(map, -85, lon);
+    const b = worldToScreen(map, 85, lon);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+  for (let lat = -80; lat <= 80; lat += 20) {
+    const a = worldToScreen(map, lat, -180);
+    const b = worldToScreen(map, lat, 180);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCountries(map) {
+  const ctx = map.context;
+  ctx.save();
+  ctx.lineWidth = .8;
+  ctx.strokeStyle = "rgba(247,247,242,.22)";
+  ctx.fillStyle = "rgba(247,247,242,.055)";
+  map.countries.forEach((feature) => {
+    const rings = geometryRings(feature.geometry);
+    rings.forEach((ring) => {
+      ctx.beginPath();
+      ring.forEach(([lon, lat], index) => {
+        const point = worldToScreen(map, lat, lon);
+        if (index) ctx.lineTo(point.x, point.y);
+        else ctx.moveTo(point.x, point.y);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    });
+  });
+  ctx.restore();
+}
+
+function geometryRings(geometry) {
+  if (!geometry) return [];
+  if (geometry.type === "Polygon") return geometry.coordinates;
+  if (geometry.type === "MultiPolygon") return geometry.coordinates.flat();
+  return [];
+}
+
+function drawSignalDensity(map) {
+  const ctx = map.context;
+  const points = [
+    ...(map.data.articles || []).slice(0, 80).map((item) => ({ ...item, color: "rgba(255,255,255,.08)" })),
+    ...(map.data.flights?.aircraft || []).slice(0, 120).map((item) => ({ ...item, color: "rgba(125,211,252,.055)" })),
+    ...(map.data.ships?.vessels || []).slice(0, 120).map((item) => ({ ...item, color: "rgba(250,204,21,.06)" }))
+  ];
+  ctx.save();
+  points.forEach((item) => {
+    const point = worldToScreen(map, Number(item.lat), Number(item.lon));
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+    const radius = Math.max(22, 34 * map.zoom);
+    const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+    gradient.addColorStop(0, item.color);
+    gradient.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawNewsMarkers(map, time) {
+  if (!state.worldLayers.news) return;
+  const grouped = new Map();
+  (map.data.articles || []).forEach((article) => {
+    const key = `${Number(article.lat).toFixed(2)},${Number(article.lon).toFixed(2)}`;
+    if (!grouped.has(key)) grouped.set(key, { ...article, count: 0 });
+    grouped.get(key).count += 1;
+  });
+  [...grouped.values()].forEach((article, index) => {
+    const point = worldToScreen(map, Number(article.lat), Number(article.lon));
+    const focused = isWorldFocus(map, "news", article.id);
+    const pulse = focused ? 1.8 : 1 + Math.sin(time * .005 + index) * .18;
+    drawNewsPin(map.context, point.x, point.y, article.count, pulse);
+    map.markers.push({ ...point, hit: 13, id: article.id, payload: article, type: "news" });
+  });
+}
+
+function drawFlightMarkers(map) {
+  if (!state.worldLayers.flights) return;
+  (map.data.flights?.aircraft || []).forEach((aircraft) => {
+    const point = worldToScreen(map, Number(aircraft.lat), Number(aircraft.lon));
+    drawPlaneIcon(map.context, point.x, point.y, Number(aircraft.track) || 0, isWorldFocus(map, "flight", aircraft.id));
+    map.markers.push({ ...point, hit: 10, id: aircraft.id, payload: aircraft, type: "flight" });
+  });
+}
+
+function drawShipMarkers(map) {
+  if (!state.worldLayers.ships) return;
+  const ships = map.data.ships?.vessels || [];
+  const lanes = map.data.ships?.lanes || [];
+  lanes.forEach((lane) => {
+    const point = worldToScreen(map, Number(lane.lat), Number(lane.lon));
+    drawLaneMarker(map.context, point.x, point.y, lane.name);
+    map.markers.push({ ...point, hit: 11, id: lane.name, payload: lane, type: "ship" });
+  });
+  ships.forEach((ship) => {
+    const point = worldToScreen(map, Number(ship.lat), Number(ship.lon));
+    drawShipIcon(map.context, point.x, point.y, Number(ship.course ?? ship.heading) || 0, isWorldFocus(map, "ship", ship.id));
+    map.markers.push({ ...point, hit: 9, id: ship.id || ship.mmsi, payload: ship, type: "ship" });
+  });
+}
+
+function drawNewsPin(ctx, x, y, count, pulse) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,.6)";
+  ctx.fillStyle = "rgba(255,255,255,.9)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(x, y, 4.5 * pulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  if (count > 1) {
+    ctx.fillStyle = "#050505";
+    ctx.font = "700 9px Inter, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(Math.min(count, 99)), x, y);
+  }
+  ctx.restore();
+}
+
+function drawPlaneIcon(ctx, x, y, track, focused) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate((track || 0) * Math.PI / 180);
+  ctx.fillStyle = focused ? "#ffffff" : "#7dd3fc";
+  ctx.strokeStyle = "rgba(5,5,5,.7)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -8);
+  ctx.lineTo(4, 6);
+  ctx.lineTo(0, 3);
+  ctx.lineTo(-4, 6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawShipIcon(ctx, x, y, course, focused) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate((course || 0) * Math.PI / 180);
+  ctx.fillStyle = focused ? "#fff5b8" : "#facc15";
+  ctx.strokeStyle = "rgba(5,5,5,.72)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(0, -7);
+  ctx.lineTo(6, 1);
+  ctx.lineTo(3, 7);
+  ctx.lineTo(-3, 7);
+  ctx.lineTo(-6, 1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawLaneMarker(ctx, x, y, label) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(250,204,21,.5)";
+  ctx.fillStyle = "rgba(250,204,21,.16)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(x, y, 10, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fill();
+  if (label) {
+    ctx.fillStyle = "rgba(247,247,242,.68)";
+    ctx.font = "800 9px Inter, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(String(label).slice(0, 18).toUpperCase(), x + 12, y + 3);
+  }
+  ctx.restore();
+}
+
+function drawMapScale(map) {
+  const ctx = map.context;
+  ctx.save();
+  ctx.fillStyle = "rgba(247,247,242,.72)";
+  ctx.font = "800 10px Inter, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(`ZOOM ${map.zoom.toFixed(1)}X`, 18, map.height - 20);
+  ctx.fillText("EQUIRECTANGULAR / OPEN DATA", 18, map.height - 38);
+  ctx.restore();
+}
+
+function worldToScreen(map, lat, lon) {
+  const scale = (map.baseScale || 1) * (map.zoom || 1);
+  return {
+    x: (map.originX || 0) + (lon * scale) + (map.panX || 0),
+    y: (map.originY || 0) - (lat * scale) + (map.panY || 0)
+  };
+}
+
+function screenToWorld(map, x, y) {
+  const scale = (map.baseScale || 1) * (map.zoom || 1);
+  return {
+    lat: ((map.originY || 0) + (map.panY || 0) - y) / scale,
+    lon: (x - (map.originX || 0) - (map.panX || 0)) / scale
+  };
+}
+
+function isWorldFocus(map, type, id) {
+  return map.focus && map.focus.type === type && map.focus.id === id;
 }
 
 async function createSecureMessageLink(event) {

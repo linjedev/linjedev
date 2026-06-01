@@ -142,6 +142,16 @@ async function handleApi(request, response, pathname) {
     return;
   }
 
+  if (pathname === "/api/world-news/config" && request.method === "GET") {
+    sendJson(response, 200, {
+      cesiumBaseUrl: "/cesium/",
+      cesiumIonToken: process.env.CESIUM_ION_TOKEN || ""
+    }, {
+      "cache-control": "no-store"
+    });
+    return;
+  }
+
   if (pathname === "/api/world-news/feed" && request.method === "GET") {
     const user = currentUser(request);
     if (!user) {
@@ -808,11 +818,14 @@ async function getPreviewGdeltArticles() {
     if (response.ok) {
       const data = await response.json();
       const articles = (data.articles || []).map(normalizePreviewArticle).filter(Boolean).slice(0, 60);
-      if (articles.length) return articles;
+      if (articles.length) return [...await getPreviewOpenEvents(), ...articles].slice(0, 140);
     }
   } catch {}
   const rssResults = await Promise.allSettled(previewRssFeeds.map(getPreviewRssArticles));
-  return rssResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).slice(0, 60);
+  return [
+    ...await getPreviewOpenEvents(),
+    ...rssResults.flatMap((result) => result.status === "fulfilled" ? result.value : [])
+  ].slice(0, 140);
 }
 
 function normalizePreviewArticle(article) {
@@ -849,6 +862,100 @@ function inferPreviewPlace(article) {
   if (domain.includes("japantimes")) return previewPlaces[7];
   if (domain.includes("thehindu") || domain.includes("timesofindia")) return previewPlaces[8];
   return previewPlaces[13];
+}
+
+async function getPreviewOpenEvents() {
+  const results = await Promise.allSettled([
+    getPreviewUsgsEarthquakes(),
+    getPreviewEonetEvents()
+  ]);
+  return results.flatMap((result) => result.status === "fulfilled" ? result.value : []).slice(0, 68);
+}
+
+async function getPreviewUsgsEarthquakes() {
+  const response = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson", { headers: { "user-agent": "linje-world-watch-preview" } });
+  if (!response.ok) return [];
+  const data = await response.json();
+  return (data.features || []).map((feature) => {
+    const [lon, lat] = feature.geometry?.coordinates || [];
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return null;
+    const mag = Number(feature.properties?.mag) || 0;
+    const placeName = String(feature.properties?.place || "USGS earthquake").slice(0, 120);
+    const region = inferPreviewRegion(Number(lat), Number(lon));
+    return {
+      id: `usgs-${feature.id}`,
+      title: `M${mag.toFixed(1)} earthquake - ${placeName}`,
+      url: feature.properties?.url || "https://earthquake.usgs.gov/earthquakes/map/",
+      domain: "earthquake.usgs.gov",
+      language: "English",
+      sourceCountry: region,
+      place: { name: placeName, country: region, region, lat: Number(lat), lon: Number(lon), population: 0, kind: "seismic event" },
+      placeName,
+      region,
+      lat: Number(lat),
+      lon: Number(lon),
+      seenAt: feature.properties?.time ? new Date(feature.properties.time).toISOString() : new Date().toISOString(),
+      signalType: "earthquake",
+      magnitude: mag
+    };
+  }).filter(Boolean).slice(0, 34);
+}
+
+async function getPreviewEonetEvents() {
+  const response = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=40", { headers: { "user-agent": "linje-world-watch-preview" } });
+  if (!response.ok) return [];
+  const data = await response.json();
+  return (data.events || []).map((event) => {
+    const geometry = [...(event.geometry || [])].reverse().find((item) => item?.coordinates);
+    const point = previewEventPoint(geometry?.coordinates);
+    if (!point) return null;
+    const category = event.categories?.[0]?.title || "Natural event";
+    const region = inferPreviewRegion(point.lat, point.lon);
+    return {
+      id: `eonet-${event.id}`,
+      title: `${category} - ${event.title || "NASA EONET event"}`.slice(0, 180),
+      url: event.link || "https://eonet.gsfc.nasa.gov/",
+      domain: "eonet.gsfc.nasa.gov",
+      language: "English",
+      sourceCountry: region,
+      place: { name: event.title || category, country: region, region, lat: point.lat, lon: point.lon, population: 0, kind: category.toLowerCase() },
+      placeName: event.title || category,
+      region,
+      lat: point.lat,
+      lon: point.lon,
+      seenAt: geometry?.date || new Date().toISOString(),
+      signalType: "natural event",
+      category
+    };
+  }).filter(Boolean).slice(0, 34);
+}
+
+function previewEventPoint(coordinates) {
+  if (!Array.isArray(coordinates)) return null;
+  if (Number.isFinite(Number(coordinates[0])) && Number.isFinite(Number(coordinates[1]))) return { lon: Number(coordinates[0]), lat: Number(coordinates[1]) };
+  const points = previewFlattenCoordinates(coordinates).filter((point) => Number.isFinite(point.lon) && Number.isFinite(point.lat));
+  if (!points.length) return null;
+  return {
+    lon: points.reduce((sum, point) => sum + point.lon, 0) / points.length,
+    lat: points.reduce((sum, point) => sum + point.lat, 0) / points.length
+  };
+}
+
+function previewFlattenCoordinates(value) {
+  if (!Array.isArray(value)) return [];
+  if (Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))) return [{ lon: Number(value[0]), lat: Number(value[1]) }];
+  return value.flatMap(previewFlattenCoordinates);
+}
+
+function inferPreviewRegion(lat, lon) {
+  if (lat >= 15 && lon >= -170 && lon <= -30) return "North America";
+  if (lat < 15 && lon >= -90 && lon <= -30) return "South America";
+  if (lon >= -25 && lon <= 45 && lat >= 35) return "Europe";
+  if (lon >= -20 && lon <= 55 && lat < 35 && lat > -40) return "Africa";
+  if (lon >= 25 && lon <= 65 && lat >= 10 && lat <= 42) return "Middle East";
+  if (lon >= 45 && lon <= 155 && lat >= -10) return "Asia";
+  if (lon >= 95 && lon <= 180 && lat < -10) return "Oceania";
+  return "Global";
 }
 
 async function getPreviewRssArticles(feed) {

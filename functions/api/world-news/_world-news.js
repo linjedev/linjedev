@@ -264,6 +264,8 @@ async function fetchGdeltFeed(env) {
   if (!articles.length) {
     articles = await fetchRssArticles();
   }
+  const openEvents = await fetchOpenEventSignals();
+  articles = [...openEvents, ...articles].slice(0, 140);
 
   const regions = articles.reduce((items, article) => {
     const current = items.get(article.region) || { count: 0, latestAt: "" };
@@ -283,6 +285,8 @@ async function fetchGdeltFeed(env) {
     sources: [
       { name: "GDELT DOC 2.0", status: gdeltStatus.value, url: "https://www.gdeltproject.org/" },
       { name: "Free RSS feeds", status: articles.length ? "active fallback" : "no articles returned", url: "https://feeds.bbci.co.uk/news/world/rss.xml" },
+      { name: "USGS Earthquakes", status: "real-time GeoJSON feed", url: "https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php" },
+      { name: "NASA EONET", status: "open natural events", url: "https://eonet.gsfc.nasa.gov/docs/v3" },
       { name: "OpenSky Network", status: "ADS-B state vectors when rate limit permits", url: "https://opensky-network.org/" },
       { name: "AISStream", status: ships.status, url: "https://aisstream.io/documentation" }
     ],
@@ -290,6 +294,116 @@ async function fetchGdeltFeed(env) {
     source: "GDELT DOC 2.0 / RSS / OpenSky / AISStream",
     updatedAt: new Date().toISOString()
   };
+}
+
+async function fetchOpenEventSignals() {
+  const results = await Promise.allSettled([
+    fetchUsgsEarthquakes(),
+    fetchNasaEonetEvents()
+  ]);
+  return results
+    .flatMap((result) => result.status === "fulfilled" ? result.value : [])
+    .sort((left, right) => Date.parse(right.seenAt || 0) - Date.parse(left.seenAt || 0))
+    .slice(0, 68);
+}
+
+async function fetchUsgsEarthquakes() {
+  const response = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson", {
+    headers: { "user-agent": "linje-world-watch" }
+  });
+  if (!response.ok) return [];
+  const data = await response.json();
+  return (data.features || []).map((feature) => {
+    const coordinates = feature.geometry?.coordinates || [];
+    const lon = Number(coordinates[0]);
+    const lat = Number(coordinates[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    const mag = Number(feature.properties?.mag) || 0;
+    const placeName = String(feature.properties?.place || "USGS earthquake").slice(0, 120);
+    const region = inferWorldRegion(lat, lon);
+    return {
+      id: `usgs-${feature.id}`,
+      title: `M${mag.toFixed(1)} earthquake - ${placeName}`,
+      url: feature.properties?.url || "https://earthquake.usgs.gov/earthquakes/map/",
+      domain: "earthquake.usgs.gov",
+      language: "English",
+      sourceCountry: region,
+      place: { name: placeName, country: region, region, lat, lon, population: 0, kind: "seismic event" },
+      placeName,
+      region,
+      lat,
+      lon,
+      seenAt: feature.properties?.time ? new Date(feature.properties.time).toISOString() : new Date().toISOString(),
+      image: "",
+      signalType: "earthquake",
+      magnitude: mag
+    };
+  }).filter(Boolean).slice(0, 34);
+}
+
+async function fetchNasaEonetEvents() {
+  const response = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=40", {
+    headers: { "user-agent": "linje-world-watch" }
+  });
+  if (!response.ok) return [];
+  const data = await response.json();
+  return (data.events || []).map((event) => {
+    const geometry = [...(event.geometry || [])].reverse().find((item) => item?.coordinates);
+    const point = eventGeometryPoint(geometry?.coordinates);
+    if (!point) return null;
+    const category = event.categories?.[0]?.title || "Natural event";
+    const region = inferWorldRegion(point.lat, point.lon);
+    const title = `${category} - ${event.title || "NASA EONET event"}`;
+    return {
+      id: `eonet-${event.id}`,
+      title: title.slice(0, 180),
+      url: event.link || "https://eonet.gsfc.nasa.gov/",
+      domain: "eonet.gsfc.nasa.gov",
+      language: "English",
+      sourceCountry: region,
+      place: { name: event.title || category, country: region, region, lat: point.lat, lon: point.lon, population: 0, kind: category.toLowerCase() },
+      placeName: event.title || category,
+      region,
+      lat: point.lat,
+      lon: point.lon,
+      seenAt: geometry?.date || new Date().toISOString(),
+      image: "",
+      signalType: "natural event",
+      category
+    };
+  }).filter(Boolean).slice(0, 34);
+}
+
+function eventGeometryPoint(coordinates) {
+  if (!Array.isArray(coordinates)) return null;
+  if (Number.isFinite(Number(coordinates[0])) && Number.isFinite(Number(coordinates[1]))) {
+    return { lon: Number(coordinates[0]), lat: Number(coordinates[1]) };
+  }
+  const points = flattenCoordinates(coordinates).filter((point) => Number.isFinite(point.lon) && Number.isFinite(point.lat));
+  if (!points.length) return null;
+  return {
+    lon: points.reduce((sum, point) => sum + point.lon, 0) / points.length,
+    lat: points.reduce((sum, point) => sum + point.lat, 0) / points.length
+  };
+}
+
+function flattenCoordinates(value) {
+  if (!Array.isArray(value)) return [];
+  if (Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))) {
+    return [{ lon: Number(value[0]), lat: Number(value[1]) }];
+  }
+  return value.flatMap(flattenCoordinates);
+}
+
+function inferWorldRegion(lat, lon) {
+  if (lat >= 15 && lon >= -170 && lon <= -30) return "North America";
+  if (lat < 15 && lon >= -90 && lon <= -30) return "South America";
+  if (lon >= -25 && lon <= 45 && lat >= 35) return "Europe";
+  if (lon >= -20 && lon <= 55 && lat < 35 && lat > -40) return "Africa";
+  if (lon >= 25 && lon <= 65 && lat >= 10 && lat <= 42) return "Middle East";
+  if (lon >= 45 && lon <= 155 && lat >= -10) return "Asia";
+  if (lon >= 95 && lon <= 180 && lat < -10) return "Oceania";
+  return "Global";
 }
 
 async function fetchGdeltArticles() {

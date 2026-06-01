@@ -9,7 +9,8 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=world8">
+    <link rel="stylesheet" href="cesium/Widgets/widgets.css">
+    <link rel="stylesheet" href="styles.css?v=world11">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -414,11 +415,11 @@
         </section>
 
         <section id="worldWatchConsole" class="world-console" hidden>
-          <canvas id="worldGlobeCanvas" aria-label="Live global news globe"></canvas>
+          <div id="worldGlobeCanvas" class="world-map" aria-label="Interactive live global street map"></div>
           <div class="world-hud world-hud-top">
             <div>
               <p class="eyebrow">World Watch</p>
-              <h2 id="world-watch-title">Global signal map</h2>
+              <h2 id="world-watch-title">World Watch command map</h2>
               <p id="worldLayerStatus" class="world-layer-status">News / flights / maritime readiness.</p>
             </div>
             <button id="refreshWorldNews" class="ghost-button" type="button">Refresh</button>
@@ -431,7 +432,7 @@
           <aside id="worldIntelPanel" class="world-intel-panel" aria-live="polite">
             <p class="eyebrow">Selected</p>
             <h3>Click a globe signal.</h3>
-            <p>Markers show geocoded articles, aircraft state vectors, and maritime chokepoints.</p>
+            <p>Pan and zoom the map. Markers show geocoded articles, aircraft state vectors, vessels, and maritime lanes.</p>
           </aside>
           <aside class="world-feed" aria-labelledby="world-feed-title">
             <div>
@@ -625,6 +626,7 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=world8" defer></script>
+    <script src="cesium/Cesium.js" defer></script>
+    <script src="app.js?v=world11" defer></script>
   </body>
 </html>

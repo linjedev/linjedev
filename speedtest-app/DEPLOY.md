@@ -47,6 +47,7 @@ Linje.dev uses Cloudflare Pages Functions and a D1 database binding named `DB`.
    - `CAPTCHA_SECRET`: at least 32 random characters, used to sign captcha tokens. If omitted, Linje.dev creates a durable fallback secret in D1.
    - `ADMIN_USERS`: comma-separated usernames that can read admin APIs, for example `seb`. If omitted, `seb` is treated as the owner account.
    - `AISSTREAM_KEY`: free AISStream API key for the World Watch live vessel layer. Keep this as a secret environment variable; do not add it to frontend files or commits.
+   - `CESIUM_ION_TOKEN`: Cesium ion token with public `assets:read` scope for World Watch imagery and terrain. Restrict it to the Linje domain and localhost in the Cesium dashboard.
 7. Redeploy the latest Pages deployment.
 
 The auth endpoints live in the repository root `functions/` directory:
