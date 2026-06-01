@@ -1,0 +1,29 @@
+#!/bin/sh
+case "${LINJE_AUTO_PUSH:-1}" in
+  0|false|FALSE|off|OFF|no|NO)
+    exit 0
+    ;;
+esac
+
+if [ -n "$LINJE_GIT" ]; then
+  git_bin="$LINJE_GIT"
+elif [ -x "/Applications/Xcode.app/Contents/Developer/usr/bin/git" ]; then
+  git_bin="/Applications/Xcode.app/Contents/Developer/usr/bin/git"
+else
+  git_bin="git"
+fi
+
+branch="$("$git_bin" symbolic-ref --quiet --short HEAD 2>/dev/null)" || exit 0
+remote="${LINJE_AUTO_PUSH_REMOTE:-origin}"
+target="${LINJE_AUTO_PUSH_BRANCH:-$branch}"
+lock=".git/linje-auto-push.lock"
+
+if [ -f "$lock" ]; then
+  exit 0
+fi
+
+touch "$lock"
+"$git_bin" push "$remote" "HEAD:$target"
+status="$?"
+rm -f "$lock"
+exit "$status"

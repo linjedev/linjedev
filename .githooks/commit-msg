@@ -1,0 +1,40 @@
+#!/bin/sh
+message_file="$1"
+subject="$(sed -n '1p' "$message_file")"
+
+if [ -z "$subject" ] || printf '%s' "$subject" | grep -Eq '^(#|Merge |Revert )'; then
+  exit 0
+fi
+
+if ! printf '%s' "$subject" | grep -Eq '^(feat|fix|tweak|docs|chore|refactor|test|build|ci|perf|revert)\(linje\): '; then
+  tmp="${message_file}.linje-scope"
+  {
+    printf 'tweak(linje): %s\n' "$subject"
+    sed '1d' "$message_file"
+  } > "$tmp"
+  mv "$tmp" "$message_file"
+fi
+
+body="$(sed '1d' "$message_file" | sed '/^#/d' | tr -d '[:space:]')"
+if [ -z "$body" ]; then
+  cat >> "$message_file" <<'EOF'
+
+What changed:
+- Local workflow update.
+
+Why:
+- Keep Linje commits understandable from GitHub and the live tracker.
+
+Verification:
+- Commit message hook filled in the required detail sections.
+
+Impact:
+- No runtime impact.
+EOF
+fi
+
+for section in "What changed:" "Why:" "Verification:" "Impact:"; do
+  if ! grep -Eq "^${section}" "$message_file"; then
+    printf '\n%s\n- \n' "$section" >> "$message_file"
+  fi
+done

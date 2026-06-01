@@ -3,6 +3,7 @@ const childProcess = require("child_process");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const zlib = require("zlib");
 
 const root = __dirname;
 const users = new Map();
@@ -17,6 +18,8 @@ const worldNewsAccess = new Map();
 const authEvents = [];
 const CAPTCHA_TTL_MS = 5 * 60 * 1000;
 const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || crypto.randomBytes(32).toString("hex");
+const PREVIEW_HOST = process.env.PREVIEW_HOST || "127.0.0.1";
+const PREVIEW_PORT = Number(process.env.PREVIEW_PORT || 4173);
 const PASSWORD_ITERATIONS = 100000;
 const blockedUsernameTerms = [
   "6b6b6b",
@@ -66,8 +69,8 @@ http.createServer(async (request, response) => {
     });
     response.end(data);
   });
-}).listen(4173, () => {
-  console.log("Linje Speed preview: http://localhost:4173/");
+}).listen(PREVIEW_PORT, PREVIEW_HOST, () => {
+  console.log(`Linje Speed preview: http://${PREVIEW_HOST}:${PREVIEW_PORT}/`);
 });
 
 async function handleApi(request, response, pathname) {
@@ -91,9 +94,11 @@ async function handleApi(request, response, pathname) {
   }
 
   if (pathname === "/api/github/commits" && request.method === "GET") {
-    const activity = getLocalCommitActivity();
+    const activity = await getCommitActivity();
     sendJson(response, 200, {
-      query: "author:linjedev",
+      query: activity.query || "author:linjedev",
+      fallback: activity.fallback,
+      status: activity.status,
       totalCommits: activity.totalCommits,
       hourBuckets: activity.hourBuckets,
       cachedFor: 60
@@ -1207,38 +1212,183 @@ function logPreviewAuthEvent(request, { event, userId = "", username = "", succe
   console.log(JSON.stringify(record));
 }
 
-function getLocalCommitActivity() {
-  const buckets = Array.from({ length: 24 }, (_, hour) => ({
+function createCommitBuckets() {
+  return Array.from({ length: 24 }, (_, hour) => ({
     commits: [],
     count: 0,
     hour
   }));
+}
+
+function addCommitToBuckets(buckets, commit) {
+  const date = new Date(commit.date);
+  if (Number.isNaN(date.getTime())) return;
+  const hour = date.getHours();
+  buckets[hour].count += 1;
+  buckets[hour].commits.push({
+    date: date.toISOString(),
+    description: String(commit.description || "").replace(/\s+/g, " ").trim().slice(0, 320),
+    message: commit.message || "Commit",
+    sha: commit.sha
+  });
+}
+
+async function getCommitActivity() {
+  const local = getLocalCommitActivity();
+  if (local.totalCommits) return local;
+  const loose = getLooseGitCommitActivity();
+  if (loose.totalCommits) return loose;
+  return await getGitHubCommitActivity();
+}
+
+function getLocalCommitActivity() {
+  const buckets = createCommitBuckets();
 
   try {
-    const output = childProcess.execFileSync("git", ["log", "--date=iso-strict", "--pretty=%H%x09%ad%x09%s"], {
+    const output = childProcess.execFileSync("git", ["log", "--date=iso-strict", "--pretty=%H%x09%ad%x09%s%x09%b%x1e"], {
       cwd: path.resolve(root, ".."),
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
     });
-    output.split(/\r?\n/).filter(Boolean).forEach((line) => {
-      const [sha, dateValue, ...subjectParts] = line.split("\t");
-      const date = new Date(dateValue);
-      if (Number.isNaN(date.getTime())) return;
-      const hour = date.getHours();
-      buckets[hour].count += 1;
-      buckets[hour].commits.push({
-        date: date.toISOString(),
-        message: subjectParts.join("\t") || "Commit",
-        sha
-      });
+    output.split("\x1e").map((record) => record.trim()).filter(Boolean).forEach((record) => {
+      const [sha, date, message = "Commit", description = ""] = record.split("\t");
+      addCommitToBuckets(buckets, { date, description, message, sha });
     });
   } catch {
   }
 
   return {
+    fallback: false,
+    query: "local git log",
+    status: "Local Git commit activity.",
     totalCommits: buckets.reduce((total, bucket) => total + bucket.count, 0),
     hourBuckets: buckets
   };
+}
+
+function getLooseGitCommitActivity() {
+  const buckets = createCommitBuckets();
+  const seen = new Set();
+  const logs = [
+    path.resolve(root, "..", ".git", "logs", "refs", "heads", "main"),
+    path.resolve(root, "..", ".git", "logs", "HEAD")
+  ];
+
+  logs.forEach((logPath) => {
+    try {
+      fs.readFileSync(logPath, "utf8").split(/\r?\n/).filter(Boolean).forEach((line) => {
+        const match = line.match(/^[0-9a-f]{40}\s+([0-9a-f]{40})\s+.+?\s+(\d+)\s+([+-]\d{4})\t/);
+        if (!match || seen.has(match[1])) return;
+        const commit = readLooseGitCommit(match[1], match[2], match[3]);
+        if (!commit) return;
+        seen.add(match[1]);
+        addCommitToBuckets(buckets, commit);
+      });
+    } catch {
+    }
+  });
+
+  return {
+    fallback: true,
+    query: "loose .git objects",
+    status: "Local Git binary is unavailable; showing readable local commit objects.",
+    totalCommits: buckets.reduce((total, bucket) => total + bucket.count, 0),
+    hourBuckets: buckets
+  };
+}
+
+function readLooseGitCommit(sha, fallbackSeconds, fallbackOffset) {
+  try {
+    const objectPath = path.resolve(root, "..", ".git", "objects", sha.slice(0, 2), sha.slice(2));
+    const inflated = zlib.inflateSync(fs.readFileSync(objectPath));
+    const nul = inflated.indexOf(0);
+    const header = inflated.slice(0, nul).toString();
+    if (!header.startsWith("commit ")) return null;
+    const body = inflated.slice(nul + 1).toString();
+    const [, authorSeconds = fallbackSeconds, authorOffset = fallbackOffset] = body.match(/\nauthor .+? (\d+) ([+-]\d{4})\n/) || [];
+    const message = body.split("\n\n").slice(1).join("\n\n").trim();
+    const [subject = "Commit", ...descriptionLines] = message.split(/\r?\n/);
+    return {
+      date: gitTimestampToIso(authorSeconds, authorOffset),
+      description: descriptionLines.join(" ").trim(),
+      message: subject,
+      sha
+    };
+  } catch {
+    return null;
+  }
+}
+
+function gitTimestampToIso(seconds, offset) {
+  const date = new Date(Number(seconds) * 1000);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString();
+  return date.toISOString();
+}
+
+async function getGitHubCommitActivity() {
+  const buckets = Array.from({ length: 24 }, (_, hour) => ({
+    commits: [],
+    count: 0,
+    hour
+  }));
+  const repository = String(process.env.GITHUB_REPOSITORY || "linjedev/linjedev").replace(/[^A-Za-z0-9_.\/-]/g, "");
+  const headers = {
+    "accept": "application/vnd.github+json",
+    "user-agent": "linje-preview-commit-tracker"
+  };
+  const token = String(process.env.GITHUB_TOKEN || "").trim();
+  if (token) headers.authorization = `Bearer ${token}`;
+
+  try {
+    const response = await fetch(`https://api.github.com/repos/${repository}/commits?per_page=100`, { headers });
+    if (!response.ok) throw new Error(`GitHub ${response.status}`);
+    const commits = await response.json();
+    (Array.isArray(commits) ? commits : []).forEach((item) => {
+      const lines = String(item.commit?.message || "Commit").split(/\r?\n/);
+      const message = lines.shift() || "Commit";
+      const description = lines.join(" ").trim();
+      addCommitToBuckets(buckets, {
+        date: item.commit?.author?.date || item.commit?.committer?.date || "",
+        description,
+        message,
+        sha: item.sha
+      });
+    });
+    const totalCommits = await getGitHubCommitTotal(response.headers.get("link"), commits.length, headers);
+    return {
+      fallback: true,
+      query: `repo:${repository}`,
+      status: "Live from GitHub REST because local Git is unavailable.",
+      totalCommits,
+      hourBuckets: buckets
+    };
+  } catch {
+    return {
+      fallback: true,
+      query: `repo:${repository}`,
+      status: "Commit activity unavailable.",
+      totalCommits: 0,
+      hourBuckets: buckets
+    };
+  }
+}
+
+async function getGitHubCommitTotal(linkHeader, firstPageCount, headers) {
+  const link = String(linkHeader || "");
+  const match = link.match(/[?&]page=(\d+)>;\s*rel="last"/);
+  const urlMatch = link.match(/<([^>]+[?&]page=\d+[^>]*)>;\s*rel="last"/);
+  if (match && urlMatch) {
+    try {
+      const lastPage = Number(match[1]);
+      const response = await fetch(urlMatch[1], { headers });
+      if (!response.ok) throw new Error("last page unavailable");
+      const commits = await response.json();
+      return ((lastPage - 1) * 100) + (Array.isArray(commits) ? commits.length : 0);
+    } catch {
+      return Math.max(firstPageCount, Number(match[1]) * 100);
+    }
+  }
+  return firstPageCount;
 }
 
 function getPreviewArcadeScores() {

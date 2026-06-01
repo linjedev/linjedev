@@ -1,0 +1,39 @@
+#!/bin/sh
+message_file="$1"
+source="$2"
+
+case "$source" in
+  merge|squash|commit)
+    exit 0
+    ;;
+esac
+
+subject="$(sed -n '1p' "$message_file")"
+
+if printf '%s' "$subject" | grep -Eq '^(feat|fix|tweak|docs|chore|refactor|test|build|ci|perf|revert)\(linje\): '; then
+  :
+elif [ -n "$subject" ] && ! printf '%s' "$subject" | grep -Eq '^(#|Merge |Revert )'; then
+  tmp="${message_file}.linje-prefix"
+  {
+    printf 'tweak(linje): %s\n' "$subject"
+    sed '1d' "$message_file"
+  } > "$tmp"
+  mv "$tmp" "$message_file"
+fi
+
+if ! grep -Eq '^What changed:' "$message_file"; then
+  cat >> "$message_file" <<'EOF'
+
+What changed:
+- 
+
+Why:
+- 
+
+Verification:
+- 
+
+Impact:
+- 
+EOF
+fi
