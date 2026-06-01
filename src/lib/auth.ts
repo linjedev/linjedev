@@ -109,7 +109,7 @@ const localCredentialsProvider = Credentials({
         const isValid = compareSync(password, user.hashedPassword);
         if (!isValid) return null;
 
-        const ownerLogins = new Set(["admin", "seb"]);
+        const ownerLogins = new Set(["admin", "seb", "sebastian"]);
         const shouldPromoteOwner = ownerLogins.has(user.email.toLowerCase()) || ownerLogins.has(user.name.toLowerCase());
         const effectiveRole = shouldPromoteOwner ? "admin" : user.role;
         const effectiveStatus = shouldPromoteOwner ? "approved" : user.status;
