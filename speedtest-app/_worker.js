@@ -35,7 +35,11 @@ function rewriteHtml(value) {
   return rewriteBrandText(value).replace(
     /(src|href)="(\/_next\/static\/[^"?]+)(?:\?[^"]*)?"/g,
     `$1="$2?v=${ASSET_VERSION}"`,
-  );
+  ).replace("</body>", `${brandPatchScript()}</body>`);
+}
+
+function brandPatchScript() {
+  return `<script>(()=>{const h=["worldwideview","dev"].join(".");const r=[[[ "WORLD","WIDE","VIEW"].join(" "),"LINJE.TRACK"],[[ "World","Wide","View"].join(" "),"Linje.track"],[[ "World","WideView"].join(""),"Linje.track"],[[ "Worldwide","View"].join(""),"Linje.track"],[[ "https://",h,"/"].join(""),"https://linje.dev/"],[[ "https://",h].join(""),"https://linje.dev"]];const f=s=>r.reduce((v,[a,b])=>v.split(a).join(b),s);const p=()=>{const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const v=f(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}document.querySelectorAll("a[href]").forEach(a=>{const v=f(a.getAttribute("href")||"");if(v!==a.getAttribute("href"))a.setAttribute("href",v)})};p();new MutationObserver(p).observe(document.documentElement,{childList:true,subtree:true,characterData:true});setInterval(p,1500)})();</script>`;
 }
 
 function rewriteJson(value, key = "") {
