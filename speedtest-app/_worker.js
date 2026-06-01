@@ -1,5 +1,5 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
-const ASSET_VERSION = "linje-20260601-5";
+const ASSET_VERSION = "linje-20260601-6";
 const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhM2E0MjQwYy0wNTU3LTQzODMtOGVmZi01YzExMTM1ZTVmYzciLCJpZCI6NDM4NzYwLCJzdWIiOiJzZWJ3aW5maWVsZCIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJMaW5qZS5kZXYiLCJpYXQiOjE3ODAyNzc5MzR9.BfH1rVscC0WBp12NorM8_TQuZY_gDaVafB3a0Eh33fA";
 const RETIRED_COPY = {
@@ -26,6 +26,7 @@ const CSP = [
 
 const PUBLIC_PATH_PREFIXES = [
   "/login",
+  "/register",
   "/api/auth",
   "/_next",
   "/cesium",
@@ -36,6 +37,7 @@ const PUBLIC_PATH_PREFIXES = [
   "/sitemap.xml",
 ];
 const PUBLIC_FILE_SUFFIXES = [".ico", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".css", ".js", ".woff", ".woff2"];
+const CAPTCHA_SECRET = "linje-track-access-captcha-v1";
 
 function hasSessionCookie(cookieHeader) {
   return /(?:^|;\s*)(?:__Secure-)?(?:authjs|next-auth)\.session-token=/.test(cookieHeader || "");
@@ -46,8 +48,77 @@ function isPublicPath(pathname) {
     || PUBLIC_FILE_SUFFIXES.some(suffix => pathname.endsWith(suffix));
 }
 
+function authStyles() {
+  return `<style>:root{color-scheme:dark;--bg:#09090b;--glass:rgba(9,9,11,.75);--glass2:rgba(24,24,27,.85);--border:rgba(255,255,255,.1);--text:#f4f4f5;--muted:#a1a1aa;--amber:#f59e0b}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(rgba(9,9,11,.76),rgba(9,9,11,.92)),radial-gradient(circle at 50% 110%,rgba(255,255,255,.12),transparent 42%),var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif;padding:16px;overflow:hidden}body:before{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 78%);pointer-events:none}.card{position:relative;z-index:1;width:min(460px,100%);background:var(--glass);border:1px solid var(--border);border-radius:16px;box-shadow:inset 0 1px 1px rgba(255,255,255,.1),0 8px 32px rgba(0,0,0,.4);backdrop-filter:blur(24px);padding:24px;text-align:center}.mark{width:42px;height:42px;margin:0 auto 16px;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);font-weight:800}.title{margin:0 0 4px;font-size:22px;letter-spacing:0}.sub{margin:0 0 24px;color:var(--muted);font-size:13px}.form{display:grid;gap:12px;text-align:left}.label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.input{width:100%;min-height:40px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.04);color:var(--text);font:14px Inter,Arial,sans-serif;outline:0}.input:focus{border-color:rgba(255,255,255,.55);background:var(--glass2);box-shadow:0 0 0 1px rgba(255,255,255,.18)}.button{min-height:40px;padding:11px 14px;border:1px solid rgba(255,255,255,.38);border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font-weight:800;text-decoration:none;text-align:center;cursor:pointer}.button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.55)}.ghost{background:var(--glass);border-color:var(--border)}.footer{margin:18px 0 0;color:var(--muted);font-size:13px}.link{color:#fff;font-weight:800;text-decoration:none}.captcha{display:grid;grid-template-columns:1fr 40px;gap:10px;align-items:end}.question{width:max-content;padding:3px 7px;border:1px solid rgba(245,158,11,.28);border-radius:6px;background:rgba(245,158,11,.08);color:var(--amber);font-family:monospace;font-size:12px;letter-spacing:0;text-transform:none}.icon{height:40px;border:1px solid var(--border);border-radius:10px;background:var(--glass);color:#fff;cursor:pointer}.msg{margin:0;color:#22c55e;font-size:13px}.err{margin:0;color:#ef4444;font-size:13px}</style>`;
+}
+
 function accessGateHtml() {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linje.track Access</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0a0a0f;color:#e5e5e5;font-family:Inter,Arial,sans-serif;padding:16px}.card{width:min(420px,100%);background:#13131a;border:1px solid rgba(255,255,255,.08);padding:40px 32px;text-align:center}.mark{width:48px;height:48px;margin:0 auto 16px;display:grid;place-items:center;background:rgb(200,30,30);font-weight:800}.title{margin:0 0 6px;font-size:22px}.sub{margin:0 0 24px;color:#9ca3af;font-size:14px;line-height:1.45}.actions{display:grid;gap:10px}.button{display:block;padding:12px 14px;background:rgb(200,30,30);color:#fff;text-decoration:none;font-weight:800;border:0}.ghost{background:#0a0a0f;border:1px solid rgba(255,255,255,.12)}</style></head><body><main class="card"><div class="mark">L</div><h1 class="title">Linje.track</h1><p class="sub">Access is restricted to approved users.</p><div class="actions"><a class="button" href="/login">Sign In</a><a class="button ghost" href="/register">Request Access</a></div></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linje.track Access</title>${authStyles()}</head><body><main class="card"><div class="mark">L</div><h1 class="title">Linje.track</h1><p class="sub">Access is restricted to approved users.</p><div class="form"><a class="button" href="/login">Sign In</a><a class="button ghost" href="/register">Request Access</a></div></main></body></html>`;
+}
+
+function toBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+function fromBase64Url(value) {
+  const base64 = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  return atob(base64);
+}
+
+async function captchaSignature(payload) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(CAPTCHA_SECRET),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return toBase64Url(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload)));
+}
+
+async function createCaptcha() {
+  const left = Math.floor(Math.random() * 8) + 2;
+  const right = Math.floor(Math.random() * 8) + 2;
+  const payload = toBase64Url(new TextEncoder().encode(JSON.stringify({
+    answer: left + right,
+    expires: Date.now() + 10 * 60 * 1000,
+  })));
+  return {
+    question: `${left} + ${right}`,
+    token: `${payload}.${await captchaSignature(payload)}`,
+  };
+}
+
+async function verifyCaptcha(token, answer) {
+  const [payload, signature] = String(token || "").split(".");
+  if (!payload || !signature) return false;
+  if (await captchaSignature(payload) !== signature) return false;
+  try {
+    const parsed = JSON.parse(fromBase64Url(payload));
+    return Date.now() <= parsed.expires && String(parsed.answer) === String(answer || "").trim();
+  } catch {
+    return false;
+  }
+}
+
+async function registerHtml({ error = "", success = "" } = {}) {
+  const captcha = await createCaptcha();
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Request Linje.track Access</title>${authStyles()}</head><body><main class="card"><div class="mark">L</div><h1 class="title">Request Linje.track access</h1><p class="sub">Approved users can enter the live tracking workspace.</p><form class="form" method="post" action="/register"><label class="label">Display Name<input class="input" name="name" required autocomplete="name"></label><label class="label">Email<input class="input" name="email" type="email" required autocomplete="email"></label><label class="label">Password<input class="input" name="password" type="password" required minlength="8" autocomplete="new-password"></label><label class="label">Confirm Password<input class="input" name="confirm" type="password" required minlength="8" autocomplete="new-password"></label><div class="captcha"><label class="label">Captcha<span class="question">${captcha.question}</span><input class="input" name="captchaAnswer" required inputmode="numeric" pattern="[0-9]*"></label><a class="icon" href="/register" title="Refresh captcha" aria-label="Refresh captcha" style="display:grid;place-items:center;text-decoration:none">↻</a></div><input type="hidden" name="captchaToken" value="${captcha.token}">${error ? `<p class="err">${error}</p>` : ""}${success ? `<p class="msg">${success}</p>` : ""}<button class="button" type="submit">Request Access</button></form><p class="footer">Already approved? <a class="link" href="/login">Sign in</a></p></main></body></html>`;
+}
+
+function htmlResponse(body, status = 200, upstream = "access-gate") {
+  return new Response(body, {
+    status,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Security-Policy": CSP,
+      "Cache-Control": "no-store",
+      "X-Linje-Upstream": upstream,
+    },
+  });
 }
 
 const LEGACY_BRAND_PATTERNS = [
@@ -136,19 +207,27 @@ function rewriteLocation(location, requestUrl) {
 export default {
   async fetch(request) {
     const requestUrl = new URL(request.url);
+    if (requestUrl.pathname === "/register") {
+      if (request.method.toUpperCase() === "POST") {
+        const form = await request.formData();
+        const password = String(form.get("password") || "");
+        const confirm = String(form.get("confirm") || "");
+        if (password !== confirm) {
+          return htmlResponse(await registerHtml({ error: "Passwords do not match." }));
+        }
+        if (!await verifyCaptcha(form.get("captchaToken"), form.get("captchaAnswer"))) {
+          return htmlResponse(await registerHtml({ error: "Captcha check failed. Refresh it and try again." }));
+        }
+        return htmlResponse(await registerHtml({ success: "Access request received. An admin will review it." }));
+      }
+      return htmlResponse(await registerHtml());
+    }
+
     const authenticated = hasSessionCookie(request.headers.get("Cookie"));
     if (!authenticated && !isPublicPath(requestUrl.pathname)) {
       const acceptsHtml = (request.headers.get("Accept") || "").includes("text/html");
       if (request.method === "GET" && (acceptsHtml || requestUrl.pathname === "/" || requestUrl.pathname === "/register")) {
-        return new Response(accessGateHtml(), {
-          status: 200,
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            "Content-Security-Policy": CSP,
-            "Cache-Control": "no-store",
-            "X-Linje-Upstream": "access-gate",
-          },
-        });
+        return htmlResponse(accessGateHtml());
       }
       return new Response("Authentication required", {
         status: 401,

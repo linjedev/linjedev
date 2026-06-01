@@ -2,6 +2,7 @@
 
 import { hashSync } from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { verifyCaptcha } from "@/lib/captcha";
 
 interface RegisterResult {
     success: boolean;
@@ -19,6 +20,8 @@ export async function requestAccessAction(formData: FormData): Promise<RegisterR
     const email = normalizeEmail(formData.get("email"));
     const password = String(formData.get("password") ?? "");
     const confirm = String(formData.get("confirm") ?? "");
+    const captchaToken = String(formData.get("captchaToken") ?? "");
+    const captchaAnswer = String(formData.get("captchaAnswer") ?? "");
 
     if (!name || !email || !password) {
         return { success: false, error: "All fields are required." };
@@ -28,6 +31,9 @@ export async function requestAccessAction(formData: FormData): Promise<RegisterR
     }
     if (password !== confirm) {
         return { success: false, error: "Passwords do not match." };
+    }
+    if (!verifyCaptcha(captchaToken, captchaAnswer)) {
+        return { success: false, error: "Captcha check failed. Refresh it and try again." };
     }
 
     const hasAdmin = await prisma.user.count({
