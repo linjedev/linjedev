@@ -13,12 +13,41 @@ const CSP = [
   "frame-ancestors 'none'",
 ].join("; ");
 
-function rewriteText(body) {
-  return body
+function rewriteBrandText(value) {
+  return value
+    .replaceAll("WORLD WIDE VIEW", "LINJE.TRACK")
+    .replaceAll("World Wide View", "Linje.track")
     .replaceAll("WorldWideView", "Linje.track")
     .replaceAll("WorldwideView", "Linje.track")
-    .replaceAll("worldwideview.dev", "linje.dev")
-    .replaceAll("demo.linje.dev", "linje.dev");
+    .replaceAll("https://worldwideview.dev/", "https://linje.dev/")
+    .replaceAll("https://worldwideview.dev", "https://linje.dev");
+}
+
+function rewriteJson(value, key = "") {
+  const passthroughKeys = new Set([
+    "entry",
+    "homepage",
+    "npmPackage",
+    "packageName",
+    "repository",
+    "source",
+    "url",
+  ]);
+
+  if (typeof value === "string") {
+    if (passthroughKeys.has(key) || value.includes("@worldwideview/")) return value;
+    return rewriteBrandText(value);
+  }
+
+  if (Array.isArray(value)) return value.map(item => rewriteJson(item));
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([entryKey, entryValue]) => [
+      entryKey,
+      rewriteJson(entryValue, entryKey),
+    ]),
+  );
 }
 
 function rewriteLocation(location, requestUrl) {
@@ -61,8 +90,20 @@ export default {
     if (location) responseHeaders.set("Location", rewriteLocation(location, request.url));
 
     const contentType = responseHeaders.get("Content-Type") || "";
-    if (contentType.includes("text/html")) {
-      return new Response(rewriteText(await upstreamResponse.text()), {
+    if (
+      contentType.includes("text/html") ||
+      contentType.includes("javascript") ||
+      contentType.includes("text/css")
+    ) {
+      return new Response(rewriteBrandText(await upstreamResponse.text()), {
+        status: upstreamResponse.status,
+        statusText: upstreamResponse.statusText,
+        headers: responseHeaders,
+      });
+    }
+
+    if (contentType.includes("application/json")) {
+      return new Response(JSON.stringify(rewriteJson(await upstreamResponse.json())), {
         status: upstreamResponse.status,
         statusText: upstreamResponse.statusText,
         headers: responseHeaders,
