@@ -12,7 +12,7 @@ import { useStore } from "@/core/state/store";
 import { dataBus } from "@/core/data/DataBus";
 import { pluginManager } from "@/core/plugins/PluginManager";
 import {
- Globe, Key, Sun, Moon, Monitor
+ Globe, Sun, Moon, Monitor
 } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import { isDemo, DEMO_ADMIN_ROLE } from "@/core/edition";
@@ -20,8 +20,6 @@ import { isDemo, DEMO_ADMIN_ROLE } from "@/core/edition";
 import Image from "next/image";
 import { useIsMobile } from "@/core/hooks/useIsMobile";
 import { SearchBar } from "./SearchBar";
-import { ApiKeysTab } from "./ApiKeysTab";
-import { PersonalApiKeysSection } from "./PersonalApiKeysSection";
 import "./timeSelect.css";
 
 const REGIONS = [
@@ -64,7 +62,6 @@ export function Header() {
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [isDemoAdmin, setIsDemoAdmin] = useState(false);
-    const [showApiKeys, setShowApiKeys] = useState(false);
 
     const [timeOpen, setTimeOpen] = useState(false);
     const timeRef = useRef<HTMLDivElement>(null);
@@ -246,19 +243,6 @@ export function Header() {
  width: 1, height: 20, background: "var(--border-subtle)", flexShrink: 0
 }}
               />
-              <button
-                type="button"
-                className="btn btn--glow"
-                onClick={() => setShowApiKeys(true)}
-                title="API Keys"
-                style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
-                        }}
-              >
-                <Key size={14} />
-              </button>
               <div style={{ position: "relative", flexShrink: 0 }}>
                 <button
                   type="button"
@@ -398,63 +382,6 @@ export function Header() {
                 })}
           </div>
         )}
-        {showApiKeys && (
-          <div
-            style={{
-                                position: "fixed",
-                                inset: 0,
-                                background: "rgba(0,0,0,0.45)",
-                                display: "flex",
-                                alignItems: "flex-start",
-                                justifyContent: "center",
-                                paddingTop: "5vh",
-                                paddingBottom: "5vh",
-                                overflowY: "auto",
-                                zIndex: 9999,
-                            }}
-            onClick={() => setShowApiKeys(false)}
-          >
-            <div
-              className="glass-panel"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                                    width: "min(700px, 90vw)",
-                                    maxHeight: "80vh",
-                                    overflowY: "auto",
-                                    padding: "24px",
-                                    borderRadius: "16px",
-                                    margin: "20px",
-                                }}
-            >
-              <div
-                style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        marginBottom: "16px",
-                                    }}
-              >
-                <h2 style={{ margin: 0 }}>Keys &amp; Access</h2>
-
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setShowApiKeys(false)}
-                >
-                  Close
-                </button>
-              </div>
-
-              <ApiKeysTab />
-              {!isDemo && (
-                <>
-                  <hr style={{ border: "none", borderTop: "1px solid var(--border-subtle)", margin: "var(--space-lg) 0" }} />
-                  <PersonalApiKeysSection />
-                </>
-              )}
-            </div>
-          </div>
-                    )}
       </>
     );
 }
