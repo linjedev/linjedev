@@ -554,7 +554,7 @@ body.sidebar-force-transition .sidebar {
   cursor: pointer;
 }
 
-/* ─── History unavailable (demo edition) ─────────────────── */
+/* ─── History unavailable ─────────────────── */
 .timeline__history-unavailable {
   display: flex;
   align-items: center;

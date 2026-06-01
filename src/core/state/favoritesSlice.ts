@@ -2,7 +2,7 @@
 /**
  * @file favoritesSlice.ts
  * @description State slice for managing user-bookmarked entities.
- * Supports cross-session persistence via Cookies (demo mode) or PostgreSQL (local/cloud editions).
+ * Supports cross-session persistence via Cookies (public hosted mode) or PostgreSQL (local/cloud editions).
  */
 
 import type { StateCreator } from "zustand";

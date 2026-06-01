@@ -42,14 +42,14 @@ import { registerPluginToolDispatch } from "./pluginToolDispatch";
 // ---------------------------------------------------------------------------
 
 /**
- * Returns 403 + JSON-RPC 2.0 body for the demo edition gate (MCP-04).
+ * Returns 403 + JSON-RPC 2.0 body for the public edition gate (MCP-04).
  * Runs BEFORE auth so the demo-admin FK write path is never reached.
  */
 function demoBlockedResponse(): Response {
     return Response.json(
         {
             jsonrpc: "2.0",
-            error: { code: -32600, message: "MCP is not available in demo mode" },
+            error: { code: -32600, message: "MCP is not available" },
             id: null,
         },
         { status: 403 },
@@ -138,7 +138,7 @@ async function handleMcpRequest(request: Request): Promise<Response> {
 
     // ------------------------------------------------------------------
     // Gate 1: Edition check (D-17-05, MCP-04)
-    // Must run BEFORE authenticateApiKey so demo edition never reaches
+    // Must run BEFORE authenticateApiKey so the public edition never reaches
     // the auth/DB layer (avoids demo-admin FK write — Pitfall 5).
     // ------------------------------------------------------------------
     if (isDemo) {

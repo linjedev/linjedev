@@ -14,7 +14,7 @@ const MAX_NAME_LENGTH = 64;
 
 export async function GET(request: Request) {
     if (isDemo) {
-        return NextResponse.json({ error: "Not available in demo edition" }, { status: 403 });
+        return NextResponse.json({ error: "Not available" }, { status: 403 });
     }
 
     const limited = apiKeyManagementLimiter.check(getClientIp(request));
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     if (isDemo) {
-        return NextResponse.json({ error: "Not available in demo edition" }, { status: 403 });
+        return NextResponse.json({ error: "Not available" }, { status: 403 });
     }
 
     const limited = apiKeyManagementLimiter.check(getClientIp(request));

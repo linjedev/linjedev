@@ -70,7 +70,7 @@ async function loadDemoManifests(): Promise<PluginManifest[]> {
  * from the verified list are correctly flagged as unverified.
  */
 export async function GET(request: Request) {
-    // Demo mode must stay usable without a local database.
+    // Public hosted mode must stay usable without a local database.
     if (isDemo) {
         try {
             const manifests = await loadDemoManifests();

@@ -6,7 +6,7 @@
  *
  * Gate ordering:
  *   1. Rate limit (prevents abuse before any auth work)
- *   2. isDemo 403 (demo edition does not support MCP)
+ *   2. isDemo 403 (public hosted edition does not support MCP)
  *   3. Dual-auth: NextAuth session cookie PRIMARY, Bearer apiKey FALLBACK
  *   4. sessionId UUID guard
  *   5. Body shape + size validation
@@ -16,7 +16,7 @@
  *   - userId is read ONLY from the auth result -- never from the request body.
  *   - Catalog Redis key is scoped both {userId} and {sessionId}.
  *   - Payload size is capped before write; malformed shapes are rejected.
- *   - isDemo 403 gate runs BEFORE auth (avoids DB layer in demo mode).
+ *   - isDemo 403 gate runs BEFORE auth (avoids DB layer in public hosted mode).
  */
 
 import { NextResponse } from "next/server";
@@ -49,7 +49,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Gate 2: isDemo 403 (BEFORE auth)
     if (isDemo) {
         return NextResponse.json(
-            { error: "MCP catalog is not available in demo mode" },
+            { error: "MCP catalog is not available" },
             { status: 403 },
         );
     }

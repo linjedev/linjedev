@@ -45,7 +45,7 @@ export const isLocal: boolean = edition === "local";
 /** True when running as a managed cloud instance. */
 export const isCloud: boolean = edition === "cloud";
 
-/** True when running as the public demo instance. */
+/** True when running as the public hosted instance. */
 export const isDemo: boolean = edition === "demo";
 
 // ---------------------------------------------------------------------------
@@ -53,13 +53,13 @@ export const isDemo: boolean = edition === "demo";
 // ---------------------------------------------------------------------------
 
 /**
- * Server-side secret used as the admin password on the demo edition.
+ * Server-side secret used as the admin password on the public hosted edition.
  * Set `WWV_DEMO_ADMIN_SECRET` in `.env` — never use `NEXT_PUBLIC_`.
  * When configured on demo, enables plugin management for the instance.
  */
 const DEMO_ADMIN_SECRET: string | undefined = process.env.WWV_DEMO_ADMIN_SECRET?.trim() || undefined;
 
-/** True when demo edition has an admin secret configured. */
+/** True when the public hosted edition has an admin secret configured. */
 export const isDemoAdminConfigured: boolean = isDemo && !!DEMO_ADMIN_SECRET;
 
 // ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ export const isHistoryEnabled: boolean = !isDemo;
 
 /**
  * Returns the demo admin secret for use by the auth provider.
- * Only returns a value on demo edition when the secret is configured.
+ * Only returns a value on the public hosted edition when the secret is configured.
  */
 export function getDemoAdminSecret(): string | undefined {
     if (!isDemo) return undefined;

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 import "@/styles/hud-animations.css";
-import { LegalFooter } from "@/components/layout/LegalFooter";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -60,7 +59,6 @@ export default function RootLayout({
             strategy="afterInteractive"
           />
         )}
-        <LegalFooter />
       </body>
     </html>
   );

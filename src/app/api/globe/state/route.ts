@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     if (limited) return limited;
 
     if (isDemo) {
-        return NextResponse.json({ error: "Not available in demo edition" }, { status: 403 });
+        return NextResponse.json({ error: "Not available" }, { status: 403 });
     }
 
     // R-2: browser write path authenticates via NextAuth session cookie (primary),

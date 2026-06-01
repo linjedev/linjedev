@@ -2,7 +2,7 @@
 
 /**
  * @file DemoAdStrip.tsx
- * @description specialized sidebar for the demo edition that hosts AdSense
+ * @description specialized sidebar for the public hosted edition that serves ads
  * units and a small banner explaining the monetization model.
  * @module src/components/ads
  */
@@ -21,7 +21,7 @@ const BOTTOM_AD_SLOT = "6006554079";
 /** Width of the ad strip — must match the CSS value. */
 const AD_STRIP_WIDTH = 160;
 
-/** Toggle to temporarily disable ads in the demo edition. */
+/** Toggle to temporarily disable ads in the public hosted edition. */
 const ENABLE_ADS = false;
 
 /**

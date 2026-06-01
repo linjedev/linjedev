@@ -28,7 +28,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     const currentEdition = resolveEdition(process.env.NEXT_PUBLIC_WWV_EDITION);
     if (currentEdition === "demo") {
-        return NextResponse.json({ error: "Demo mode" }, { status: 403 });
+        return NextResponse.json({ error: "Not available" }, { status: 403 });
     }
 
     // R-2: NextAuth session PRIMARY, Bearer API key FALLBACK.

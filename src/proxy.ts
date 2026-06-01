@@ -35,7 +35,7 @@ async function resolveWorkspace(subdomain: string) {
  * - /setup, /login, /api/* → public
  * - Everything else → requires valid JWT session
  * - If no users exist → redirect to /setup
- * - Demo edition → everything is public (no login required)
+ * - Public hosted edition -> everything is public (no login required)
  */
 export default async function proxy(req: NextRequest) {
     const path = req.nextUrl.pathname;
@@ -55,7 +55,7 @@ export default async function proxy(req: NextRequest) {
         }
     }
 
-    // Demo edition: fully public, no auth required
+    // Public hosted edition: fully public, no auth required
     if (isDemo) {
         const res = NextResponse.next();
         if (tenantSubdomain) res.headers.set("x-tenant-subdomain", tenantSubdomain);

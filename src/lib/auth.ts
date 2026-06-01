@@ -80,7 +80,7 @@ const localCredentialsProvider = Credentials({
 
         if (!email || !password) return null;
 
-        // Demo edition: virtual admin login (no DB user required)
+        // Public hosted edition: virtual admin login (no DB user required)
         const adminSecret = getDemoAdminSecret();
         const secretMatch = adminSecret
             && password.length === adminSecret.length

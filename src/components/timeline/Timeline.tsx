@@ -80,16 +80,7 @@ export function Timeline() {
                 ) : (
                   <div className="timeline__history-unavailable">
                     <span className="timeline__history-unavailable-icon">🔒</span>
-                    History unavailable on demo —
-                    {" "}
-                    <a
-                      href="https://linje.dev"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="timeline__history-unavailable-link"
-                    >
-                      use your own instance
-                    </a>
+                    History controls unavailable
                   </div>
                 )}
         </div>

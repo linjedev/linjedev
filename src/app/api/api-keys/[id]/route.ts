@@ -14,7 +14,7 @@ export async function DELETE(
 ) {
     const { id } = await params;
     if (isDemo) {
-        return NextResponse.json({ error: "Not available in demo edition" }, { status: 403 });
+        return NextResponse.json({ error: "Not available" }, { status: 403 });
     }
 
     const limited = apiKeyManagementLimiter.check(getClientIp(request));

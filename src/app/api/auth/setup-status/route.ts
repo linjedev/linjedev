@@ -10,7 +10,7 @@ export async function OPTIONS(request: Request) {
 
 export async function GET(request: Request) {
     try {
-        // Demo edition skips the DB query — it's pre-configured, no setup needed.
+        // Public hosted edition skips the DB query; it's pre-configured, no setup needed.
         const needsSetup = isDemo ? false : (await prisma.user.count()) === 0;
         const res = NextResponse.json({
             needsSetup,

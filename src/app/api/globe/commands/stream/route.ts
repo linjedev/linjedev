@@ -12,7 +12,7 @@
  *
  * Gate order (MUST NOT be reordered):
  *   1. Rate limiter (DoS defense before any IO)
- *   2. Demo edition guard (pre-auth, no DB hit on demo)
+ *   2. Public edition guard (pre-auth, no DB hit)
  *   3. Dual-auth (session or API key)
  *   4. UUID sessionId guard (scopes the Redis queue key)
  */
@@ -45,10 +45,10 @@ export async function GET(request: Request): Promise<Response> {
     const limited = globeCommandsStreamLimiter.check(getClientIp(request));
     if (limited) return limited as Response;
 
-    // Gate 2: demo edition -- read env at request time so vi.stubEnv works in tests
+    // Gate 2: public edition -- read env at request time so vi.stubEnv works in tests
     const currentEdition = resolveEdition(process.env.NEXT_PUBLIC_WWV_EDITION);
     if (currentEdition === "demo") {
-        return NextResponse.json({ error: "Demo mode" }, { status: 403 }) as Response;
+        return NextResponse.json({ error: "Not available" }, { status: 403 }) as Response;
     }
 
     // Gate 3: dual-auth -- session primary, Bearer API key fallback

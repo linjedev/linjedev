@@ -22,7 +22,7 @@ export const authConfig: NextAuthConfig = {
             // Setup/login pages: always accessible
             if (isSetup || isLogin) return true;
 
-            // Demo edition: all pages accessible (no login required)
+            // Public hosted edition: all pages accessible (no login required)
             if (isDemo) return true;
 
             // Everything else requires login

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const rateLimited = marketplaceApiLimiter.check(getClientIp(request));
     if (rateLimited) return withCors(rateLimited, request);
 
-    // In demo mode, the plugin list is public (read-only for non-admins)
+    // In public hosted mode, the plugin list is public (read-only for non-admins)
     // For local/cloud, we continue to enforce authentication
 
     if (!isDemo) {

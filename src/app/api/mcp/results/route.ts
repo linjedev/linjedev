@@ -35,7 +35,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (limited) return limited as NextResponse;
 
     if (isDemo) {
-        return NextResponse.json({ error: "MCP is not available in demo mode" }, { status: 403 });
+        return NextResponse.json({ error: "MCP is not available" }, { status: 403 });
     }
 
     // Dual-auth: NextAuth session PRIMARY, Bearer API key FALLBACK.

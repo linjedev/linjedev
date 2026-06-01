@@ -7,7 +7,7 @@ import { resolveEdition } from "@/core/edition";
 export async function GET(request: NextRequest) {
     const currentEdition = resolveEdition(process.env.NEXT_PUBLIC_WWV_EDITION);
     if (currentEdition === "demo") {
-        return NextResponse.json({ error: "Demo mode" }, { status: 403 });
+        return NextResponse.json({ error: "Not available" }, { status: 403 });
     }
 
     // Dual-auth: NextAuth session cookie PRIMARY, Bearer API key FALLBACK.

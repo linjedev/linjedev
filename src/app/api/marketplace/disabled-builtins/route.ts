@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const rateLimited = marketplaceApiLimiter.check(getClientIp(request));
     if (rateLimited) return withCors(rateLimited, request);
 
-    // Demo mode should run without a database; built-ins remain enabled.
+    // Public hosted mode should run without a database; built-ins remain enabled.
     if (isDemo) {
         return withCors(
             NextResponse.json({ disabledIds: [] }),

@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
             }
             if (isDemo && !isDemoAdmin(session)) {
                 return NextResponse.json(
-                    { error: "Admin access required on Demo edition" },
+                    { error: "Admin access required" },
                     { status: 403 }
                 );
             }

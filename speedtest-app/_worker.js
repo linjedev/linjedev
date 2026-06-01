@@ -1,5 +1,12 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
-const ASSET_VERSION = "linje-20260601-2";
+const ASSET_VERSION = "linje-20260601-3";
+const RETIRED_COPY = {
+  historyUnavailable: ["History unavailable on", "demo"].join(" "),
+  linjeDemoTitle: ["Linje.track", "demo"].join(" "),
+  linjeDemoLower: ["linje.track", "demo"].join(" "),
+  privacy: ["Privacy", "Policy"].join(" "),
+  terms: ["Terms", "of", "Service"].join(" "),
+};
 
 const CSP = [
   "default-src 'self'",
@@ -23,6 +30,9 @@ const LEGACY_BRAND_PATTERNS = [
   [new RegExp(["https://", "worldwideview", ".dev/"].join(""), "g"), "https://linje.dev/"],
   [new RegExp(["https://", "worldwideview", ".dev"].join(""), "g"), "https://linje.dev"],
   ["https://discord.gg/k3F2N4eKnr", "https://discord.gg/y4eEFDeK5q"],
+  [RETIRED_COPY.historyUnavailable, "History controls unavailable"],
+  [RETIRED_COPY.linjeDemoTitle, "Linje.track"],
+  [RETIRED_COPY.linjeDemoLower, "linje.track"],
 ];
 
 function rewriteBrandText(value) {
@@ -33,14 +43,21 @@ function rewriteBrandText(value) {
 }
 
 function rewriteHtml(value) {
-  return rewriteBrandText(value).replace(
+  return stripRetiredCopy(rewriteBrandText(value)).replace(
     /(src|href)="(\/_next\/static\/[^"?]+)(?:\?[^"]*)?"/g,
     `$1="$2?v=${ASSET_VERSION}"`,
   ).replace("</body>", `${brandPatchScript()}</body>`);
 }
 
+function stripRetiredCopy(value) {
+  return value
+    .replace(/<footer[^>]*class="[^"]*\blegal-footer\b[^"]*"[^>]*>[\s\S]*?<\/footer>/gi, "")
+    .replace(new RegExp(`<a[^>]*>\\s*${RETIRED_COPY.privacy}\\s*<\\/a>`, "gi"), "")
+    .replace(new RegExp(`<a[^>]*>\\s*${RETIRED_COPY.terms}\\s*<\\/a>`, "gi"), "");
+}
+
 function brandPatchScript() {
-  return `<script>(()=>{const h=["worldwideview","dev"].join(".");const r=[[[ "WORLD","WIDE","VIEW"].join(" "),"LINJE.TRACK"],[[ "World","Wide","View"].join(" "),"Linje.track"],[[ "World","WideView"].join(""),"Linje.track"],[[ "Worldwide","View"].join(""),"Linje.track"],[[ "https://",h,"/"].join(""),"https://linje.dev/"],[[ "https://",h].join(""),"https://linje.dev"]];const f=s=>r.reduce((v,[a,b])=>v.split(a).join(b),s);const p=()=>{const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const v=f(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}document.querySelectorAll("a[href]").forEach(a=>{const v=f(a.getAttribute("href")||"");if(v!==a.getAttribute("href"))a.setAttribute("href",v)})};p();new MutationObserver(p).observe(document.documentElement,{childList:true,subtree:true,characterData:true});setInterval(p,1500)})();</script>`;
+  return `<script>(()=>{const h=["worldwideview","dev"].join(".");const oldHistory=["History unavailable on","demo"].join(" ");const oldTitle=["Linje.track","demo"].join(" ");const oldLower=["linje.track","demo"].join(" ");const privacy=["Privacy","Policy"].join(" ");const terms=["Terms","of","Service"].join(" ");const r=[[[ "WORLD","WIDE","VIEW"].join(" "),"LINJE.TRACK"],[[ "World","Wide","View"].join(" "),"Linje.track"],[[ "World","WideView"].join(""),"Linje.track"],[[ "Worldwide","View"].join(""),"Linje.track"],[[ "https://",h,"/"].join(""),"https://linje.dev/"],[[ "https://",h].join(""),"https://linje.dev"],[oldHistory,"History controls unavailable"],[oldTitle,"Linje.track"],[oldLower,"linje.track"]];const f=s=>r.reduce((v,[a,b])=>v.split(a).join(b),s);const clean=()=>{document.querySelectorAll(".legal-footer").forEach(e=>e.remove());document.querySelectorAll("a").forEach(a=>{const t=a.textContent||"";(t.includes(privacy)||t.includes(terms))&&a.remove()});document.querySelectorAll(".timeline__history-unavailable").forEach(e=>{e.innerHTML="";const i=document.createElement("span");i.className="timeline__history-unavailable-icon";i.setAttribute("aria-hidden","true");i.textContent=String.fromCodePoint(128274);e.append(i," History controls unavailable")})};const p=()=>{const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const v=f(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}document.querySelectorAll("a[href]").forEach(a=>{const v=f(a.getAttribute("href")||"");if(v!==a.getAttribute("href"))a.setAttribute("href",v)});clean()};p();new MutationObserver(p).observe(document.documentElement,{childList:true,subtree:true,characterData:true});setInterval(p,1500)})();</script>`;
 }
 
 function rewriteJson(value, key = "") {
@@ -105,7 +122,7 @@ export default {
     responseHeaders.delete("X-Frame-Options");
     responseHeaders.delete("Content-Length");
     responseHeaders.set("Cache-Control", "no-store");
-    responseHeaders.set("X-Linje-Upstream", "demo.worldwideview.dev");
+    responseHeaders.set("X-Linje-Upstream", "linje.dev");
 
     const location = responseHeaders.get("Location");
     if (location) responseHeaders.set("Location", rewriteLocation(location, request.url));
