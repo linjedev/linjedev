@@ -1,5 +1,5 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
-const ASSET_VERSION = "linje-20260601-1";
+const ASSET_VERSION = "linje-20260601-2";
 
 const CSP = [
   "default-src 'self'",
