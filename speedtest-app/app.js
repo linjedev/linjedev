@@ -978,7 +978,7 @@ async function enterPublicWorldWatch() {
   renderWorldWatchPublicShell();
   window.scrollTo({ top: 0 });
   animateView(els.worldWatchView);
-  await initWorldGlobe();
+  await initWorldGlobe().catch(() => renderWorldFallbackGlobe());
   updateWorldGlobeData(normalizeWorldFeed({
     status: "Log in and request World Watch access to load live signals."
   }));
@@ -2260,7 +2260,12 @@ function renderWorldWatchAccess(access = {}) {
   }
 
   button.textContent = "Register";
-  initWorldGlobe().then(() => loadWorldNews(!state.worldNewsLoaded));
+  initWorldGlobe()
+    .then(() => loadWorldNews(!state.worldNewsLoaded))
+    .catch(() => {
+      renderWorldFallbackGlobe();
+      loadWorldNews(!state.worldNewsLoaded);
+    });
 }
 
 async function loadWorldNews(force = false) {
@@ -2360,6 +2365,7 @@ function renderWorldNews(data) {
 
 async function initWorldGlobe() {
   if (state.worldNewsGlobe || !els.worldGlobeCanvas) return;
+  els.worldGlobeCanvas.querySelector(".world-fallback-globe")?.remove();
   await waitForCesium();
   const config = await loadWorldMapConfig();
   window.CESIUM_BASE_URL = config.cesiumBaseUrl || "/cesium/";
@@ -2410,6 +2416,20 @@ async function initWorldGlobe() {
     focus: null,
     viewer
   };
+}
+
+function renderWorldFallbackGlobe() {
+  if (!els.worldGlobeCanvas || els.worldGlobeCanvas.querySelector(".world-fallback-globe")) return;
+  const fallback = document.createElement("div");
+  fallback.className = "world-fallback-globe";
+  fallback.innerHTML = `
+    <div class="world-fallback-sphere" aria-hidden="true">
+      <span></span>
+      <i></i>
+    </div>
+    <div class="world-fallback-grid" aria-hidden="true"></div>
+  `;
+  els.worldGlobeCanvas.prepend(fallback);
 }
 
 function waitForCesium() {
