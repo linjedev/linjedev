@@ -1,5 +1,5 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
-const ASSET_VERSION = "linje-20260601-9";
+const ASSET_VERSION = "linje-20260601-10";
 const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhM2E0MjQwYy0wNTU3LTQzODMtOGVmZi01YzExMTM1ZTVmYzciLCJpZCI6NDM4NzYwLCJzdWIiOiJzZWJ3aW5maWVsZCIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJMaW5qZS5kZXYiLCJpYXQiOjE3ODAyNzc5MzR9.BfH1rVscC0WBp12NorM8_TQuZY_gDaVafB3a0Eh33fA";
 const RETIRED_COPY = {
@@ -23,8 +23,10 @@ const CSP = [
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
 ].join("; ");
+const BACKGROUND_CSP = CSP.replace("frame-ancestors 'none'", "frame-ancestors 'self'");
 
 const PUBLIC_PATH_PREFIXES = [
+  "/auth-background",
   "/login",
   "/register",
   "/api/auth",
@@ -58,7 +60,11 @@ function isPublicPath(pathname) {
 }
 
 function authStyles() {
-  return `<style>:root{color-scheme:dark;--bg:#050506;--glass:rgba(8,8,10,.42);--glass2:rgba(24,24,27,.72);--border:rgba(255,255,255,.14);--text:#f4f4f5;--muted:#a1a1aa;--amber:#f59e0b}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#050506;color:var(--text);font-family:Inter,Arial,sans-serif;padding:16px;overflow:hidden}body:before{content:"";position:fixed;inset:-12%;background-image:radial-gradient(circle at 50% 52%,rgba(255,255,255,.22),transparent .45rem),radial-gradient(circle at 50% 52%,transparent 3rem,rgba(255,255,255,.16) 3.05rem,transparent 3.12rem),radial-gradient(circle at 50% 52%,transparent 4.75rem,rgba(37,99,235,.2) 4.8rem,transparent 4.88rem),radial-gradient(circle at 50% 52%,transparent 6.5rem,rgba(255,255,255,.15) 6.56rem,transparent 6.64rem),linear-gradient(rgba(255,255,255,.026) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.026) 1px,transparent 1px);background-size:54px 54px;background-position:center;mask-image:linear-gradient(to bottom,rgba(0,0,0,.92),transparent 86%);pointer-events:none;animation:authFieldDrift 16s linear infinite}body:after{content:"";position:fixed;inset:0;background:radial-gradient(circle at 50% 52%,rgba(255,255,255,.14),transparent .8rem),radial-gradient(circle at 50% 52%,rgba(255,255,255,.09),transparent 7rem),linear-gradient(to top,rgba(0,0,0,.76),transparent 55%);pointer-events:none;animation:authPulse 3s ease-in-out infinite}.card{position:relative;z-index:1;width:min(460px,100%);background:linear-gradient(145deg,rgba(12,12,14,.48),rgba(6,6,8,.32));border:1px solid var(--border);border-radius:16px;box-shadow:inset 0 1px 1px rgba(255,255,255,.18),inset 0 -1px 16px rgba(255,255,255,.04),0 24px 80px rgba(0,0,0,.58);backdrop-filter:blur(34px) saturate(1.25);-webkit-backdrop-filter:blur(34px) saturate(1.25);padding:24px;text-align:center}.mark{width:42px;height:42px;margin:0 auto 16px;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);font-weight:800}.title{margin:0 0 4px;font-size:22px;letter-spacing:0}.sub{margin:0 0 24px;color:var(--muted);font-size:13px}.form{display:grid;gap:12px;text-align:left}.label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.input{width:100%;min-height:40px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.045);color:var(--text);font:14px Inter,Arial,sans-serif;outline:0}.input:focus{border-color:rgba(255,255,255,.55);background:var(--glass2);box-shadow:0 0 0 1px rgba(255,255,255,.18)}.button{min-height:40px;padding:11px 14px;border:1px solid rgba(255,255,255,.38);border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font-weight:800;text-decoration:none;text-align:center;cursor:pointer}.button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.55)}.ghost{background:rgba(255,255,255,.06);border-color:var(--border)}.footer{margin:18px 0 0;color:var(--muted);font-size:13px}.link{color:#fff;font-weight:800;text-decoration:none}.captcha{display:grid;grid-template-columns:1fr 40px;gap:10px;align-items:end}.question{width:max-content;padding:3px 7px;border:1px solid rgba(245,158,11,.28);border-radius:6px;background:rgba(245,158,11,.08);color:var(--amber);font-family:monospace;font-size:12px;letter-spacing:0;text-transform:none}.icon{height:40px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;cursor:pointer}.msg{margin:0;color:#22c55e;font-size:13px}.err{margin:0;color:#ef4444;font-size:13px}@keyframes authFieldDrift{to{transform:rotate(360deg) scale(1.02)}}@keyframes authPulse{0%,100%{opacity:.82}50%{opacity:1}}</style>`;
+  return `<style>:root{color-scheme:dark;--bg:#050506;--glass:rgba(8,8,10,.42);--glass2:rgba(24,24,27,.72);--border:rgba(255,255,255,.14);--text:#f4f4f5;--muted:#a1a1aa;--amber:#f59e0b}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#050506;color:var(--text);font-family:Inter,Arial,sans-serif;padding:16px;overflow:hidden}.auth-globe-frame{position:fixed;inset:0;width:100%;height:100%;border:0;z-index:0;opacity:.82;filter:brightness(.48) saturate(.95) blur(1.2px);transform:scale(1.025);transform-origin:center;pointer-events:none;background:#050506}body:before{content:"";position:fixed;inset:0;z-index:1;background-image:linear-gradient(rgba(255,255,255,.026) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.026) 1px,transparent 1px);background-size:54px 54px;background-position:center;mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 88%);pointer-events:none}body:after{content:"";position:fixed;inset:0;z-index:1;background:radial-gradient(circle at 50% 48%,transparent 0,rgba(0,0,0,.22) 35%,rgba(0,0,0,.78) 100%),linear-gradient(to top,rgba(0,0,0,.82),transparent 58%);pointer-events:none}.card{position:relative;z-index:2;width:min(460px,100%);background:linear-gradient(145deg,rgba(12,12,14,.42),rgba(6,6,8,.24));border:1px solid var(--border);border-radius:16px;box-shadow:inset 0 1px 1px rgba(255,255,255,.2),inset 0 -1px 16px rgba(255,255,255,.05),0 24px 80px rgba(0,0,0,.58);backdrop-filter:blur(34px) saturate(1.35);-webkit-backdrop-filter:blur(34px) saturate(1.35);padding:24px;text-align:center}.mark{width:42px;height:42px;margin:0 auto 16px;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);font-weight:800}.title{margin:0 0 4px;font-size:22px;letter-spacing:0}.sub{margin:0 0 24px;color:var(--muted);font-size:13px}.form{display:grid;gap:12px;text-align:left}.label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.input{width:100%;min-height:40px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.045);color:var(--text);font:14px Inter,Arial,sans-serif;outline:0}.input:focus{border-color:rgba(255,255,255,.55);background:var(--glass2);box-shadow:0 0 0 1px rgba(255,255,255,.18)}.button{min-height:40px;padding:11px 14px;border:1px solid rgba(255,255,255,.38);border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font-weight:800;text-decoration:none;text-align:center;cursor:pointer}.button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.55)}.ghost{background:rgba(255,255,255,.06);border-color:var(--border)}.footer{margin:18px 0 0;color:var(--muted);font-size:13px}.link{color:#fff;font-weight:800;text-decoration:none}.captcha{display:grid;grid-template-columns:1fr 40px;gap:10px;align-items:end}.question{width:max-content;padding:3px 7px;border:1px solid rgba(245,158,11,.28);border-radius:6px;background:rgba(245,158,11,.08);color:var(--amber);font-family:monospace;font-size:12px;letter-spacing:0;text-transform:none}.icon{height:40px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;cursor:pointer}.msg{margin:0;color:#22c55e;font-size:13px}.err{margin:0;color:#ef4444;font-size:13px}</style>`;
+}
+
+function authGlobeFrame() {
+  return `<iframe class="auth-globe-frame" src="/auth-background" aria-hidden="true" tabindex="-1"></iframe>`;
 }
 
 function loginStylePatch() {
@@ -74,7 +80,7 @@ function restyleLoginHtml(value) {
 }
 
 function accessGateHtml() {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linje.track Access</title>${authStyles()}</head><body><main class="card"><div class="mark">L</div><h1 class="title">Linje.track</h1><p class="sub">Access is restricted to approved users.</p><div class="form"><a class="button" href="/login">Sign In</a><a class="button ghost" href="/register">Request Access</a></div></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linje.track Access</title>${authStyles()}</head><body>${authGlobeFrame()}<main class="card"><div class="mark">L</div><h1 class="title">Linje.track</h1><p class="sub">Access is restricted to approved users.</p><div class="form"><a class="button" href="/login">Sign In</a><a class="button ghost" href="/register">Request Access</a></div></main></body></html>`;
 }
 
 function toBase64Url(buffer) {
@@ -156,7 +162,7 @@ async function verifyEdgeSession(token) {
 }
 
 function loginHtml({ error = "" } = {}) {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in to Linje.track</title>${authStyles()}</head><body><main class="card"><div class="mark">L</div><h1 class="title">Sign in to Linje.track</h1><p class="sub">Approved users can enter the workspace.</p><form class="form" method="post" action="/login"><label class="label">Username<input class="input" name="username" required autocomplete="username" autocapitalize="none" spellcheck="false"></label><label class="label">Password<input class="input" name="password" type="password" required autocomplete="current-password"></label>${error ? `<p class="err">${error}</p>` : ""}<button class="button" type="submit">Sign In</button></form><p class="footer">Need access? <a class="link" href="/register">Request approval</a></p></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in to Linje.track</title>${authStyles()}</head><body>${authGlobeFrame()}<main class="card"><div class="mark">L</div><h1 class="title">Sign in to Linje.track</h1><p class="sub">Approved users can enter the workspace.</p><form class="form" method="post" action="/login"><label class="label">Username<input class="input" name="username" required autocomplete="username" autocapitalize="none" spellcheck="false"></label><label class="label">Password<input class="input" name="password" type="password" required autocomplete="current-password"></label>${error ? `<p class="err">${error}</p>` : ""}<button class="button" type="submit">Sign In</button></form><p class="footer">Need access? <a class="link" href="/register">Request approval</a></p></main></body></html>`;
 }
 
 function loginRedirectResponse(username, requestUrl) {
@@ -173,7 +179,7 @@ function loginRedirectResponse(username, requestUrl) {
 
 async function registerHtml({ error = "", success = "" } = {}) {
   const captcha = await createCaptcha();
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Request Linje.track Access</title>${authStyles()}</head><body><main class="card"><div class="mark">L</div><h1 class="title">Request Linje.track access</h1><p class="sub">Approved users can enter the live tracking workspace.</p><form class="form" method="post" action="/register"><label class="label">Display Name<input class="input" name="name" required autocomplete="name"></label><label class="label">Email<input class="input" name="email" type="email" required autocomplete="email"></label><label class="label">Password<input class="input" name="password" type="password" required minlength="8" autocomplete="new-password"></label><label class="label">Confirm Password<input class="input" name="confirm" type="password" required minlength="8" autocomplete="new-password"></label><div class="captcha"><label class="label">Captcha<span class="question">${captcha.question}</span><input class="input" name="captchaAnswer" required inputmode="numeric" pattern="[0-9]*"></label><a class="icon" href="/register" title="Refresh captcha" aria-label="Refresh captcha" style="display:grid;place-items:center;text-decoration:none">↻</a></div><input type="hidden" name="captchaToken" value="${captcha.token}">${error ? `<p class="err">${error}</p>` : ""}${success ? `<p class="msg">${success}</p>` : ""}<button class="button" type="submit">Request Access</button></form><p class="footer">Already approved? <a class="link" href="/login">Sign in</a></p></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Request Linje.track Access</title>${authStyles()}</head><body>${authGlobeFrame()}<main class="card"><div class="mark">L</div><h1 class="title">Request Linje.track access</h1><p class="sub">Approved users can enter the live tracking workspace.</p><form class="form" method="post" action="/register"><label class="label">Display Name<input class="input" name="name" required autocomplete="name"></label><label class="label">Email<input class="input" name="email" type="email" required autocomplete="email"></label><label class="label">Password<input class="input" name="password" type="password" required minlength="8" autocomplete="new-password"></label><label class="label">Confirm Password<input class="input" name="confirm" type="password" required minlength="8" autocomplete="new-password"></label><div class="captcha"><label class="label">Captcha<span class="question">${captcha.question}</span><input class="input" name="captchaAnswer" required inputmode="numeric" pattern="[0-9]*"></label><a class="icon" href="/register" title="Refresh captcha" aria-label="Refresh captcha" style="display:grid;place-items:center;text-decoration:none">↻</a></div><input type="hidden" name="captchaToken" value="${captcha.token}">${error ? `<p class="err">${error}</p>` : ""}${success ? `<p class="msg">${success}</p>` : ""}<button class="button" type="submit">Request Access</button></form><p class="footer">Already approved? <a class="link" href="/login">Sign in</a></p></main></body></html>`;
 }
 
 function htmlResponse(body, status = 200, upstream = "access-gate") {
@@ -220,7 +226,7 @@ function rewriteHtml(value, pathname = "") {
   ).replace(
     /(src|href)="(\/_next\/static\/[^"?]+)(?:\?[^"]*)?"/g,
     `$1="$2?v=${ASSET_VERSION}"`,
-  ).replace("</body>", `${brandPatchScript()}</body>`);
+  ).replace("</body>", `${pathname === "/auth-background" ? authBackgroundPatch() : ""}${brandPatchScript()}</body>`);
 }
 
 function googleMapsKeyScript() {
@@ -236,7 +242,11 @@ function stripRetiredCopy(value) {
 }
 
 function brandPatchScript() {
-  return `<script>(()=>{const h=["worldwideview","dev"].join(".");const oldHistory=["History unavailable on","demo"].join(" ");const oldTitle=["Linje.track","demo"].join(" ");const oldLower=["linje.track","demo"].join(" ");const privacy=["Privacy","Policy"].join(" ");const terms=["Terms","of","Service"].join(" ");const apiTitle=["API","Keys"].join(" ");const r=[[[ "WORLD","WIDE","VIEW"].join(" "),"LINJE.TRACK"],[[ "World","Wide","View"].join(" "),"Linje.track"],[[ "World","WideView"].join(""),"Linje.track"],[[ "Worldwide","View"].join(""),"Linje.track"],[[ "https://",h,"/"].join(""),"https://linje.dev/"],[[ "https://",h].join(""),"https://linje.dev"],[oldHistory,"History controls unavailable"],[oldTitle,"Linje.track"],[oldLower,"linje.track"]];const f=s=>r.reduce((v,[a,b])=>v.split(a).join(b),s);const clean=()=>{document.querySelectorAll(".legal-footer").forEach(e=>e.remove());document.querySelectorAll("button[title]").forEach(b=>{b.getAttribute("title")===apiTitle&&b.remove()});document.querySelectorAll("a").forEach(a=>{const t=a.textContent||"";(t.includes(privacy)||t.includes(terms))&&a.remove()});document.querySelectorAll(".timeline__history-unavailable").forEach(e=>{e.innerHTML="";const i=document.createElement("span");i.className="timeline__history-unavailable-icon";i.setAttribute("aria-hidden","true");i.textContent=String.fromCodePoint(128274);e.append(i," History controls unavailable")})};const p=()=>{const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const v=f(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}document.querySelectorAll("a[href]").forEach(a=>{const v=f(a.getAttribute("href")||"");if(v!==a.getAttribute("href"))a.setAttribute("href",v)});clean()};p();new MutationObserver(p).observe(document.documentElement,{childList:true,subtree:true,characterData:true});setInterval(p,1500)})();</script>`;
+  return `<script>(()=>{const h=["worldwideview","dev"].join(".");const oldHistory=["History unavailable on","demo"].join(" ");const oldTitle=["Linje.track","demo"].join(" ");const oldLower=["linje.track","demo"].join(" ");const privacy=["Privacy","Policy"].join(" ");const terms=["Terms","of","Service"].join(" ");const apiTitle=["API","Keys"].join(" ");const r=[[[ "WORLD","WIDE","VIEW"].join(" "),"LINJE.TRACK"],[[ "World","Wide","View"].join(" "),"Linje.track"],[[ "World","WideView"].join(""),"Linje.track"],[[ "Worldwide","View"].join(""),"Linje.track"],[[ "https://",h,"/"].join(""),"https://linje.dev/"],[[ "https://",h].join(""),"https://linje.dev"],[oldHistory,"History controls unavailable"],[oldTitle,"Linje.track"],[oldLower,"linje.track"]];const f=s=>r.reduce((v,[a,b])=>v.split(a).join(b),s);const admin=()=>{if(document.getElementById("linje-admin-link-style")){}else{const s=document.createElement("style");s.id="linje-admin-link-style";s.textContent=".administrator-link{display:block;width:max-content;margin:6px auto 0;padding:2px 8px;border-radius:999px;color:rgba(255,255,255,.58);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;pointer-events:auto}.administrator-link:hover{color:#fff;background:rgba(255,255,255,.08)}";document.head.appendChild(s)}const dock=document.querySelector(".bottom-panel-system");if(dock&&!dock.querySelector(".administrator-link")){const a=document.createElement("a");a.className="administrator-link";a.href="/admin";a.textContent="Administrator";dock.appendChild(a)}};const clean=()=>{document.querySelectorAll(".legal-footer").forEach(e=>e.remove());document.querySelectorAll("button[title]").forEach(b=>{b.getAttribute("title")===apiTitle&&b.remove()});document.querySelectorAll("a").forEach(a=>{const t=a.textContent||"";(t.includes(privacy)||t.includes(terms))&&a.remove()});document.querySelectorAll(".timeline__history-unavailable").forEach(e=>{e.innerHTML="";const i=document.createElement("span");i.className="timeline__history-unavailable-icon";i.setAttribute("aria-hidden","true");i.textContent=String.fromCodePoint(128274);e.append(i," History controls unavailable")});admin()};const p=()=>{const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const v=f(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}document.querySelectorAll("a[href]").forEach(a=>{const v=f(a.getAttribute("href")||"");if(v!==a.getAttribute("href"))a.setAttribute("href",v)});clean()};p();new MutationObserver(p).observe(document.documentElement,{childList:true,subtree:true,characterData:true});setInterval(p,1500)})();</script>`;
+}
+
+function authBackgroundPatch() {
+  return `<style id="linje-auth-background-style">html,body,#__next{width:100%!important;height:100%!important;margin:0!important;overflow:hidden!important;background:#050506!important}.legal-footer,.top-bar,.sidebar,.side-panel,.hud-panel,.hud-controls,.bottom-panel-system,.panel-toggle-btn,.camera-stats,.entity-info-card,.floating-video-manager,[class*="Toolbar"],[class*="Panel"],[class*="Modal"]{display:none!important}.app-shell,.app-shell__globe,.cesium-viewer,.cesium-widget,.cesium-widget canvas{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important}.cesium-viewer-bottom,.cesium-viewer-toolbar{display:none!important}</style><script>try{document.documentElement.dataset.authBackground="true";localStorage.setItem("wwv_map_layer","google-3d")}catch(e){}</script>`;
 }
 
 function rewriteJson(value, key = "") {
@@ -275,9 +285,45 @@ function rewriteLocation(location, requestUrl) {
     .replaceAll(upstream.hostname, current.hostname);
 }
 
+function upstreamRequestHeaders(request, requestUrl) {
+  const headers = new Headers(request.headers);
+  headers.set("X-Forwarded-Host", requestUrl.host);
+  headers.set("X-Forwarded-Proto", requestUrl.protocol.replace(":", ""));
+  headers.delete("cf-connecting-ip");
+  headers.delete("cf-ipcountry");
+  headers.delete("cf-ray");
+  headers.delete("cf-visitor");
+  return headers;
+}
+
+async function authBackgroundResponse(request) {
+  const requestUrl = new URL(request.url);
+  const upstreamResponse = await fetch(new URL("/", UPSTREAM_ORIGIN), {
+    method: "GET",
+    headers: upstreamRequestHeaders(request, requestUrl),
+    redirect: "manual",
+  });
+  const responseHeaders = new Headers(upstreamResponse.headers);
+  responseHeaders.set("Content-Security-Policy", BACKGROUND_CSP);
+  responseHeaders.delete("X-Frame-Options");
+  responseHeaders.delete("Content-Length");
+  responseHeaders.set("Cache-Control", "no-store");
+  responseHeaders.set("X-Linje-Upstream", "auth-background");
+  const body = await upstreamResponse.text();
+  return new Response(rewriteHtml(body, "/auth-background"), {
+    status: upstreamResponse.status,
+    statusText: upstreamResponse.statusText,
+    headers: responseHeaders,
+  });
+}
+
 export default {
   async fetch(request) {
     const requestUrl = new URL(request.url);
+    if (requestUrl.pathname === "/auth-background") {
+      return authBackgroundResponse(request);
+    }
+
     if (requestUrl.pathname === "/login") {
       if (request.method.toUpperCase() === "POST") {
         const form = await request.formData();
@@ -324,14 +370,7 @@ export default {
     }
 
     const upstreamUrl = new URL(requestUrl.pathname + requestUrl.search, UPSTREAM_ORIGIN);
-    const headers = new Headers(request.headers);
-
-    headers.set("X-Forwarded-Host", requestUrl.host);
-    headers.set("X-Forwarded-Proto", requestUrl.protocol.replace(":", ""));
-    headers.delete("cf-connecting-ip");
-    headers.delete("cf-ipcountry");
-    headers.delete("cf-ray");
-    headers.delete("cf-visitor");
+    const headers = upstreamRequestHeaders(request, requestUrl);
 
     const method = request.method.toUpperCase();
     const upstreamResponse = await fetch(upstreamUrl, {
