@@ -38,6 +38,7 @@ Linje.dev uses Cloudflare Pages Functions and a D1 database binding named `DB`.
    - `migrations/0003_secure_messages.sql`
    - `migrations/0004_app_config.sql`
    - `migrations/0005_world_news.sql`
+   - `migrations/0006_world_news_access.sql`
 4. Open **Workers & Pages > Pages > icelandtrip-travelnformation > Settings > Functions > D1 database bindings**.
 5. Add a binding:
    - Variable name: `DB`

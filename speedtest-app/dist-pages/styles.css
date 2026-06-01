@@ -1121,6 +1121,12 @@ body[data-auth="authenticated"]::after {
   background: rgba(9, 9, 9, .42);
 }
 
+.admin-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .secure-admin-card strong,
 .secure-admin-card small,
 .secure-admin-event strong,
@@ -1137,7 +1143,8 @@ body[data-auth="authenticated"]::after {
   overflow-wrap: anywhere;
 }
 
-.secure-admin-card.revoked {
+.secure-admin-card.revoked,
+.secure-admin-card.denied {
   opacity: .58;
 }
 

@@ -1,7 +1,5 @@
-import { getSessionUser, hasDatabase, json, verifyPassword } from "../../_auth.js";
+import { getSessionUser, hasDatabase, isAdminUser, json } from "../../_auth.js";
 
-const UNLOCK_COOKIE = "linje_world_news";
-const UNLOCK_TTL_SECONDS = 2 * 60 * 60;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const SOURCE_LOCATIONS = {
@@ -26,18 +24,32 @@ const SOURCE_LOCATIONS = {
 
 export async function ensureWorldNewsTables(env) {
   await env.DB.prepare(
-    `CREATE TABLE IF NOT EXISTS world_news_unlocks (
-      token TEXT PRIMARY KEY,
+    `CREATE TABLE IF NOT EXISTS world_news_requests (
       user_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      expires_at INTEGER NOT NULL
+      username TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL,
+      requested_at TEXT NOT NULL,
+      reviewed_by TEXT DEFAULT '',
+      reviewed_at TEXT DEFAULT '',
+      PRIMARY KEY (user_id)
     )`
   ).run();
   await env.DB.prepare(
-    "CREATE INDEX IF NOT EXISTS idx_world_news_unlocks_user_id ON world_news_unlocks(user_id)"
+    "CREATE INDEX IF NOT EXISTS idx_world_news_requests_status ON world_news_requests(status)"
   ).run();
   await env.DB.prepare(
-    "CREATE INDEX IF NOT EXISTS idx_world_news_unlocks_expires_at ON world_news_unlocks(expires_at)"
+    `CREATE TABLE IF NOT EXISTS world_news_access (
+      user_id TEXT NOT NULL,
+      username TEXT NOT NULL UNIQUE,
+      granted_by TEXT DEFAULT '',
+      granted_at TEXT NOT NULL,
+      revoked_by TEXT DEFAULT '',
+      revoked_at TEXT DEFAULT '',
+      PRIMARY KEY (user_id)
+    )`
+  ).run();
+  await env.DB.prepare(
+    "CREATE INDEX IF NOT EXISTS idx_world_news_access_username ON world_news_access(username)"
   ).run();
   await env.DB.prepare(
     `CREATE TABLE IF NOT EXISTS world_news_cache (
@@ -61,45 +73,53 @@ export async function requireWorldNewsUser({ request, env }) {
   return { user };
 }
 
-export async function unlockWorldNews({ request, env, user, password }) {
+export async function requestWorldNewsAccess({ env, user }) {
   await ensureWorldNewsTables(env);
-  const account = await env.DB.prepare(
-    `SELECT id, username, password_hash, password_salt, password_iterations
-     FROM users
-     WHERE id = ?`
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    `INSERT INTO world_news_requests
+     (user_id, username, status, requested_at, reviewed_by, reviewed_at)
+     VALUES (?, ?, 'pending', ?, '', '')
+     ON CONFLICT(user_id) DO UPDATE SET
+       username = excluded.username,
+       status = CASE
+         WHEN world_news_requests.status = 'approved' THEN 'approved'
+         ELSE 'pending'
+       END,
+       requested_at = excluded.requested_at`
+  ).bind(user.id, user.username, now).run();
+  return getWorldNewsEnrollment({ env, user });
+}
+
+export async function getWorldNewsEnrollment({ env, user, admin = false }) {
+  await ensureWorldNewsTables(env);
+  const request = await env.DB.prepare(
+    `SELECT user_id, username, status, requested_at, reviewed_by, reviewed_at
+     FROM world_news_requests
+     WHERE user_id = ?`
   ).bind(user.id).first();
-  if (!account || !await verifyPassword(password, account)) {
-    return null;
-  }
-
-  const token = crypto.randomUUID();
-  const now = Math.floor(Date.now() / 1000);
-  const expiresAt = now + UNLOCK_TTL_SECONDS;
-  await env.DB.prepare(
-    "DELETE FROM world_news_unlocks WHERE user_id = ? OR expires_at <= ?"
-  ).bind(user.id, now).run();
-  await env.DB.prepare(
-    "INSERT INTO world_news_unlocks (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)"
-  ).bind(token, user.id, now, expiresAt).run();
-
+  const grant = await env.DB.prepare(
+    `SELECT user_id, username, granted_by, granted_at, revoked_by, revoked_at
+     FROM world_news_access
+     WHERE user_id = ?`
+  ).bind(user.id).first();
+  const allowed = Boolean(admin || (grant && !grant.revoked_at));
   return {
-    expiresAt,
-    header: unlockCookie(request, token, UNLOCK_TTL_SECONDS)
+    allowed,
+    admin,
+    grantedAt: grant && !grant.revoked_at ? grant.granted_at : "",
+    registered: Boolean(request || grant || admin),
+    requestedAt: request ? request.requested_at : "",
+    status: allowed ? "approved" : request ? request.status : "not_registered",
+    username: user.username
   };
 }
 
-export async function hasWorldNewsUnlock({ request, env, user }) {
-  await ensureWorldNewsTables(env);
-  const token = getCookie(request, UNLOCK_COOKIE);
-  if (!token) return false;
-
-  const now = Math.floor(Date.now() / 1000);
-  const row = await env.DB.prepare(
-    `SELECT token
-     FROM world_news_unlocks
-     WHERE token = ? AND user_id = ? AND expires_at > ?`
-  ).bind(token, user.id, now).first();
-  return Boolean(row);
+export async function hasWorldNewsAccess({ env, user }) {
+  if (!user) return false;
+  const admin = isAdminUser(user, env);
+  const enrollment = await getWorldNewsEnrollment({ env, user, admin });
+  return enrollment.allowed;
 }
 
 export async function getWorldNewsFeed(env) {
@@ -216,18 +236,4 @@ function hashArticleId(value) {
     hash |= 0;
   }
   return `ww-${Math.abs(hash)}`;
-}
-
-function unlockCookie(request, value, maxAge) {
-  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
-  return `${UNLOCK_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-}
-
-function getCookie(request, name) {
-  const header = request.headers.get("cookie") || "";
-  return header.split(";").map((item) => item.trim()).reduce((found, item) => {
-    if (found) return found;
-    const [key, ...rest] = item.split("=");
-    return key === name ? decodeURIComponent(rest.join("=")) : "";
-  }, "");
 }

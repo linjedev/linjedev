@@ -1,7 +1,7 @@
 import { json } from "../../_auth.js";
 import {
   getWorldNewsFeed,
-  hasWorldNewsUnlock,
+  hasWorldNewsAccess,
   requireWorldNewsUser
 } from "./_world-news.js";
 
@@ -9,8 +9,8 @@ export async function onRequestGet({ request, env }) {
   const auth = await requireWorldNewsUser({ request, env });
   if (auth.response) return auth.response;
 
-  const unlocked = await hasWorldNewsUnlock({ request, env, user: auth.user });
-  if (!unlocked) return json({ error: "World Watch login required." }, { status: 403 });
+  const allowed = await hasWorldNewsAccess({ env, user: auth.user });
+  if (!allowed) return json({ error: "World Watch approval required." }, { status: 403 });
 
   try {
     const feed = await getWorldNewsFeed(env);

@@ -495,7 +495,7 @@ const state = {
   arcade: null,
   secureMessageAccess: null,
   secureMessageViewedToken: "",
-  worldNewsUnlocked: false,
+  worldNewsAccess: null,
   worldNewsLoaded: false,
   worldNewsGlobe: null,
   worldNewsArticles: []
@@ -563,8 +563,7 @@ const els = {
   serverPingView: document.querySelector("#server-ping"),
   worldWatchView: document.querySelector("#world-watch"),
   worldWatchGate: document.querySelector("#worldWatchGate"),
-  worldWatchLoginForm: document.querySelector("#worldWatchLoginForm"),
-  worldWatchPassword: document.querySelector("#worldWatchPassword"),
+  worldWatchRegisterForm: document.querySelector("#worldWatchRegisterForm"),
   worldWatchGateStatus: document.querySelector("#worldWatchGateStatus"),
   worldWatchConsole: document.querySelector("#worldWatchConsole"),
   worldGlobeCanvas: document.querySelector("#worldGlobeCanvas"),
@@ -594,6 +593,10 @@ const els = {
   secureAdminStatus: document.querySelector("#secureAdminStatus"),
   secureAdminGrants: document.querySelector("#secureAdminGrants"),
   secureAdminEvents: document.querySelector("#secureAdminEvents"),
+  worldAdminGrantForm: document.querySelector("#worldAdminGrantForm"),
+  worldAdminUsername: document.querySelector("#worldAdminUsername"),
+  worldAdminStatus: document.querySelector("#worldAdminStatus"),
+  worldAdminGrants: document.querySelector("#worldAdminGrants"),
   refreshGameServers: document.querySelector("#refreshGameServers"),
   gameServerStatus: document.querySelector("#gameServerStatus"),
   gameServerList: document.querySelector("#gameServerList"),
@@ -688,7 +691,7 @@ els.passwordForm.addEventListener("submit", updatePassword);
 els.emailResetForm.addEventListener("submit", requestEmailReset);
 els.visitProfileForm.addEventListener("submit", visitProfile);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
-els.worldWatchLoginForm.addEventListener("submit", unlockWorldWatch);
+els.worldWatchRegisterForm.addEventListener("submit", requestWorldWatchAccess);
 els.refreshWorldNews.addEventListener("click", () => loadWorldNews(true));
 els.secureSignupButton.addEventListener("click", requestSecureMessageAccess);
 els.secureMessageForm.addEventListener("submit", createSecureMessageLink);
@@ -696,6 +699,7 @@ els.secureCopyLink.addEventListener("click", copySecureMessageLink);
 els.secureClear.addEventListener("click", clearSecureMessageComposer);
 els.secureBurn.addEventListener("click", burnSecureMessage);
 els.secureAdminGrantForm.addEventListener("submit", grantSecureMessageAccess);
+els.worldAdminGrantForm.addEventListener("submit", approveWorldWatchAccess);
 els.refreshServers.addEventListener("click", () => checkAllServers());
 els.refreshGameServers.addEventListener("click", () => checkGameServers());
 els.arcadeGameButtons.forEach((button) => {
@@ -818,7 +822,7 @@ async function logout() {
   state.user = null;
   state.arcadeUnlocked = false;
   state.arcadeClicks = 0;
-  state.worldNewsUnlocked = false;
+  state.worldNewsAccess = null;
   state.worldNewsLoaded = false;
   els.body.dataset.auth = "guest";
   els.appOnly.forEach((node) => {
@@ -960,6 +964,7 @@ async function enterApp(user, { route = "home" } = {}) {
   loadGitHubCommitTracker();
   loadProfile();
   loadSecureMessageAccess();
+  loadWorldWatchAccess();
   checkAllServers();
   if (route === "current") {
     applyRoute();
@@ -2026,7 +2031,7 @@ async function showWorldWatchView(updateHash = true) {
   if (updateHash) history.pushState(null, "", "#world-watch");
   window.scrollTo({ top: 0 });
   animateView(els.worldWatchView);
-  await checkWorldWatchUnlock();
+  await loadWorldWatchAccess();
 }
 
 function showSecureMessageView(updateHash = true) {
@@ -2109,69 +2114,81 @@ function showAdminView(updateHash = true) {
   animateView(els.adminView);
 }
 
-async function checkWorldWatchUnlock() {
+async function loadWorldWatchAccess() {
+  if (!state.user) return;
   els.worldWatchGateStatus.textContent = "Checking World Watch access...";
   try {
-    const response = await fetch("/api/world-news/unlock", {
+    const response = await fetch("/api/world-news/access", {
       cache: "no-store",
       credentials: "same-origin"
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "World Watch login required.");
-    setWorldWatchUnlocked(Boolean(data.unlocked));
+    if (!response.ok) throw new Error(data.error || "World Watch access unavailable.");
+    state.worldNewsAccess = data;
+    renderWorldWatchAccess(data);
   } catch (error) {
-    setWorldWatchUnlocked(false);
-    els.worldWatchGateStatus.textContent = error.message || "World Watch login required.";
+    state.worldNewsAccess = { allowed: false, status: "unavailable" };
+    renderWorldWatchAccess(state.worldNewsAccess);
+    els.worldWatchGateStatus.textContent = error.message || "World Watch access unavailable.";
   }
 }
 
-async function unlockWorldWatch(event) {
+async function requestWorldWatchAccess(event) {
   event.preventDefault();
-  const password = els.worldWatchPassword.value;
-  if (!password) {
-    els.worldWatchGateStatus.textContent = "Enter your Linje password.";
-    els.worldWatchPassword.focus();
-    return;
-  }
-
-  els.worldWatchGateStatus.textContent = "Unlocking World Watch...";
-  els.worldWatchLoginForm.querySelectorAll("input, button").forEach((element) => {
+  els.worldWatchGateStatus.textContent = "Registering World Watch request...";
+  els.worldWatchRegisterForm.querySelectorAll("button").forEach((element) => {
     element.disabled = true;
   });
   try {
-    const response = await fetch("/api/world-news/unlock", {
-      body: JSON.stringify({ password }),
+    const response = await fetch("/api/world-news/access", {
       credentials: "same-origin",
       headers: { "content-type": "application/json" },
       method: "POST"
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "World Watch login failed.");
-    els.worldWatchPassword.value = "";
-    setWorldWatchUnlocked(Boolean(data.unlocked));
+    if (!response.ok) throw new Error(data.error || "Could not register for World Watch.");
+    state.worldNewsAccess = data;
+    renderWorldWatchAccess(data);
   } catch (error) {
-    els.worldWatchGateStatus.textContent = error.message || "World Watch login failed.";
+    els.worldWatchGateStatus.textContent = error.message || "Could not register for World Watch.";
   } finally {
-    els.worldWatchLoginForm.querySelectorAll("input, button").forEach((element) => {
+    els.worldWatchRegisterForm.querySelectorAll("button").forEach((element) => {
       element.disabled = false;
     });
   }
 }
 
-function setWorldWatchUnlocked(unlocked) {
-  state.worldNewsUnlocked = unlocked;
-  els.worldWatchGate.hidden = unlocked;
-  els.worldWatchConsole.hidden = !unlocked;
-  if (!unlocked) {
+function renderWorldWatchAccess(access = {}) {
+  const allowed = Boolean(access.allowed);
+  els.worldWatchGate.hidden = allowed;
+  els.worldWatchConsole.hidden = !allowed;
+  const button = els.worldWatchRegisterForm.querySelector("button");
+  button.disabled = access.status === "pending" || access.status === "unavailable" || access.status === "denied";
+
+  if (!allowed) {
     state.worldNewsLoaded = false;
+    if (access.status === "pending") {
+      button.textContent = "Pending";
+      els.worldWatchGateStatus.textContent = "World Watch registration is waiting for admin approval.";
+    } else if (access.status === "denied") {
+      button.textContent = "Denied";
+      els.worldWatchGateStatus.textContent = "World Watch registration was denied by an admin.";
+    } else if (access.status === "unavailable") {
+      button.textContent = "Register";
+      els.worldWatchGateStatus.textContent = "World Watch access could not be checked right now.";
+    } else {
+      button.textContent = "Register";
+      els.worldWatchGateStatus.textContent = "Register for World Watch access. An admin must approve you before anything loads.";
+    }
     return;
   }
 
+  button.textContent = "Register";
   initWorldGlobe().then(() => loadWorldNews(!state.worldNewsLoaded));
 }
 
 async function loadWorldNews(force = false) {
-  if (!state.worldNewsUnlocked || state.worldNewsLoaded && !force) return;
+  if (!state.worldNewsAccess || !state.worldNewsAccess.allowed || state.worldNewsLoaded && !force) return;
   els.worldWatchStatus.textContent = "Loading global feed...";
   try {
     const response = await fetch(`/api/world-news/feed${force ? `?t=${Date.now()}` : ""}`, {
@@ -2180,8 +2197,9 @@ async function loadWorldNews(force = false) {
     });
     const data = await response.json().catch(() => ({}));
     if (response.status === 403) {
-      setWorldWatchUnlocked(false);
-      throw new Error(data.error || "World Watch login required.");
+      state.worldNewsAccess = { allowed: false, status: "pending" };
+      renderWorldWatchAccess(state.worldNewsAccess);
+      throw new Error(data.error || "World Watch approval required.");
     }
     if (!response.ok) throw new Error(data.error || "World news feed is unavailable.");
     state.worldNewsLoaded = true;
@@ -3478,6 +3496,7 @@ async function loadAdminEvents() {
 
   els.adminStatus.textContent = "Loading auth events...";
   loadSecureMessageAdmin();
+  loadWorldWatchAdmin();
   try {
     const response = await fetch("/api/admin/events", {
       cache: "no-store",
@@ -3491,6 +3510,111 @@ async function loadAdminEvents() {
     els.adminStatus.textContent = error.message || "Could not load admin events.";
     els.adminEvents.innerHTML = "";
   }
+}
+
+async function loadWorldWatchAdmin() {
+  if (!state.user || state.user.username !== "seb") return;
+  els.worldAdminStatus.textContent = "Loading World Watch requests...";
+  try {
+    const response = await fetch("/api/admin/world-news", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not load World Watch requests.");
+    renderWorldWatchAdmin(data);
+    els.worldAdminStatus.textContent = `${data.grants.length} World Watch records shown.`;
+  } catch (error) {
+    els.worldAdminStatus.textContent = error.message || "Could not load World Watch requests.";
+    els.worldAdminGrants.innerHTML = "";
+  }
+}
+
+async function approveWorldWatchAccess(event) {
+  event.preventDefault();
+  const username = normalizeUsername(els.worldAdminUsername.value);
+  if (!username) return;
+  await approveWorldWatchAccessByUsername(username, true);
+}
+
+async function approveWorldWatchAccessByUsername(username, clearInput = false) {
+  els.worldAdminStatus.textContent = `Approving @${username}...`;
+  try {
+    const response = await fetch("/api/admin/world-news", {
+      body: JSON.stringify({ username }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not approve access.");
+    if (clearInput) els.worldAdminUsername.value = "";
+    els.worldAdminStatus.textContent = `Approved @${data.username || username}.`;
+    loadWorldWatchAdmin();
+  } catch (error) {
+    els.worldAdminStatus.textContent = error.message || "Could not approve access.";
+  }
+}
+
+async function denyWorldWatchAccess(username) {
+  if (!username) return;
+  els.worldAdminStatus.textContent = `Denying @${username}...`;
+  try {
+    const response = await fetch("/api/admin/world-news", {
+      body: JSON.stringify({ username }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "DELETE"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not deny access.");
+    els.worldAdminStatus.textContent = `Denied @${data.username || username}.`;
+    loadWorldWatchAdmin();
+  } catch (error) {
+    els.worldAdminStatus.textContent = error.message || "Could not deny access.";
+  }
+}
+
+function renderWorldWatchAdmin(data) {
+  els.worldAdminGrants.innerHTML = "";
+  if (!data.grants.length) {
+    const empty = document.createElement("p");
+    empty.className = "admin-empty";
+    empty.textContent = "No World Watch registrations yet.";
+    els.worldAdminGrants.append(empty);
+    return;
+  }
+
+  data.grants.forEach((grant) => {
+    const status = grant.status || (grant.active ? "approved" : "pending");
+    const statusLabel = status === "approved" ? "Approved" : status === "denied" ? "Denied" : "Pending";
+    const action = status === "approved"
+      ? `<button class="ghost-button" type="button" data-world-deny="${escapeAttribute(grant.username)}">Deny</button>`
+      : status === "pending"
+        ? `<div class="admin-inline-actions"><button class="ghost-button" type="button" data-world-approve="${escapeAttribute(grant.username)}">Approve</button><button class="ghost-button" type="button" data-world-deny="${escapeAttribute(grant.username)}">Deny</button></div>`
+        : `<button class="ghost-button" type="button" data-world-approve="${escapeAttribute(grant.username)}">Approve</button>`;
+    const item = document.createElement("article");
+    item.className = `secure-admin-card ${status}`;
+    item.innerHTML = `
+      <div>
+        <strong>@${escapeHtml(grant.username)}</strong>
+        <small>${statusLabel}</small>
+      </div>
+      <div>
+        <small>${grant.grantedAt ? `Approved ${escapeHtml(formatDateTime(grant.grantedAt))}` : `Requested ${escapeHtml(formatDateTime(grant.requestedAt))}`}</small>
+        <small>${grant.reviewedBy ? `Reviewed by @${escapeHtml(grant.reviewedBy)}` : "Awaiting review"}</small>
+      </div>
+      ${action}
+    `;
+    els.worldAdminGrants.append(item);
+  });
+
+  els.worldAdminGrants.querySelectorAll("[data-world-approve]").forEach((button) => {
+    button.addEventListener("click", () => approveWorldWatchAccessByUsername(button.dataset.worldApprove));
+  });
+  els.worldAdminGrants.querySelectorAll("[data-world-deny]").forEach((button) => {
+    button.addEventListener("click", () => denyWorldWatchAccess(button.dataset.worldDeny));
+  });
 }
 
 async function loadSecureMessageAdmin() {

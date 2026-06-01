@@ -12,7 +12,8 @@ const arcadeScores = new Map();
 const secureMessageRequests = new Map();
 const secureMessageAccess = new Map();
 const secureMessageEvents = [];
-const worldNewsUnlocks = new Map();
+const worldNewsRequests = new Map();
+const worldNewsAccess = new Map();
 const authEvents = [];
 const CAPTCHA_TTL_MS = 5 * 60 * 1000;
 const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || crypto.randomBytes(32).toString("hex");
@@ -107,38 +108,37 @@ async function handleApi(request, response, pathname) {
     return;
   }
 
-  if (pathname === "/api/world-news/unlock" && request.method === "GET") {
+  if (pathname === "/api/world-news/access" && request.method === "GET") {
     const user = currentUser(request);
     if (!user) {
       sendJson(response, 401, { error: "Login required." });
       return;
     }
-    sendJson(response, 200, {
-      unlocked: hasPreviewWorldNewsUnlock(user),
-      username: user.username
-    });
+    sendJson(response, 200, worldNewsEnrollment(user));
     return;
   }
 
-  if (pathname === "/api/world-news/unlock" && request.method === "POST") {
+  if (pathname === "/api/world-news/access" && request.method === "POST") {
     const user = currentUser(request);
     if (!user) {
       sendJson(response, 401, { error: "Login required." });
       return;
     }
-    const body = await readBody(request);
-    const account = users.get(user.id);
-    if (!account || !verifyPassword(String(body.password || ""), account.password)) {
-      sendJson(response, 401, { error: "World Watch login failed." });
-      return;
-    }
-    const expiresAt = Math.floor(Date.now() / 1000) + 7200;
-    worldNewsUnlocks.set(user.id, expiresAt);
-    sendJson(response, 200, {
-      expiresAt,
-      unlocked: true,
+    const now = new Date().toISOString();
+    worldNewsRequests.set(user.id, {
+      requestedAt: now,
+      status: isPreviewAdmin(user) ? "approved" : "pending",
       username: user.username
     });
+    if (isPreviewAdmin(user)) {
+      worldNewsAccess.set(user.id, {
+        active: true,
+        grantedAt: now,
+        grantedBy: user.username,
+        username: user.username
+      });
+    }
+    sendJson(response, 200, worldNewsEnrollment(user));
     return;
   }
 
@@ -148,8 +148,8 @@ async function handleApi(request, response, pathname) {
       sendJson(response, 401, { error: "Login required." });
       return;
     }
-    if (!hasPreviewWorldNewsUnlock(user)) {
-      sendJson(response, 403, { error: "World Watch login required." });
+    if (!worldNewsEnrollment(user).allowed) {
+      sendJson(response, 403, { error: "World Watch approval required." });
       return;
     }
     sendJson(response, 200, getPreviewWorldNews());
@@ -258,6 +258,81 @@ async function handleApi(request, response, pathname) {
       return;
     }
     sendJson(response, 200, { events: authEvents.slice(0, 200) });
+    return;
+  }
+
+  if (pathname === "/api/admin/world-news" && request.method === "GET") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    if (!isPreviewAdmin(user)) {
+      sendJson(response, 403, { error: "Admin access required." });
+      return;
+    }
+    sendJson(response, 200, getPreviewWorldNewsAdmin());
+    return;
+  }
+
+  if (pathname === "/api/admin/world-news" && request.method === "POST") {
+    const admin = currentUser(request);
+    if (!admin || !isPreviewAdmin(admin)) {
+      sendJson(response, admin ? 403 : 401, { error: admin ? "Admin access required." : "Login required." });
+      return;
+    }
+    const body = await readBody(request);
+    const username = normalizeUsername(body.username);
+    const target = [...users.values()].find((item) => item.username === username);
+    if (!target) {
+      sendJson(response, 404, { error: "User not found." });
+      return;
+    }
+    const now = new Date().toISOString();
+    worldNewsAccess.set(target.id, {
+      active: true,
+      grantedAt: now,
+      grantedBy: admin.username,
+      username: target.username
+    });
+    worldNewsRequests.set(target.id, {
+      requestedAt: worldNewsRequests.get(target.id)?.requestedAt || now,
+      reviewedAt: now,
+      reviewedBy: admin.username,
+      status: "approved",
+      username: target.username
+    });
+    sendJson(response, 200, { granted: true, username: target.username, grantedAt: now });
+    return;
+  }
+
+  if (pathname === "/api/admin/world-news" && request.method === "DELETE") {
+    const admin = currentUser(request);
+    if (!admin || !isPreviewAdmin(admin)) {
+      sendJson(response, admin ? 403 : 401, { error: admin ? "Admin access required." : "Login required." });
+      return;
+    }
+    const body = await readBody(request);
+    const username = normalizeUsername(body.username);
+    const entry = [...worldNewsAccess.entries()].find(([, value]) => value.username === username);
+    const targetRequest = [...worldNewsRequests.entries()].find(([, value]) => value.username === username);
+    const now = new Date().toISOString();
+    if (entry) {
+      entry[1].active = false;
+      entry[1].revokedAt = now;
+      entry[1].revokedBy = admin.username;
+      worldNewsAccess.set(entry[0], entry[1]);
+    }
+    if (targetRequest) {
+      worldNewsRequests.set(targetRequest[0], {
+        ...targetRequest[1],
+        reviewedAt: now,
+        reviewedBy: admin.username,
+        status: "denied",
+        username
+      });
+    }
+    sendJson(response, 200, { denied: Boolean(entry || targetRequest), username, deniedAt: now });
     return;
   }
 
@@ -592,9 +667,40 @@ function isPreviewAdmin(user) {
   return Boolean(user && admins.includes(user.username));
 }
 
-function hasPreviewWorldNewsUnlock(user) {
-  const expiresAt = worldNewsUnlocks.get(user.id) || 0;
-  return expiresAt > Math.floor(Date.now() / 1000);
+function worldNewsEnrollment(user) {
+  const request = worldNewsRequests.get(user.id);
+  const grant = worldNewsAccess.get(user.id);
+  const allowed = isPreviewAdmin(user) || Boolean(grant && grant.active);
+  return {
+    admin: isPreviewAdmin(user),
+    allowed,
+    grantedAt: grant && grant.active ? grant.grantedAt : "",
+    registered: Boolean(request || grant || isPreviewAdmin(user)),
+    requestedAt: request ? request.requestedAt : "",
+    status: allowed ? "approved" : request ? request.status : "not_registered",
+    username: user.username
+  };
+}
+
+function getPreviewWorldNewsAdmin() {
+  const grants = [...worldNewsRequests.entries()].map(([userId, request]) => {
+    const grant = worldNewsAccess.get(userId);
+    const active = Boolean(grant && grant.active);
+    return {
+      userId,
+      username: request.username,
+      requestedAt: request.requestedAt || "",
+      reviewedBy: request.reviewedBy || "",
+      reviewedAt: request.reviewedAt || "",
+      grantedBy: grant?.grantedBy || "",
+      grantedAt: grant?.grantedAt || "",
+      revokedBy: grant?.revokedBy || "",
+      revokedAt: grant?.revokedAt || "",
+      active,
+      status: active ? "approved" : request.status || "pending"
+    };
+  });
+  return { grants };
 }
 
 function getPreviewWorldNews() {

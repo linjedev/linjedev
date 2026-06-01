@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=world1">
+    <link rel="stylesheet" href="styles.css?v=world2">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -401,20 +401,16 @@
         <section id="worldWatchGate" class="world-gate" aria-labelledby="world-gate-title">
           <div>
             <p class="eyebrow">World Watch</p>
-            <h2 id="world-gate-title">Tool login required.</h2>
-            <p>Unlock the global news view for this Linje session.</p>
+            <h2 id="world-gate-title">World Watch registration.</h2>
+            <p>Request access to the global news view. An admin must approve your registration before any signals load.</p>
           </div>
-          <form id="worldWatchLoginForm" class="world-gate-form">
-            <label>
-              Linje password
-              <input id="worldWatchPassword" type="password" autocomplete="current-password">
-            </label>
+          <form id="worldWatchRegisterForm" class="world-gate-form">
             <button class="run-button" type="submit">
               <span class="run-dot" aria-hidden="true"></span>
-              Unlock
+              Register
             </button>
           </form>
-          <p id="worldWatchGateStatus" class="status">Enter your Linje password to open World Watch.</p>
+          <p id="worldWatchGateStatus" class="status">Register for World Watch access.</p>
         </section>
 
         <section id="worldWatchConsole" class="world-console" hidden>
@@ -580,6 +576,23 @@
           <div id="secureAdminGrants" class="secure-admin-grants"></div>
           <div id="secureAdminEvents" class="secure-admin-events"></div>
         </section>
+        <section class="admin-secure-panel" aria-labelledby="admin-world-title">
+          <div class="admin-secure-head">
+            <div>
+              <p class="eyebrow">World Watch</p>
+              <h3 id="admin-world-title">Access requests</h3>
+            </div>
+            <form id="worldAdminGrantForm" class="admin-secure-form">
+              <label>
+                Username
+                <input id="worldAdminUsername" type="text" placeholder="@username">
+              </label>
+              <button class="run-button" type="submit">Approve</button>
+            </form>
+          </div>
+          <p id="worldAdminStatus" class="status">World Watch requests load here.</p>
+          <div id="worldAdminGrants" class="secure-admin-grants"></div>
+        </section>
         <p id="adminStatus" class="status">Auth events load here for @seb.</p>
         <div id="adminEvents" class="admin-events" aria-live="polite"></div>
       </section>
@@ -601,6 +614,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=world1" defer></script>
+    <script src="app.js?v=world2" defer></script>
   </body>
 </html>
