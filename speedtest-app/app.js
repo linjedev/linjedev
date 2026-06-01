@@ -2215,16 +2215,103 @@ async function loadWorldNews(force = false) {
     }
     if (!response.ok) throw new Error(data.error || "World news feed is unavailable.");
     state.worldNewsLoaded = true;
-    state.worldNewsFeed = data;
-    state.worldNewsArticles = data.articles || [];
-    renderWorldNews(data);
-    updateWorldGlobeData(data);
-    const freshness = data.stale ? "cached" : data.source || "global feed";
-    els.worldWatchStatus.textContent = `${state.worldNewsArticles.length} signals / ${freshness} / ${formatDateTime(data.updatedAt)}`;
+    const feed = normalizeWorldFeed(data);
+    state.worldNewsFeed = feed;
+    state.worldNewsArticles = feed.articles || [];
+    renderWorldNews(feed);
+    updateWorldGlobeData(feed);
+    const freshness = feed.stale ? "fallback" : feed.source || "global feed";
+    els.worldWatchStatus.textContent = `${state.worldNewsArticles.length} signals / ${freshness} / ${formatDateTime(feed.updatedAt)}`;
   } catch (error) {
     els.worldWatchStatus.textContent = error.message || "World news feed is unavailable.";
-    renderWorldNews({ articles: [], regions: [] });
+    const feed = createClientWorldFallback(error.message || "World news feed is using local fallback signals.");
+    state.worldNewsFeed = feed;
+    state.worldNewsArticles = feed.articles;
+    renderWorldNews(feed);
+    updateWorldGlobeData(feed);
   }
+}
+
+function normalizeWorldFeed(data = {}) {
+  if (Array.isArray(data.articles) && data.articles.length) return data;
+  return createClientWorldFallback(data.status || "World news providers returned no articles.");
+}
+
+function createClientWorldFallback(status) {
+  const updatedAt = new Date().toISOString();
+  const articles = [
+    {
+      id: "client-fallback-tehran",
+      title: "Global feed fallback: Middle East monitoring point",
+      url: "https://www.gdeltproject.org/",
+      domain: "gdeltproject.org",
+      language: "English",
+      sourceCountry: "Iran",
+      placeName: "Tehran",
+      place: { name: "Tehran", country: "Iran", region: "Middle East", population: 9380000, kind: "capital", lat: 35.6892, lon: 51.389 },
+      region: "Middle East",
+      lat: 35.6892,
+      lon: 51.389,
+      seenAt: updatedAt
+    },
+    {
+      id: "client-fallback-london",
+      title: "Global feed fallback: European wire monitoring point",
+      url: "https://www.reuters.com/",
+      domain: "reuters.com",
+      language: "English",
+      sourceCountry: "United Kingdom",
+      placeName: "London",
+      place: { name: "London", country: "United Kingdom", region: "Europe", population: 8799800, kind: "capital", lat: 51.5072, lon: -0.1276 },
+      region: "Europe",
+      lat: 51.5072,
+      lon: -0.1276,
+      seenAt: updatedAt
+    },
+    {
+      id: "client-fallback-hormuz",
+      title: "Maritime fallback: Strait of Hormuz traffic chokepoint",
+      url: "https://aisstream.io/documentation",
+      domain: "aisstream.io",
+      language: "English",
+      sourceCountry: "International waters",
+      placeName: "Strait of Hormuz",
+      place: { name: "Strait of Hormuz", country: "International waters", region: "Shipping lanes", population: 0, kind: "strait", lat: 26.5667, lon: 56.25 },
+      region: "Shipping lanes",
+      lat: 26.5667,
+      lon: 56.25,
+      seenAt: updatedAt
+    }
+  ];
+  return {
+    articles,
+    flights: {
+      source: "Client fallback",
+      status: "OpenSky unavailable or not loaded",
+      updatedAt,
+      aircraft: []
+    },
+    places: articles.map((article) => ({ ...article.place, articleCount: 1, articles: [{ id: article.id, title: article.title, url: article.url, domain: article.domain }] })),
+    regions: [
+      { region: "Middle East", count: 1, latestAt: updatedAt },
+      { region: "Europe", count: 1, latestAt: updatedAt },
+      { region: "Shipping lanes", count: 1, latestAt: updatedAt }
+    ],
+    ships: {
+      source: "AISStream",
+      status: "AISSTREAM_KEY required for live vessel WebSocket streaming",
+      updatedAt,
+      vessels: [],
+      lanes: [
+        { name: "Strait of Hormuz", lat: 26.5667, lon: 56.25, traffic: "critical energy chokepoint" },
+        { name: "Suez Canal", lat: 30.5852, lon: 32.2654, traffic: "Europe-Asia container and tanker corridor" }
+      ]
+    },
+    source: "client fallback",
+    stale: true,
+    status,
+    updatedAt
+  };
 }
 
 function renderWorldNews(data) {

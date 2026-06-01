@@ -185,17 +185,18 @@ export async function getWorldNewsFeed(env) {
   const cached = await env.DB.prepare(
     "SELECT payload, updated_at FROM world_news_cache WHERE cache_key = 'global'"
   ).first();
-  if (cached && Date.now() - Date.parse(cached.updated_at) < CACHE_TTL_MS) {
-    return JSON.parse(cached.payload);
+  const cachedPayload = parseCachedFeed(cached);
+  if (cachedPayload && hasWorldSignals(cachedPayload) && Date.now() - Date.parse(cached.updated_at) < CACHE_TTL_MS) {
+    return cachedPayload;
   }
 
   let feed;
   try {
     feed = await fetchGdeltFeed();
   } catch (error) {
-    if (cached) {
+    if (cachedPayload && hasWorldSignals(cachedPayload)) {
       return {
-        ...JSON.parse(cached.payload),
+        ...cachedPayload,
         stale: true,
         status: error.message || "World news feed is using cached data."
       };
@@ -211,6 +212,19 @@ export async function getWorldNewsFeed(env) {
   ).bind(JSON.stringify(feed), feed.updatedAt).run();
 
   return feed;
+}
+
+function parseCachedFeed(cached) {
+  if (!cached || !cached.payload) return null;
+  try {
+    return JSON.parse(cached.payload);
+  } catch {
+    return null;
+  }
+}
+
+function hasWorldSignals(feed) {
+  return Boolean(feed && Array.isArray(feed.articles) && feed.articles.length);
 }
 
 async function fetchGdeltFeed() {
