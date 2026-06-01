@@ -278,7 +278,7 @@ async function fetchGdeltFeed(env) {
   const ships = await getMaritimeLayer(env);
   return {
     articles,
-    flights: await fetchOpenSkyFlights(),
+    flights: await fetchOpenSkyFlights(env),
     places: buildPlaces(articles),
     regions: [...regions.entries()].map(([region, value]) => ({ region, ...value })),
     ships,
@@ -455,7 +455,7 @@ async function emptyFreeWorldFeed(env, status) {
   const ships = await getMaritimeLayer(env);
   return {
     articles: [],
-    flights: await fetchOpenSkyFlights(),
+    flights: await fetchOpenSkyFlights(env),
     places: [],
     regions: [],
     ships,
@@ -591,17 +591,20 @@ function buildPlaces(articles) {
   return [...places.values()];
 }
 
-async function fetchOpenSkyFlights() {
+async function fetchOpenSkyFlights(env) {
   try {
+    const token = await getOpenSkyAccessToken(env);
+    const headers = { "user-agent": "linje-world-watch" };
+    if (token) headers.authorization = `Bearer ${token}`;
     const response = await fetch("https://opensky-network.org/api/states/all", {
-      headers: { "user-agent": "linje-world-watch" }
+      headers
     });
     if (!response.ok) throw new Error(`OpenSky ${response.status}`);
     const data = await response.json();
     const states = Array.isArray(data.states) ? data.states : [];
     return {
       source: "OpenSky Network",
-      status: "live",
+      status: token ? "live OAuth" : "live anonymous",
       updatedAt: data.time ? new Date(data.time * 1000).toISOString() : new Date().toISOString(),
       aircraft: states
         .filter((state) => Number.isFinite(state[5]) && Number.isFinite(state[6]))
@@ -631,6 +634,29 @@ async function fetchOpenSkyFlights() {
       aircraft: []
     };
   }
+}
+
+async function getOpenSkyAccessToken(env) {
+  const clientId = String(env?.OPENSKY_CLIENT_ID || "").trim();
+  const clientSecret = String(env?.OPENSKY_CLIENT_SECRET || "").trim();
+  if (!clientId || !clientSecret) return "";
+
+  const body = new URLSearchParams();
+  body.set("grant_type", "client_credentials");
+  body.set("client_id", clientId);
+  body.set("client_secret", clientSecret);
+
+  const response = await fetch("https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": "linje-world-watch"
+    },
+    body
+  });
+  if (!response.ok) return "";
+  const data = await response.json().catch(() => ({}));
+  return typeof data.access_token === "string" ? data.access_token : "";
 }
 
 async function getMaritimeLayer(env) {

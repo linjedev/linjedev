@@ -997,12 +997,15 @@ function previewXmlText(xml, tag) {
 
 async function getPreviewFlights() {
   try {
-    const response = await fetch("https://opensky-network.org/api/states/all", { headers: { "user-agent": "linje-world-watch-preview" } });
+    const token = await getPreviewOpenSkyAccessToken();
+    const headers = { "user-agent": "linje-world-watch-preview" };
+    if (token) headers.authorization = `Bearer ${token}`;
+    const response = await fetch("https://opensky-network.org/api/states/all", { headers });
     if (!response.ok) throw new Error(`OpenSky ${response.status}`);
     const data = await response.json();
     return {
       source: "OpenSky Network",
-      status: "live",
+      status: token ? "live OAuth" : "live anonymous",
       updatedAt: data.time ? new Date(data.time * 1000).toISOString() : new Date().toISOString(),
       aircraft: (data.states || []).filter((state) => Number.isFinite(state[5]) && Number.isFinite(state[6])).slice(0, 140).map((state) => ({
         id: state[0],
@@ -1021,6 +1024,29 @@ async function getPreviewFlights() {
   } catch (error) {
     return { source: "OpenSky Network", status: error.message || "unavailable", updatedAt: new Date().toISOString(), aircraft: [] };
   }
+}
+
+async function getPreviewOpenSkyAccessToken() {
+  const clientId = String(process.env.OPENSKY_CLIENT_ID || "").trim();
+  const clientSecret = String(process.env.OPENSKY_CLIENT_SECRET || "").trim();
+  if (!clientId || !clientSecret) return "";
+
+  const body = new URLSearchParams();
+  body.set("grant_type", "client_credentials");
+  body.set("client_id", clientId);
+  body.set("client_secret", clientSecret);
+
+  const response = await fetch("https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": "linje-world-watch-preview"
+    },
+    body
+  });
+  if (!response.ok) return "";
+  const data = await response.json().catch(() => ({}));
+  return typeof data.access_token === "string" ? data.access_token : "";
 }
 
 async function getPreviewShips() {

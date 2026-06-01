@@ -48,6 +48,10 @@ Linje.dev uses Cloudflare Pages Functions and a D1 database binding named `DB`.
    - `ADMIN_USERS`: comma-separated usernames that can read admin APIs, for example `seb`. If omitted, `seb` is treated as the owner account.
    - `AISSTREAM_KEY`: free AISStream API key for the World Watch live vessel layer. Keep this as a secret environment variable; do not add it to frontend files or commits.
    - `CESIUM_ION_TOKEN`: Cesium ion token with public `assets:read` scope for World Watch imagery and terrain. Restrict it to the Linje domain and localhost in the Cesium dashboard.
+   - `OPENSKY_CLIENT_ID`: OpenSky API client id for authenticated ADS-B state vectors.
+   - `OPENSKY_CLIENT_SECRET`: OpenSky API client secret for server-side OAuth token exchange.
+   - `NASA_API_KEY`: NASA api.nasa.gov key for future higher-rate NASA layers. Current EONET/GIBS layers can still run without it.
+   - `PLANET_API_KEY`: Planet API key for future Planet Data/Tiles/Search integration. Keep it server-side; do not expose it in browser code.
 7. Redeploy the latest Pages deployment.
 
 The auth endpoints live in the repository root `functions/` directory:
