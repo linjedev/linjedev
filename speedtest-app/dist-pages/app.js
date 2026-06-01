@@ -961,6 +961,7 @@ async function initialize() {
 async function enterPublicWorldWatch() {
   state.user = null;
   els.body.dataset.auth = "guest";
+  els.body.dataset.worldPublic = "true";
   els.auth.hidden = true;
   els.appOnly.forEach((node) => {
     node.hidden = node !== els.app;
@@ -987,6 +988,7 @@ async function enterApp(user, { route = "world-watch" } = {}) {
   state.user = user;
   state.secureMessageAccess = null;
   els.body.dataset.auth = "authenticated";
+  delete els.body.dataset.worldPublic;
   els.auth.hidden = true;
   els.appOnly.forEach((node) => {
     node.hidden = false;
@@ -1021,6 +1023,7 @@ async function enterApp(user, { route = "world-watch" } = {}) {
 
 function showAuth() {
   els.body.dataset.auth = "guest";
+  delete els.body.dataset.worldPublic;
   els.appOnly.forEach((node) => {
     node.hidden = true;
   });
@@ -2410,11 +2413,11 @@ async function initWorldGlobe() {
 }
 
 function waitForCesium() {
-  if (window.Cesium) return Promise.resolve();
+  if (typeof Cesium !== "undefined") return Promise.resolve();
   return new Promise((resolve, reject) => {
     const started = Date.now();
     const timer = setInterval(() => {
-      if (window.Cesium) {
+      if (typeof Cesium !== "undefined") {
         clearInterval(timer);
         resolve();
       } else if (Date.now() - started > 8000) {

@@ -112,6 +112,10 @@ body[data-auth="authenticated"] .auth-view {
   display: none !important;
 }
 
+body[data-auth="guest"][data-world-public="true"] #app.app-only {
+  display: block !important;
+}
+
 .auth-view {
   position: relative;
   overflow: hidden;
