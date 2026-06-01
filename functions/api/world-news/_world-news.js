@@ -1,6 +1,9 @@
 import { getSessionUser, hasDatabase, isAdminUser, json } from "../../_auth.js";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const AISSTREAM_URL = "wss://stream.aisstream.io/v0/stream";
+const AISSTREAM_COLLECT_MS = 4500;
+const AISSTREAM_MAX_VESSELS = 90;
 const NEWS_DOMAINS = [
   "reuters.com",
   "apnews.com",
@@ -14,6 +17,13 @@ const NEWS_DOMAINS = [
   "thehindu.com",
   "timesofindia.indiatimes.com",
   "lemonde.fr"
+];
+const RSS_FEEDS = [
+  { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", domain: "bbc.com", sourceCountry: "United Kingdom" },
+  { name: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml", domain: "aljazeera.com", sourceCountry: "Qatar" },
+  { name: "France 24", url: "https://www.france24.com/en/rss", domain: "france24.com", sourceCountry: "France" },
+  { name: "DW", url: "https://rss.dw.com/rdf/rss-en-all", domain: "dw.com", sourceCountry: "Germany" },
+  { name: "The Guardian World", url: "https://www.theguardian.com/world/rss", domain: "theguardian.com", sourceCountry: "United Kingdom" }
 ];
 
 const SOURCE_LOCATIONS = {
@@ -29,6 +39,7 @@ const SOURCE_LOCATIONS = {
   japan: { label: "Japan", lat: 35.7, lon: 139.7, region: "East Asia" },
   mexico: { label: "Mexico", lat: 19.4, lon: -99.1, region: "North America" },
   nigeria: { label: "Nigeria", lat: 9.1, lon: 7.5, region: "West Africa" },
+  qatar: { label: "Qatar", lat: 25.3, lon: 51.5, region: "Middle East" },
   russia: { label: "Russia", lat: 55.8, lon: 37.6, region: "Eurasia" },
   southafrica: { label: "South Africa", lat: -25.7, lon: 28.2, region: "Africa" },
   unitedarabemirates: { label: "United Arab Emirates", lat: 24.5, lon: 54.4, region: "Middle East" },
@@ -72,6 +83,19 @@ const PLACE_CATALOG = [
   { name: "Buenos Aires", aliases: ["buenos aires"], country: "Argentina", region: "South America", lat: -34.6037, lon: -58.3816, population: 3120000, kind: "capital" },
   { name: "Sydney", aliases: ["sydney"], country: "Australia", region: "Oceania", lat: -33.8688, lon: 151.2093, population: 5297000, kind: "city" },
   { name: "Jakarta", aliases: ["jakarta"], country: "Indonesia", region: "Southeast Asia", lat: -6.2088, lon: 106.8456, population: 10670000, kind: "capital" }
+];
+
+const MARITIME_WATCH_BOXES = [
+  { name: "Strait of Hormuz", box: [[25.25, 55.7], [27.2, 57.4]], traffic: "energy chokepoint" },
+  { name: "Suez Canal", box: [[29.8, 31.9], [31.4, 32.8]], traffic: "Europe-Asia container and tanker corridor" },
+  { name: "Strait of Malacca", box: [[1.0, 99.0], [4.6, 104.5]], traffic: "Asia-Europe trade lane" },
+  { name: "Singapore Strait", box: [[1.05, 103.2], [1.55, 104.25]], traffic: "dense port approach" },
+  { name: "English Channel", box: [[49.2, -5.9], [51.8, 2.0]], traffic: "North Atlantic-Europe shipping" },
+  { name: "Gibraltar", box: [[35.6, -6.2], [36.6, -4.6]], traffic: "Atlantic-Mediterranean gate" },
+  { name: "Panama Canal", box: [[8.5, -80.2], [9.8, -79.0]], traffic: "Pacific-Atlantic transit" },
+  { name: "Los Angeles / Long Beach", box: [[33.45, -118.8], [34.15, -117.6]], traffic: "US west coast container hub" },
+  { name: "North Sea", box: [[51.0, -1.5], [56.2, 5.5]], traffic: "Europe offshore and port traffic" },
+  { name: "South China Sea", box: [[10.0, 108.0], [23.0, 122.5]], traffic: "high-volume regional shipping" }
 ];
 
 export async function ensureWorldNewsTables(env) {
@@ -186,7 +210,7 @@ export async function getWorldNewsFeed(env) {
 
   let feed;
   try {
-    feed = await fetchGdeltFeed();
+    feed = await fetchGdeltFeed(env);
   } catch (error) {
     if (cachedPayload && hasWorldSignals(cachedPayload)) {
       return {
@@ -195,7 +219,7 @@ export async function getWorldNewsFeed(env) {
         status: error.message || "World news feed is using cached data."
       };
     }
-    feed = await emptyFreeWorldFeed(error.message || "Free world news feed is temporarily unavailable.");
+    feed = await emptyFreeWorldFeed(env, error.message || "Free world news feed is temporarily unavailable.");
   }
   await env.DB.prepare(
     `INSERT INTO world_news_cache (cache_key, payload, updated_at)
@@ -218,10 +242,57 @@ function parseCachedFeed(cached) {
 }
 
 function hasWorldSignals(feed) {
-  return Boolean(feed && Array.isArray(feed.articles) && feed.articles.length);
+  return Boolean(
+    feed
+    && (
+      (Array.isArray(feed.articles) && feed.articles.length)
+      || (Array.isArray(feed.flights?.aircraft) && feed.flights.aircraft.length)
+      || (Array.isArray(feed.ships?.vessels) && feed.ships.vessels.length)
+    )
+  );
 }
 
-async function fetchGdeltFeed() {
+async function fetchGdeltFeed(env) {
+  const gdeltStatus = { value: "news articles" };
+  let articles = [];
+  try {
+    articles = await fetchGdeltArticles();
+    if (!articles.length) gdeltStatus.value = "returned no articles; using free RSS fallback";
+  } catch (error) {
+    gdeltStatus.value = `${error.message || "unavailable"}; using free RSS fallback`;
+  }
+  if (!articles.length) {
+    articles = await fetchRssArticles();
+  }
+
+  const regions = articles.reduce((items, article) => {
+    const current = items.get(article.region) || { count: 0, latestAt: "" };
+    current.count += 1;
+    current.latestAt = !current.latestAt || article.seenAt > current.latestAt ? article.seenAt : current.latestAt;
+    items.set(article.region, current);
+    return items;
+  }, new Map());
+
+  const ships = await getMaritimeLayer(env);
+  return {
+    articles,
+    flights: await fetchOpenSkyFlights(),
+    places: buildPlaces(articles),
+    regions: [...regions.entries()].map(([region, value]) => ({ region, ...value })),
+    ships,
+    sources: [
+      { name: "GDELT DOC 2.0", status: gdeltStatus.value, url: "https://www.gdeltproject.org/" },
+      { name: "Free RSS feeds", status: articles.length ? "active fallback" : "no articles returned", url: "https://feeds.bbci.co.uk/news/world/rss.xml" },
+      { name: "OpenSky Network", status: "ADS-B state vectors when rate limit permits", url: "https://opensky-network.org/" },
+      { name: "AISStream", status: ships.status, url: "https://aisstream.io/documentation" }
+    ],
+    status: articles.length ? "live" : "Free news providers returned no articles for the current window.",
+    source: "GDELT DOC 2.0 / RSS / OpenSky / AISStream",
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function fetchGdeltArticles() {
   const query = NEWS_DOMAINS.map((domain) => `domainis:${domain}`).join(" OR ");
   const url = new URL("https://api.gdeltproject.org/api/v2/doc/doc");
   url.searchParams.set("query", `(${query})`);
@@ -237,51 +308,47 @@ async function fetchGdeltFeed() {
     }
   });
   if (!response.ok) {
-    throw new Error("World news feed is temporarily unavailable.");
+    throw new Error(`GDELT ${response.status}`);
   }
 
   const data = await response.json();
-  let articles = (data.articles || [])
+  return (data.articles || [])
     .map((article) => normalizeArticle(article))
     .filter(Boolean)
     .slice(0, 72);
-
-  const regions = articles.reduce((items, article) => {
-    const current = items.get(article.region) || { count: 0, latestAt: "" };
-    current.count += 1;
-    current.latestAt = !current.latestAt || article.seenAt > current.latestAt ? article.seenAt : current.latestAt;
-    items.set(article.region, current);
-    return items;
-  }, new Map());
-
-  return {
-    articles,
-    flights: await fetchOpenSkyFlights(),
-    places: buildPlaces(articles),
-    regions: [...regions.entries()].map(([region, value]) => ({ region, ...value })),
-    ships: getMaritimeLayer(),
-    sources: [
-      { name: "GDELT DOC 2.0", status: "news articles", url: "https://www.gdeltproject.org/" },
-      { name: "OpenSky Network", status: "ADS-B state vectors when rate limit permits", url: "https://opensky-network.org/" },
-      { name: "AISStream", status: "configure free AISSTREAM_KEY for live vessel WebSocket streaming", url: "https://aisstream.io/documentation" }
-    ],
-    status: articles.length ? "live" : "GDELT returned no articles for the current window.",
-    source: "GDELT DOC 2.0 / OpenSky / AIS-ready",
-    updatedAt: new Date().toISOString()
-  };
 }
 
-async function emptyFreeWorldFeed(status) {
+async function fetchRssArticles() {
+  const results = await Promise.allSettled(RSS_FEEDS.map(fetchRssFeed));
+  return results
+    .flatMap((result) => result.status === "fulfilled" ? result.value : [])
+    .sort((left, right) => Date.parse(right.seenAt || 0) - Date.parse(left.seenAt || 0))
+    .slice(0, 72);
+}
+
+async function fetchRssFeed(feed) {
+  const response = await fetch(feed.url, {
+    headers: { "user-agent": "linje-world-watch" }
+  });
+  if (!response.ok) return [];
+  const xml = await response.text();
+  return [...xml.matchAll(/<item\b[\s\S]*?<\/item>/gi)]
+    .map((match) => normalizeRssArticle(match[0], feed))
+    .filter(Boolean);
+}
+
+async function emptyFreeWorldFeed(env, status) {
+  const ships = await getMaritimeLayer(env);
   return {
     articles: [],
     flights: await fetchOpenSkyFlights(),
     places: [],
     regions: [],
-    ships: getMaritimeLayer(),
+    ships,
     sources: [
       { name: "GDELT DOC 2.0", status: status || "unavailable", url: "https://www.gdeltproject.org/" },
       { name: "OpenSky Network", status: "ADS-B state vectors when rate limit permits", url: "https://opensky-network.org/" },
-      { name: "AISStream", status: "configure free AISSTREAM_KEY for live vessel WebSocket streaming", url: "https://aisstream.io/documentation" }
+      { name: "AISStream", status: ships.status, url: "https://aisstream.io/documentation" }
     ],
     source: "free APIs",
     status,
@@ -309,6 +376,61 @@ function normalizeArticle(article) {
     seenAt: normalizeGdeltDate(article.seendate || ""),
     image: article.socialimage || ""
   };
+}
+
+function normalizeRssArticle(itemXml, feed) {
+  const title = xmlText(itemXml, "title");
+  const link = xmlText(itemXml, "link") || xmlText(itemXml, "guid");
+  if (!title || !link) return null;
+  const article = {
+    title,
+    url: link,
+    domain: feed.domain,
+    language: "English",
+    sourcecountry: feed.sourceCountry,
+    seendate: "",
+    description: xmlText(itemXml, "description"),
+    socialimage: ""
+  };
+  const place = inferPlace(article, SOURCE_LOCATIONS[normalizeSourceCountry(feed.sourceCountry)] || null);
+  if (!place) return null;
+  const published = xmlText(itemXml, "pubDate") || xmlText(itemXml, "dc:date");
+  return {
+    id: hashArticleId(link),
+    title: title.slice(0, 180),
+    url: link,
+    domain: feed.domain,
+    language: "English",
+    sourceCountry: place.country || place.label,
+    place,
+    placeName: place.name || place.label,
+    region: place.region,
+    lat: place.lat,
+    lon: place.lon,
+    seenAt: normalizeRssDate(published),
+    image: ""
+  };
+}
+
+function xmlText(xml, tag) {
+  const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = xml.match(new RegExp(`<${escapedTag}[^>]*>([\\s\\S]*?)<\\/${escapedTag}>`, "i"));
+  if (!match) return "";
+  return decodeXml(match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, " ")).trim();
+}
+
+function decodeXml(value) {
+  return String(value || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'");
+}
+
+function normalizeRssDate(value) {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
 }
 
 function inferPlace(article, sourceLocation) {
@@ -397,14 +519,163 @@ async function fetchOpenSkyFlights() {
   }
 }
 
-function getMaritimeLayer() {
+async function getMaritimeLayer(env) {
+  const apiKey = getAisStreamKey(env);
+  if (!apiKey) {
+    return {
+      source: "AISStream",
+      status: "set AISSTREAM_KEY in Pages environment variables for live vessel positions",
+      updatedAt: new Date().toISOString(),
+      vessels: [],
+      lanes: maritimeLanes()
+    };
+  }
+  if (typeof WebSocket === "undefined") {
+    return {
+      source: "AISStream",
+      status: "AISStream requires a runtime with outbound WebSocket support",
+      updatedAt: new Date().toISOString(),
+      vessels: [],
+      lanes: maritimeLanes()
+    };
+  }
+
+  return collectAisStreamVessels(apiKey);
+}
+
+function getAisStreamKey(env) {
+  return String(env?.AISSTREAM_KEY || env?.AISSTREAM_API_KEY || "").trim();
+}
+
+function maritimeLanes() {
+  return MARITIME_WATCH_BOXES.map((item) => {
+    const [[latA, lonA], [latB, lonB]] = item.box;
+    return {
+      name: item.name,
+      lat: Number(((latA + latB) / 2).toFixed(4)),
+      lon: Number(((lonA + lonB) / 2).toFixed(4)),
+      traffic: item.traffic
+    };
+  });
+}
+
+function collectAisStreamVessels(apiKey) {
+  return new Promise((resolve) => {
+    const vessels = new Map();
+    const startedAt = Date.now();
+    let settled = false;
+    let socket;
+
+    const finish = (status) => {
+      if (settled) return;
+      settled = true;
+      try {
+        if (socket && socket.readyState < 2) socket.close();
+      } catch {
+        // Ignore close races from the provider.
+      }
+      resolve({
+        source: "AISStream",
+        status: vessels.size ? status || "live" : status || "connected; awaiting vessel position reports",
+        updatedAt: new Date().toISOString(),
+        vessels: [...vessels.values()].slice(0, AISSTREAM_MAX_VESSELS),
+        lanes: maritimeLanes()
+      });
+    };
+
+    const timer = setTimeout(() => finish(vessels.size ? "live sample" : "no vessel position reports received in sample window"), AISSTREAM_COLLECT_MS);
+
+    try {
+      socket = new WebSocket(AISSTREAM_URL);
+      socket.addEventListener("open", () => {
+        socket.send(JSON.stringify({
+          APIKey: apiKey,
+          BoundingBoxes: MARITIME_WATCH_BOXES.map((item) => item.box),
+          FilterMessageTypes: ["PositionReport"]
+        }));
+      });
+      socket.addEventListener("message", async (event) => {
+        const vessel = normalizeAisMessage(await readAisPayload(event.data), startedAt);
+        if (!vessel) return;
+        vessels.set(vessel.id, { ...(vessels.get(vessel.id) || {}), ...vessel });
+        if (vessels.size >= AISSTREAM_MAX_VESSELS) {
+          clearTimeout(timer);
+          finish("live");
+        }
+      });
+      socket.addEventListener("error", () => {
+        clearTimeout(timer);
+        finish(vessels.size ? "live sample; AISStream closed with an error" : "AISStream connection error");
+      });
+      socket.addEventListener("close", () => {
+        clearTimeout(timer);
+        finish(vessels.size ? "live sample" : "AISStream connection closed before vessel data arrived");
+      });
+    } catch (error) {
+      clearTimeout(timer);
+      finish(error.message || "AISStream unavailable");
+    }
+  });
+}
+
+function normalizeAisMessage(raw, startedAt) {
+  let payload;
+  try {
+    payload = typeof raw === "string" ? JSON.parse(raw) : JSON.parse(String(raw || ""));
+  } catch {
+    return null;
+  }
+
+  const meta = payload.MetaData || {};
+  const message = payload.Message || {};
+  const position = message.PositionReport || {};
+  const staticData = message.ShipStaticData || {};
+  const voyage = message.VoyageData || {};
+  const lat = numberOrNull(position.Latitude ?? meta.latitude ?? meta.Latitude);
+  const lon = numberOrNull(position.Longitude ?? meta.longitude ?? meta.Longitude);
+  const mmsi = String(meta.MMSI_String || meta.MMSI || position.UserID || staticData.UserID || voyage.UserID || "").trim();
+  if (!mmsi || lat === null || lon === null) return null;
+
   return {
-    source: "AISStream",
-    status: "free AISSTREAM_KEY required for live vessel WebSocket streaming",
-    updatedAt: new Date().toISOString(),
-    vessels: [],
-    lanes: []
+    id: `ais-${mmsi}`,
+    mmsi,
+    name: cleanShipText(meta.ShipName || staticData.Name || voyage.Name || ""),
+    callsign: cleanShipText(meta.CallSign || staticData.CallSign || voyage.CallSign || ""),
+    destination: cleanShipText(meta.Destination || voyage.Destination || ""),
+    flag: cleanShipText(meta.Country || meta.Flag || ""),
+    lat,
+    lon,
+    speedKnots: numberOrNull(position.Sog ?? meta.SOG),
+    course: numberOrNull(position.Cog ?? meta.COG),
+    heading: numberOrNull(position.TrueHeading ?? meta.TrueHeading),
+    navigationStatus: String(position.NavigationalStatus ?? meta.NavigationalStatus ?? "").trim(),
+    lastSeenAt: normalizeAisTime(meta.time_utc || meta.TimeUtc || position.Timestamp) || new Date(startedAt).toISOString(),
+    source: "AISStream"
   };
+}
+
+async function readAisPayload(raw) {
+  if (typeof raw === "string") return raw;
+  if (raw && typeof raw.text === "function") return raw.text();
+  if (raw && typeof raw.arrayBuffer === "function") {
+    return new TextDecoder().decode(await raw.arrayBuffer());
+  }
+  return String(raw || "");
+}
+
+function cleanShipText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, 80);
+}
+
+function numberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function normalizeAisTime(value) {
+  if (!value) return "";
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : "";
 }
 
 function normalizeSourceCountry(value) {

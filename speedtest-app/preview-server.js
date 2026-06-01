@@ -152,7 +152,7 @@ async function handleApi(request, response, pathname) {
       sendJson(response, 403, { error: "World Watch approval required." });
       return;
     }
-    sendJson(response, 200, getPreviewWorldNews());
+    sendJson(response, 200, await getPreviewWorldNews());
     return;
   }
 
@@ -704,98 +704,312 @@ function getPreviewWorldNewsAdmin() {
   return { grants };
 }
 
-function getPreviewWorldNews() {
+const previewNewsDomains = [
+  "reuters.com",
+  "apnews.com",
+  "bbc.com",
+  "aljazeera.com",
+  "france24.com",
+  "dw.com",
+  "theguardian.com",
+  "scmp.com",
+  "japantimes.co.jp",
+  "thehindu.com",
+  "timesofindia.indiatimes.com",
+  "lemonde.fr"
+];
+const previewRssFeeds = [
+  { url: "https://feeds.bbci.co.uk/news/world/rss.xml", domain: "bbc.com", sourceCountry: "United Kingdom" },
+  { url: "https://www.aljazeera.com/xml/rss/all.xml", domain: "aljazeera.com", sourceCountry: "Qatar" },
+  { url: "https://www.france24.com/en/rss", domain: "france24.com", sourceCountry: "France" },
+  { url: "https://rss.dw.com/rdf/rss-en-all", domain: "dw.com", sourceCountry: "Germany" },
+  { url: "https://www.theguardian.com/world/rss", domain: "theguardian.com", sourceCountry: "United Kingdom" }
+];
+const previewPlaces = [
+  { name: "Tehran", aliases: ["tehran"], country: "Iran", region: "Middle East", lat: 35.6892, lon: 51.389, population: 9380000, kind: "capital" },
+  { name: "London", aliases: ["london"], country: "United Kingdom", region: "Europe", lat: 51.5072, lon: -0.1276, population: 8799800, kind: "capital" },
+  { name: "Paris", aliases: ["paris"], country: "France", region: "Europe", lat: 48.8566, lon: 2.3522, population: 2103000, kind: "capital" },
+  { name: "Berlin", aliases: ["berlin"], country: "Germany", region: "Europe", lat: 52.52, lon: 13.405, population: 3878000, kind: "capital" },
+  { name: "Kyiv", aliases: ["kyiv", "kiev"], country: "Ukraine", region: "Europe", lat: 50.4501, lon: 30.5234, population: 2952300, kind: "capital" },
+  { name: "Moscow", aliases: ["moscow"], country: "Russia", region: "Eurasia", lat: 55.7558, lon: 37.6173, population: 13010000, kind: "capital" },
+  { name: "Beijing", aliases: ["beijing"], country: "China", region: "East Asia", lat: 39.9042, lon: 116.4074, population: 21893000, kind: "capital" },
+  { name: "Tokyo", aliases: ["tokyo"], country: "Japan", region: "East Asia", lat: 35.6762, lon: 139.6503, population: 14094000, kind: "capital" },
+  { name: "New Delhi", aliases: ["new delhi", "delhi"], country: "India", region: "South Asia", lat: 28.6139, lon: 77.209, population: 11000000, kind: "capital" },
+  { name: "Gaza City", aliases: ["gaza city", "gaza"], country: "Palestine", region: "Middle East", lat: 31.5017, lon: 34.4668, population: 590000, kind: "city" },
+  { name: "Dubai", aliases: ["dubai"], country: "United Arab Emirates", region: "Middle East", lat: 25.2048, lon: 55.2708, population: 3550000, kind: "city" },
+  { name: "Cairo", aliases: ["cairo"], country: "Egypt", region: "Africa", lat: 30.0444, lon: 31.2357, population: 10100000, kind: "capital" },
+  { name: "Lagos", aliases: ["lagos"], country: "Nigeria", region: "West Africa", lat: 6.5244, lon: 3.3792, population: 15300000, kind: "city" },
+  { name: "Washington", aliases: ["washington", "washington dc"], country: "United States", region: "North America", lat: 38.9072, lon: -77.0369, population: 678000, kind: "capital" },
+  { name: "New York", aliases: ["new york", "nyc"], country: "United States", region: "North America", lat: 40.7128, lon: -74.006, population: 8258000, kind: "city" },
+  { name: "Sao Paulo", aliases: ["sao paulo"], country: "Brazil", region: "South America", lat: -23.5558, lon: -46.6396, population: 11450000, kind: "city" },
+  { name: "Sydney", aliases: ["sydney"], country: "Australia", region: "Oceania", lat: -33.8688, lon: 151.2093, population: 5297000, kind: "city" },
+  { name: "Jakarta", aliases: ["jakarta"], country: "Indonesia", region: "Southeast Asia", lat: -6.2088, lon: 106.8456, population: 10670000, kind: "capital" }
+];
+const previewSourceLocations = {
+  australia: { name: "Australia", country: "Australia", region: "Oceania", lat: -35.3, lon: 149.1, population: 0, kind: "country centroid" },
+  brazil: { name: "Brazil", country: "Brazil", region: "South America", lat: -15.8, lon: -47.9, population: 0, kind: "country centroid" },
+  china: { name: "China", country: "China", region: "East Asia", lat: 39.9, lon: 116.4, population: 0, kind: "country centroid" },
+  france: { name: "France", country: "France", region: "Europe", lat: 48.9, lon: 2.4, population: 0, kind: "country centroid" },
+  germany: { name: "Germany", country: "Germany", region: "Europe", lat: 52.5, lon: 13.4, population: 0, kind: "country centroid" },
+  india: { name: "India", country: "India", region: "South Asia", lat: 28.6, lon: 77.2, population: 0, kind: "country centroid" },
+  japan: { name: "Japan", country: "Japan", region: "East Asia", lat: 35.7, lon: 139.7, population: 0, kind: "country centroid" },
+  qatar: { name: "Qatar", country: "Qatar", region: "Middle East", lat: 25.3, lon: 51.5, population: 0, kind: "country centroid" },
+  unitedkingdom: { name: "United Kingdom", country: "United Kingdom", region: "Europe", lat: 51.5, lon: -0.1, population: 0, kind: "country centroid" },
+  unitedstates: { name: "United States", country: "United States", region: "North America", lat: 38.9, lon: -77, population: 0, kind: "country centroid" }
+};
+const previewMaritimeBoxes = [
+  { name: "Strait of Hormuz", box: [[25.25, 55.7], [27.2, 57.4]], traffic: "energy chokepoint" },
+  { name: "Suez Canal", box: [[29.8, 31.9], [31.4, 32.8]], traffic: "Europe-Asia corridor" },
+  { name: "Strait of Malacca", box: [[1.0, 99.0], [4.6, 104.5]], traffic: "Asia-Europe trade lane" },
+  { name: "Singapore Strait", box: [[1.05, 103.2], [1.55, 104.25]], traffic: "dense port approach" },
+  { name: "English Channel", box: [[49.2, -5.9], [51.8, 2.0]], traffic: "North Atlantic-Europe shipping" },
+  { name: "Gibraltar", box: [[35.6, -6.2], [36.6, -4.6]], traffic: "Atlantic-Mediterranean gate" }
+];
+
+async function getPreviewWorldNews() {
   const updatedAt = new Date().toISOString();
-  const articles = [
-    {
-      id: "ww-preview-london",
-      title: "European capitals coordinate new infrastructure security exercises",
-      url: "https://example.com/europe-security",
-      domain: "example.com",
-      language: "English",
-      sourceCountry: "United Kingdom",
-      placeName: "London",
-      place: { name: "London", country: "United Kingdom", region: "Europe", population: 8799800, kind: "capital", lat: 51.5, lon: -0.1 },
-      region: "Europe",
-      lat: 51.5,
-      lon: -0.1,
-      seenAt: updatedAt
-    },
-    {
-      id: "ww-preview-tokyo",
-      title: "Pacific markets watch chip supply signals after overnight policy update",
-      url: "https://example.com/pacific-markets",
-      domain: "example.com",
-      language: "English",
-      sourceCountry: "Japan",
-      placeName: "Tokyo",
-      place: { name: "Tokyo", country: "Japan", region: "East Asia", population: 14094000, kind: "capital", lat: 35.7, lon: 139.7 },
-      region: "East Asia",
-      lat: 35.7,
-      lon: 139.7,
-      seenAt: updatedAt
-    },
-    {
-      id: "ww-preview-brasilia",
-      title: "South American climate summit tracks cross-border energy resilience",
-      url: "https://example.com/climate-energy",
-      domain: "example.com",
-      language: "English",
-      sourceCountry: "Brazil",
-      placeName: "Brasilia",
-      place: { name: "Brasilia", country: "Brazil", region: "South America", population: 2817000, kind: "capital", lat: -15.8, lon: -47.9 },
-      region: "South America",
-      lat: -15.8,
-      lon: -47.9,
-      seenAt: updatedAt
-    },
-    {
-      id: "ww-preview-delhi",
-      title: "Regional ports report higher freight checks across the Indian Ocean corridor",
-      url: "https://example.com/freight-checks",
-      domain: "example.com",
-      language: "English",
-      sourceCountry: "India",
-      placeName: "New Delhi",
-      place: { name: "New Delhi", country: "India", region: "South Asia", population: 11000000, kind: "capital", lat: 28.6, lon: 77.2 },
-      region: "South Asia",
-      lat: 28.6,
-      lon: 77.2,
-      seenAt: updatedAt
-    }
-  ];
+  const [articlesResult, flights, ships] = await Promise.allSettled([
+    getPreviewGdeltArticles(),
+    getPreviewFlights(),
+    getPreviewShips()
+  ]);
+  const articles = articlesResult.status === "fulfilled" ? articlesResult.value : [];
+  const regions = [...articles.reduce((items, article) => {
+    const current = items.get(article.region) || { count: 0, latestAt: "" };
+    current.count += 1;
+    current.latestAt = !current.latestAt || article.seenAt > current.latestAt ? article.seenAt : current.latestAt;
+    items.set(article.region, current);
+    return items;
+  }, new Map()).entries()].map(([region, value]) => ({ region, ...value }));
+
   return {
     articles,
-    flights: {
-      source: "Preview ADS-B",
-      status: "preview",
-      updatedAt,
-      aircraft: [
-        { id: "preview-ba1", callsign: "LINJE01", originCountry: "United Kingdom", lat: 52.2, lon: 1.4, altitudeMeters: 11200, speedMps: 238, track: 92, lastContact: updatedAt },
-        { id: "preview-jl2", callsign: "LINJE88", originCountry: "Japan", lat: 35.2, lon: 141.1, altitudeMeters: 9800, speedMps: 221, track: 270, lastContact: updatedAt }
-      ]
-    },
+    flights: flights.status === "fulfilled" ? flights.value : { source: "OpenSky Network", status: "unavailable", updatedAt, aircraft: [] },
     places: articles.map((article) => ({ ...article.place, articleCount: 1, articles: [{ id: article.id, title: article.title, url: article.url, domain: article.domain }] })),
-    regions: [
-      { region: "Europe", count: 1, latestAt: updatedAt },
-      { region: "East Asia", count: 1, latestAt: updatedAt },
-      { region: "South America", count: 1, latestAt: updatedAt },
-      { region: "South Asia", count: 1, latestAt: updatedAt }
-    ],
-    ships: {
-      source: "AISStream",
-      status: "AISSTREAM_KEY required for live vessel WebSocket streaming",
-      updatedAt,
-      vessels: [],
-      lanes: [
-        { name: "Strait of Hormuz", lat: 26.5667, lon: 56.25, traffic: "critical energy chokepoint" },
-        { name: "Suez Canal", lat: 30.5852, lon: 32.2654, traffic: "Europe-Asia container and tanker corridor" },
-        { name: "Strait of Malacca", lat: 2.5, lon: 101.0, traffic: "Asia-Europe trade lane" }
-      ]
-    },
-    source: "Preview feed",
+    regions,
+    ships: ships.status === "fulfilled" ? ships.value : { source: "AISStream", status: "unavailable", updatedAt, vessels: [], lanes: previewMaritimeLanes() },
+    source: "GDELT DOC 2.0 / OpenSky / AISStream",
+    status: articles.length ? "live" : "No GDELT articles returned for the selected provider window.",
     updatedAt
   };
+}
+
+async function getPreviewGdeltArticles() {
+  const query = previewNewsDomains.map((domain) => `domainis:${domain}`).join(" OR ");
+  const url = new URL("https://api.gdeltproject.org/api/v2/doc/doc");
+  url.searchParams.set("query", `(${query})`);
+  url.searchParams.set("mode", "artlist");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("timespan", "48h");
+  url.searchParams.set("maxrecords", "80");
+  url.searchParams.set("sort", "datedesc");
+  try {
+    const response = await fetch(url, { headers: { "user-agent": "linje-world-watch-preview" } });
+    if (response.ok) {
+      const data = await response.json();
+      const articles = (data.articles || []).map(normalizePreviewArticle).filter(Boolean).slice(0, 60);
+      if (articles.length) return articles;
+    }
+  } catch {}
+  const rssResults = await Promise.allSettled(previewRssFeeds.map(getPreviewRssArticles));
+  return rssResults.flatMap((result) => result.status === "fulfilled" ? result.value : []).slice(0, 60);
+}
+
+function normalizePreviewArticle(article) {
+  const place = inferPreviewPlace(article);
+  if (!place || !article.url || !article.title) return null;
+  return {
+    id: `ww-${crypto.createHash("sha1").update(article.url).digest("hex").slice(0, 12)}`,
+    title: String(article.title).slice(0, 180),
+    url: article.url,
+    domain: String(article.domain || "").slice(0, 120),
+    language: String(article.language || "").slice(0, 40),
+    sourceCountry: place.country,
+    place,
+    placeName: place.name,
+    region: place.region,
+    lat: place.lat,
+    lon: place.lon,
+    seenAt: normalizePreviewGdeltDate(article.seendate || article.pubDate || "") || new Date().toISOString(),
+    image: article.socialimage || ""
+  };
+}
+
+function inferPreviewPlace(article) {
+  const haystack = `${article.title || ""} ${article.description || ""}`.toLowerCase();
+  const direct = previewPlaces.find((place) => place.aliases.some((alias) => haystack.includes(alias)));
+  if (direct) return direct;
+  const key = String(article.sourcecountry || "").toLowerCase().replace(/[^a-z]/g, "");
+  if (previewSourceLocations[key]) return previewSourceLocations[key];
+  const domain = String(article.domain || "").toLowerCase();
+  if (domain.includes("bbc") || domain.includes("guardian")) return previewPlaces[1];
+  if (domain.includes("lemonde")) return previewPlaces[2];
+  if (domain.includes("dw.com")) return previewPlaces[3];
+  if (domain.includes("scmp")) return previewPlaces[6];
+  if (domain.includes("japantimes")) return previewPlaces[7];
+  if (domain.includes("thehindu") || domain.includes("timesofindia")) return previewPlaces[8];
+  return previewPlaces[13];
+}
+
+async function getPreviewRssArticles(feed) {
+  const response = await fetch(feed.url, { headers: { "user-agent": "linje-world-watch-preview" } });
+  if (!response.ok) return [];
+  const xml = await response.text();
+  return [...xml.matchAll(/<item\b[\s\S]*?<\/item>/gi)].map((match) => {
+    const title = previewXmlText(match[0], "title");
+    const link = previewXmlText(match[0], "link") || previewXmlText(match[0], "guid");
+    if (!title || !link) return null;
+    return normalizePreviewArticle({
+      title,
+      url: link,
+      domain: feed.domain,
+      sourcecountry: feed.sourceCountry,
+      description: previewXmlText(match[0], "description"),
+      pubDate: previewXmlText(match[0], "pubDate") || previewXmlText(match[0], "dc:date"),
+      seendate: "",
+      language: "English",
+      socialimage: ""
+    });
+  }).filter(Boolean);
+}
+
+function previewXmlText(xml, tag) {
+  const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = xml.match(new RegExp(`<${escapedTag}[^>]*>([\\s\\S]*?)<\\/${escapedTag}>`, "i"));
+  if (!match) return "";
+  return String(match[1])
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .trim();
+}
+
+async function getPreviewFlights() {
+  try {
+    const response = await fetch("https://opensky-network.org/api/states/all", { headers: { "user-agent": "linje-world-watch-preview" } });
+    if (!response.ok) throw new Error(`OpenSky ${response.status}`);
+    const data = await response.json();
+    return {
+      source: "OpenSky Network",
+      status: "live",
+      updatedAt: data.time ? new Date(data.time * 1000).toISOString() : new Date().toISOString(),
+      aircraft: (data.states || []).filter((state) => Number.isFinite(state[5]) && Number.isFinite(state[6])).slice(0, 140).map((state) => ({
+        id: state[0],
+        callsign: String(state[1] || "").trim() || state[0],
+        originCountry: state[2] || "",
+        lastContact: state[4] ? new Date(state[4] * 1000).toISOString() : "",
+        lon: state[5],
+        lat: state[6],
+        altitudeMeters: state[7] ?? state[13] ?? null,
+        onGround: Boolean(state[8]),
+        speedMps: state[9] ?? null,
+        track: state[10] ?? null,
+        verticalRate: state[11] ?? null
+      }))
+    };
+  } catch (error) {
+    return { source: "OpenSky Network", status: error.message || "unavailable", updatedAt: new Date().toISOString(), aircraft: [] };
+  }
+}
+
+async function getPreviewShips() {
+  const key = String(process.env.AISSTREAM_KEY || process.env.AISSTREAM_API_KEY || "").trim();
+  if (!key) return { source: "AISStream", status: "set AISSTREAM_KEY locally for live vessel positions", updatedAt: new Date().toISOString(), vessels: [], lanes: previewMaritimeLanes() };
+  if (typeof WebSocket === "undefined") return { source: "AISStream", status: "Node runtime does not expose outbound WebSocket", updatedAt: new Date().toISOString(), vessels: [], lanes: previewMaritimeLanes() };
+  return new Promise((resolve) => {
+    const vessels = new Map();
+    let settled = false;
+    let socket;
+    const finish = (status) => {
+      if (settled) return;
+      settled = true;
+      try {
+        if (socket && socket.readyState < 2) socket.close();
+      } catch {}
+      resolve({ source: "AISStream", status: vessels.size ? status || "live" : status || "no vessel position reports received in sample window", updatedAt: new Date().toISOString(), vessels: [...vessels.values()].slice(0, 90), lanes: previewMaritimeLanes() });
+    };
+    const timer = setTimeout(() => finish(vessels.size ? "live sample" : "no vessel position reports received in sample window"), 4500);
+    try {
+      socket = new WebSocket("wss://stream.aisstream.io/v0/stream");
+      socket.addEventListener("open", () => socket.send(JSON.stringify({ APIKey: key, BoundingBoxes: previewMaritimeBoxes.map((item) => item.box), FilterMessageTypes: ["PositionReport"] })));
+      socket.addEventListener("message", async (event) => {
+        const vessel = normalizePreviewAis(await readPreviewAisPayload(event.data));
+        if (!vessel) return;
+        vessels.set(vessel.id, { ...(vessels.get(vessel.id) || {}), ...vessel });
+        if (vessels.size >= 90) {
+          clearTimeout(timer);
+          finish("live");
+        }
+      });
+      socket.addEventListener("error", () => {
+        clearTimeout(timer);
+        finish(vessels.size ? "live sample; AISStream closed with an error" : "AISStream connection error");
+      });
+      socket.addEventListener("close", () => {
+        clearTimeout(timer);
+        finish(vessels.size ? "live sample" : "AISStream connection closed before vessel data arrived");
+      });
+    } catch (error) {
+      clearTimeout(timer);
+      finish(error.message || "AISStream unavailable");
+    }
+  });
+}
+
+function normalizePreviewAis(raw) {
+  try {
+    const payload = JSON.parse(String(raw || ""));
+    const meta = payload.MetaData || {};
+    const message = payload.Message || {};
+    const position = message.PositionReport || {};
+    const voyage = message.VoyageData || {};
+    const lat = Number(position.Latitude ?? meta.latitude ?? meta.Latitude);
+    const lon = Number(position.Longitude ?? meta.longitude ?? meta.Longitude);
+    const mmsi = String(meta.MMSI_String || meta.MMSI || position.UserID || voyage.UserID || "").trim();
+    if (!mmsi || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return {
+      id: `ais-${mmsi}`,
+      mmsi,
+      name: String(meta.ShipName || voyage.Name || "").replace(/\s+/g, " ").trim().slice(0, 80),
+      callsign: String(meta.CallSign || voyage.CallSign || "").replace(/\s+/g, " ").trim().slice(0, 80),
+      destination: String(meta.Destination || voyage.Destination || "").replace(/\s+/g, " ").trim().slice(0, 80),
+      flag: String(meta.Country || meta.Flag || "").replace(/\s+/g, " ").trim().slice(0, 80),
+      lat,
+      lon,
+      speedKnots: Number.isFinite(Number(position.Sog)) ? Number(position.Sog) : null,
+      course: Number.isFinite(Number(position.Cog)) ? Number(position.Cog) : null,
+      heading: Number.isFinite(Number(position.TrueHeading)) ? Number(position.TrueHeading) : null,
+      navigationStatus: String(position.NavigationalStatus || "").trim(),
+      lastSeenAt: new Date().toISOString(),
+      source: "AISStream"
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function readPreviewAisPayload(raw) {
+  if (typeof raw === "string") return raw;
+  if (raw && typeof raw.text === "function") return raw.text();
+  if (raw && typeof raw.arrayBuffer === "function") return new TextDecoder().decode(await raw.arrayBuffer());
+  return String(raw || "");
+}
+
+function previewMaritimeLanes() {
+  return previewMaritimeBoxes.map((item) => {
+    const [[latA, lonA], [latB, lonB]] = item.box;
+    return { name: item.name, lat: (latA + latB) / 2, lon: (lonA + lonB) / 2, traffic: item.traffic };
+  });
+}
+
+function normalizePreviewGdeltDate(value) {
+  const text = String(value || "");
+  const match = text.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
+  return match ? `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}Z` : text;
 }
 
 function normalizeAvatarUrl(value) {
