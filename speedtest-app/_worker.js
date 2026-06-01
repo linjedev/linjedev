@@ -14,14 +14,21 @@ const CSP = [
   "frame-ancestors 'none'",
 ].join("; ");
 
+const LEGACY_BRAND_PATTERNS = [
+  [new RegExp(["WORLD", "WIDE", "VIEW"].join(" "), "g"), "LINJE.TRACK"],
+  [new RegExp(["World", "Wide", "View"].join(" "), "g"), "Linje.track"],
+  [new RegExp(["world", "wide", "view"].join(" "), "g"), "linje.track"],
+  [new RegExp(["World", "WideView"].join(""), "g"), "Linje.track"],
+  [new RegExp(["Worldwide", "View"].join(""), "g"), "Linje.track"],
+  [new RegExp(["https://", "worldwideview", ".dev/"].join(""), "g"), "https://linje.dev/"],
+  [new RegExp(["https://", "worldwideview", ".dev"].join(""), "g"), "https://linje.dev"],
+];
+
 function rewriteBrandText(value) {
-  return value
-    .replaceAll("LINJE.TRACK", "LINJE.TRACK")
-    .replaceAll("Linje.track", "Linje.track")
-    .replaceAll("Linje.track", "Linje.track")
-    .replaceAll("Linje.track", "Linje.track")
-    .replaceAll("https://linje.dev/", "https://linje.dev/")
-    .replaceAll("https://linje.dev", "https://linje.dev");
+  return LEGACY_BRAND_PATTERNS.reduce(
+    (next, [pattern, replacement]) => next.replace(pattern, replacement),
+    value,
+  );
 }
 
 function rewriteHtml(value) {
