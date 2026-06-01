@@ -128,7 +128,7 @@ export function Header() {
 }}
                 >
                   <Image src="/logo/logo-icon.svg" alt="Logo" width={20} height={20} style={{ objectFit: "contain" }} />
-                  <div className="header__logo header__logo--compact">LINJE</div>
+                  <div className="header__logo header__logo--compact">LIN</div>
                 </a>
                 <span className="alpha-badge">ALPHA</span>
                 {isDemoAdmin && <span className="alpha-badge" style={{ background: "var(--accent-orange, #f59e0b)" }}>ADMIN</span>}
