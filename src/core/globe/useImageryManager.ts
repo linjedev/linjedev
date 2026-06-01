@@ -23,6 +23,7 @@ export function useImageryManager(viewerInstance: CesiumViewer | null, viewerRea
 
     // Resolve runtime truth:
     const activeLayerId = fallbackLayerId || baseLayerId;
+    const isGoogleRequested = baseLayerId === "google-3d";
 
     const currentImageryLayerRef = useRef<ImageryLayer | null>(null);
     const osmBuildingsRef = useRef<Cesium3DTileset | null>(null);
@@ -133,11 +134,11 @@ export function useImageryManager(viewerInstance: CesiumViewer | null, viewerRea
         terrainActiveRef.current = true;
     }, [viewer, viewerReady, isGoogle3D, is3DMode]);
 
-    // 4. Manage OSM 3D Buildings (only in 3D mode, not with Google Photorealistic tiles)
+    // 4. Manage OSM 3D Buildings (only on explicitly selected non-Google imagery).
     useEffect(() => {
         if (!viewer || !viewerReady || viewer.isDestroyed()) return;
 
-        const shouldShow = showOsmBuildings && !isGoogle3D && is3DMode;
+        const shouldShow = showOsmBuildings && !isGoogleRequested && !isGoogle3D && is3DMode;
 
         if (shouldShow && !osmBuildingsRef.current) {
             let cancelled = false;
@@ -165,7 +166,7 @@ export function useImageryManager(viewerInstance: CesiumViewer | null, viewerRea
             }
             osmBuildingsRef.current = null;
         }
-    }, [viewer, viewerReady, isGoogle3D, is3DMode, showOsmBuildings]);
+    }, [viewer, viewerReady, isGoogleRequested, isGoogle3D, is3DMode, showOsmBuildings]);
 
     // 4. Manage Weather Overlay (semi-transparent tile layer on top of base imagery)
     useEffect(() => {

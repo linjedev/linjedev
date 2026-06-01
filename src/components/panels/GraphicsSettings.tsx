@@ -25,7 +25,7 @@ const DEFAULT_GRAPHICS = {
     shadowsEnabled: false,
     enableLighting: false,
     showFps: false,
-    showOsmBuildings: true,
+    showOsmBuildings: false,
     weatherOverlay: null as string | null,
 };
 

@@ -56,7 +56,7 @@ function rewriteHtml(value) {
 }
 
 function googleMapsKeyScript() {
-  return `<script>try{localStorage.setItem("wwv_key_google_maps","${GOOGLE_MAPS_API_KEY}");localStorage.setItem("wwv_cesium_ion_token","${CESIUM_ION_TOKEN}")}catch(e){}</script>`;
+  return `<script>try{localStorage.setItem("wwv_key_google_maps","${GOOGLE_MAPS_API_KEY}");localStorage.setItem("wwv_cesium_ion_token","${CESIUM_ION_TOKEN}");localStorage.setItem("wwv_map_layer","google-3d");document.cookie="wwv_graphics="+encodeURIComponent(JSON.stringify({resolutionScale:1,antiAliasing:"fxaa",maxScreenSpaceError:16,shadowsEnabled:false,enableLighting:false,showFps:false,showOsmBuildings:false,weatherOverlay:null}))+"; path=/; max-age=31536000"}catch(e){}</script>`;
 }
 
 function stripRetiredCopy(value) {

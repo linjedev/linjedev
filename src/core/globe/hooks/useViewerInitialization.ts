@@ -83,10 +83,13 @@ export function useViewerInitialization(sceneSettings: any) {
             if (activeKey && activeKey.length >= 20) {
                 GoogleMaps.defaultApiKey = activeKey;
                 try {
-                    const tileset = await createGooglePhotorealistic3DTileset({
-                        onlyUsingWithGoogleGeocoder: true,
-                        ...({ enableCollision: true } as Record<string, unknown>),
-                    });
+                    const tileset = await createGooglePhotorealistic3DTileset(
+                        {
+                            key: activeKey,
+                            onlyUsingWithGoogleGeocoder: true,
+                        },
+                        { enableCollision: true } as Record<string, unknown>,
+                    );
 
                     if (viewer.isDestroyed()) {
                         clearTimeout(globalTimeout);

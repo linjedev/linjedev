@@ -112,7 +112,7 @@ export const createConfigSlice: StateCreator<AppStore, [], [], ConfigSlice> = (s
         baseLayerId: (typeof window !== "undefined" && window.localStorage && typeof window.localStorage.getItem === "function") ? (localStorage.getItem("wwv_map_layer") || "google-3d") : "google-3d",
         fallbackLayerId: null,
         sceneMode: 3,
-        showOsmBuildings: true,
+        showOsmBuildings: false,
         weatherOverlay: null,
     },
     updateDataConfig: (config) => set((state) => ({
