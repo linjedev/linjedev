@@ -7,6 +7,12 @@
 /app.js
   Cache-Control: public, max-age=60
 
+/three.module.min.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/three.core.min.js
+  Cache-Control: public, max-age=31536000, immutable
+
 /styles.css
   Cache-Control: public, max-age=60
 

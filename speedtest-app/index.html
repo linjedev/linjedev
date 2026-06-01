@@ -9,7 +9,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=secure3">
+    <link rel="stylesheet" href="styles.css?v=world1">
   </head>
   <body data-auth="checking">
     <section id="auth" class="auth-view" aria-labelledby="auth-title">
@@ -111,6 +111,7 @@
           <div id="toolsMenu" class="nav-menu" hidden>
             <button type="button" data-tool-link="speed">Speed</button>
             <button type="button" data-tool-link="server-ping">Server Ping</button>
+            <button type="button" data-tool-link="world-watch">World Watch</button>
             <button type="button" data-tool-link="secure-message">Secure Message</button>
           </div>
         </div>
@@ -396,6 +397,47 @@
         <div id="gameServerList" class="game-server-list" aria-live="polite"></div>
       </section>
 
+      <section id="world-watch" class="world-watch-view tool-shell" aria-labelledby="world-watch-title" hidden>
+        <section id="worldWatchGate" class="world-gate" aria-labelledby="world-gate-title">
+          <div>
+            <p class="eyebrow">World Watch</p>
+            <h2 id="world-gate-title">Tool login required.</h2>
+            <p>Unlock the global news view for this Linje session.</p>
+          </div>
+          <form id="worldWatchLoginForm" class="world-gate-form">
+            <label>
+              Linje password
+              <input id="worldWatchPassword" type="password" autocomplete="current-password">
+            </label>
+            <button class="run-button" type="submit">
+              <span class="run-dot" aria-hidden="true"></span>
+              Unlock
+            </button>
+          </form>
+          <p id="worldWatchGateStatus" class="status">Enter your Linje password to open World Watch.</p>
+        </section>
+
+        <section id="worldWatchConsole" class="world-console" hidden>
+          <canvas id="worldGlobeCanvas" aria-label="Live global news globe"></canvas>
+          <div class="world-hud world-hud-top">
+            <div>
+              <p class="eyebrow">World Watch</p>
+              <h2 id="world-watch-title">Global signal map</h2>
+            </div>
+            <button id="refreshWorldNews" class="ghost-button" type="button">Refresh</button>
+          </div>
+          <aside class="world-feed" aria-labelledby="world-feed-title">
+            <div>
+              <p class="eyebrow">Live feed</p>
+              <h3 id="world-feed-title">Incoming articles</h3>
+            </div>
+            <p id="worldWatchStatus" class="status">Loading global feed...</p>
+            <div id="worldNewsList" class="world-news-list"></div>
+          </aside>
+          <div id="worldRegionStrip" class="world-region-strip" aria-label="Regional article counts"></div>
+        </section>
+      </section>
+
       <section id="secure-message" class="secure-message-view tool-shell" aria-labelledby="secure-message-title" hidden>
         <div class="secure-message-grid">
           <section class="secure-console" aria-labelledby="secure-message-title">
@@ -559,6 +601,6 @@
     </template>
 
     <script src="anime.min.js?v=3.2.2" defer></script>
-    <script src="app.js?v=secure3" defer></script>
+    <script src="app.js?v=world1" defer></script>
   </body>
 </html>

@@ -494,7 +494,11 @@ const state = {
   arcadeUnlocked: false,
   arcade: null,
   secureMessageAccess: null,
-  secureMessageViewedToken: ""
+  secureMessageViewedToken: "",
+  worldNewsUnlocked: false,
+  worldNewsLoaded: false,
+  worldNewsGlobe: null,
+  worldNewsArticles: []
 };
 
 const els = {
@@ -557,6 +561,17 @@ const els = {
   publicProfileResult: document.querySelector("#publicProfileResult"),
   speedView: document.querySelector("#speed"),
   serverPingView: document.querySelector("#server-ping"),
+  worldWatchView: document.querySelector("#world-watch"),
+  worldWatchGate: document.querySelector("#worldWatchGate"),
+  worldWatchLoginForm: document.querySelector("#worldWatchLoginForm"),
+  worldWatchPassword: document.querySelector("#worldWatchPassword"),
+  worldWatchGateStatus: document.querySelector("#worldWatchGateStatus"),
+  worldWatchConsole: document.querySelector("#worldWatchConsole"),
+  worldGlobeCanvas: document.querySelector("#worldGlobeCanvas"),
+  refreshWorldNews: document.querySelector("#refreshWorldNews"),
+  worldWatchStatus: document.querySelector("#worldWatchStatus"),
+  worldNewsList: document.querySelector("#worldNewsList"),
+  worldRegionStrip: document.querySelector("#worldRegionStrip"),
   secureMessageView: document.querySelector("#secure-message"),
   secureMessageForm: document.querySelector("#secureMessageForm"),
   secureSignupPanel: document.querySelector("#secureSignupPanel"),
@@ -645,6 +660,8 @@ els.toolLinks.forEach((link) => {
     closeToolsMenu();
     if (link.dataset.toolLink === "server-ping") {
       showServerPingView();
+    } else if (link.dataset.toolLink === "world-watch") {
+      showWorldWatchView();
     } else if (link.dataset.toolLink === "secure-message") {
       showSecureMessageView();
     } else {
@@ -671,6 +688,8 @@ els.passwordForm.addEventListener("submit", updatePassword);
 els.emailResetForm.addEventListener("submit", requestEmailReset);
 els.visitProfileForm.addEventListener("submit", visitProfile);
 els.refreshAdmin.addEventListener("click", loadAdminEvents);
+els.worldWatchLoginForm.addEventListener("submit", unlockWorldWatch);
+els.refreshWorldNews.addEventListener("click", () => loadWorldNews(true));
 els.secureSignupButton.addEventListener("click", requestSecureMessageAccess);
 els.secureMessageForm.addEventListener("submit", createSecureMessageLink);
 els.secureCopyLink.addEventListener("click", copySecureMessageLink);
@@ -799,6 +818,8 @@ async function logout() {
   state.user = null;
   state.arcadeUnlocked = false;
   state.arcadeClicks = 0;
+  state.worldNewsUnlocked = false;
+  state.worldNewsLoaded = false;
   els.body.dataset.auth = "guest";
   els.appOnly.forEach((node) => {
     node.hidden = true;
@@ -1853,6 +1874,8 @@ function applyRoute() {
     showProfileView(false);
   } else if (window.location.hash === "#server-ping") {
     showServerPingView(false);
+  } else if (window.location.hash === "#world-watch") {
+    showWorldWatchView(false);
   } else if (window.location.hash === "#secure-message" || window.location.hash.startsWith("#message=")) {
     showSecureMessageView(false);
   } else if (window.location.hash === "#arcade") {
@@ -1944,6 +1967,7 @@ function showSpeedView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = false;
   els.serverPingView.hidden = true;
+  els.worldWatchView.hidden = true;
   els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = true;
@@ -1959,6 +1983,7 @@ function showHomeView(updateHash = true) {
   els.home.hidden = false;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.worldWatchView.hidden = true;
   els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = true;
@@ -1974,6 +1999,7 @@ function showServerPingView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = false;
+  els.worldWatchView.hidden = true;
   els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = true;
@@ -1986,10 +2012,28 @@ function showServerPingView(updateHash = true) {
   if (!state.gameServersLoaded) checkGameServers();
 }
 
+async function showWorldWatchView(updateHash = true) {
+  els.home.hidden = true;
+  els.speedView.hidden = true;
+  els.serverPingView.hidden = true;
+  els.worldWatchView.hidden = false;
+  els.secureMessageView.hidden = true;
+  els.arcadeView.hidden = true;
+  els.profileView.hidden = true;
+  els.adminView.hidden = true;
+  closeAccountMenu();
+  closeToolsMenu();
+  if (updateHash) history.pushState(null, "", "#world-watch");
+  window.scrollTo({ top: 0 });
+  animateView(els.worldWatchView);
+  await checkWorldWatchUnlock();
+}
+
 function showSecureMessageView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.worldWatchView.hidden = true;
   els.secureMessageView.hidden = false;
   els.arcadeView.hidden = true;
   els.profileView.hidden = true;
@@ -2012,6 +2056,7 @@ function showArcadeView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.worldWatchView.hidden = true;
   els.secureMessageView.hidden = true;
   els.arcadeView.hidden = false;
   els.profileView.hidden = true;
@@ -2029,6 +2074,7 @@ function showProfileView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.worldWatchView.hidden = true;
   els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = false;
@@ -2050,6 +2096,7 @@ function showAdminView(updateHash = true) {
   els.home.hidden = true;
   els.speedView.hidden = true;
   els.serverPingView.hidden = true;
+  els.worldWatchView.hidden = true;
   els.secureMessageView.hidden = true;
   els.arcadeView.hidden = true;
   els.profileView.hidden = true;
@@ -2060,6 +2107,243 @@ function showAdminView(updateHash = true) {
   window.scrollTo({ top: 0 });
   loadAdminEvents();
   animateView(els.adminView);
+}
+
+async function checkWorldWatchUnlock() {
+  els.worldWatchGateStatus.textContent = "Checking World Watch access...";
+  try {
+    const response = await fetch("/api/world-news/unlock", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "World Watch login required.");
+    setWorldWatchUnlocked(Boolean(data.unlocked));
+  } catch (error) {
+    setWorldWatchUnlocked(false);
+    els.worldWatchGateStatus.textContent = error.message || "World Watch login required.";
+  }
+}
+
+async function unlockWorldWatch(event) {
+  event.preventDefault();
+  const password = els.worldWatchPassword.value;
+  if (!password) {
+    els.worldWatchGateStatus.textContent = "Enter your Linje password.";
+    els.worldWatchPassword.focus();
+    return;
+  }
+
+  els.worldWatchGateStatus.textContent = "Unlocking World Watch...";
+  els.worldWatchLoginForm.querySelectorAll("input, button").forEach((element) => {
+    element.disabled = true;
+  });
+  try {
+    const response = await fetch("/api/world-news/unlock", {
+      body: JSON.stringify({ password }),
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "World Watch login failed.");
+    els.worldWatchPassword.value = "";
+    setWorldWatchUnlocked(Boolean(data.unlocked));
+  } catch (error) {
+    els.worldWatchGateStatus.textContent = error.message || "World Watch login failed.";
+  } finally {
+    els.worldWatchLoginForm.querySelectorAll("input, button").forEach((element) => {
+      element.disabled = false;
+    });
+  }
+}
+
+function setWorldWatchUnlocked(unlocked) {
+  state.worldNewsUnlocked = unlocked;
+  els.worldWatchGate.hidden = unlocked;
+  els.worldWatchConsole.hidden = !unlocked;
+  if (!unlocked) {
+    state.worldNewsLoaded = false;
+    return;
+  }
+
+  initWorldGlobe().then(() => loadWorldNews(!state.worldNewsLoaded));
+}
+
+async function loadWorldNews(force = false) {
+  if (!state.worldNewsUnlocked || state.worldNewsLoaded && !force) return;
+  els.worldWatchStatus.textContent = "Loading global feed...";
+  try {
+    const response = await fetch(`/api/world-news/feed${force ? `?t=${Date.now()}` : ""}`, {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 403) {
+      setWorldWatchUnlocked(false);
+      throw new Error(data.error || "World Watch login required.");
+    }
+    if (!response.ok) throw new Error(data.error || "World news feed is unavailable.");
+    state.worldNewsLoaded = true;
+    state.worldNewsArticles = data.articles || [];
+    renderWorldNews(data);
+    updateWorldGlobeArticles(state.worldNewsArticles);
+    const freshness = data.stale ? "cached" : data.source || "global feed";
+    els.worldWatchStatus.textContent = `${state.worldNewsArticles.length} signals / ${freshness} / ${formatDateTime(data.updatedAt)}`;
+  } catch (error) {
+    els.worldWatchStatus.textContent = error.message || "World news feed is unavailable.";
+    renderWorldNews({ articles: [], regions: [] });
+  }
+}
+
+function renderWorldNews(data) {
+  const articles = data.articles || [];
+  const regions = data.regions || [];
+  els.worldNewsList.innerHTML = "";
+  els.worldRegionStrip.innerHTML = "";
+
+  regions.slice(0, 6).forEach((region) => {
+    const item = document.createElement("div");
+    item.className = "world-region";
+    item.innerHTML = `
+      <span>${escapeHtml(region.region)}</span>
+      <strong>${Number(region.count) || 0}</strong>
+      <small>${escapeHtml(region.latestAt ? formatDateTime(region.latestAt) : "--")}</small>
+    `;
+    els.worldRegionStrip.append(item);
+  });
+
+  if (!articles.length) {
+    const empty = document.createElement("p");
+    empty.className = "admin-empty";
+    empty.textContent = "No global signals available right now.";
+    els.worldNewsList.append(empty);
+    return;
+  }
+
+  articles.forEach((article, index) => {
+    const item = document.createElement("article");
+    item.className = "world-news-item";
+    item.innerHTML = `
+      <div>
+        <span>${String(index + 1).padStart(2, "0")}</span>
+        <strong>${escapeHtml(article.sourceCountry || "Unknown")}</strong>
+      </div>
+      <a href="${escapeAttribute(article.url)}" target="_blank" rel="noreferrer">${escapeHtml(article.title)}</a>
+      <small>${escapeHtml(article.domain || "--")} / ${escapeHtml(article.language || "--")} / ${escapeHtml(article.seenAt ? formatDateTime(article.seenAt) : "--")}</small>
+    `;
+    item.addEventListener("pointerenter", () => focusWorldArticle(article.id));
+    els.worldNewsList.append(item);
+  });
+}
+
+async function initWorldGlobe() {
+  if (state.worldNewsGlobe || !els.worldGlobeCanvas) return;
+  const THREE = await import("./three.module.min.js");
+  const canvas = els.worldGlobeCanvas;
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, canvas });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, 1, .1, 100);
+  camera.position.set(0, 0, 5.2);
+
+  const globe = new THREE.Group();
+  const markerGroup = new THREE.Group();
+  const arcGroup = new THREE.Group();
+  scene.add(globe);
+  globe.add(new THREE.Mesh(
+    new THREE.SphereGeometry(1.56, 64, 32),
+    new THREE.MeshBasicMaterial({ color: 0xf7f7f2, opacity: .055, transparent: true, wireframe: true })
+  ));
+  globe.add(new THREE.Mesh(
+    new THREE.SphereGeometry(1.53, 48, 24),
+    new THREE.MeshBasicMaterial({ color: 0xf7f7f2, opacity: .045, transparent: true })
+  ));
+  globe.add(markerGroup);
+  globe.add(arcGroup);
+  scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(320, Math.floor(rect.width));
+    const height = Math.max(320, Math.floor(rect.height));
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  }
+
+  function draw(time) {
+    resize();
+    globe.rotation.y = time * .00008;
+    markerGroup.children.forEach((marker, index) => {
+      const pulse = 1 + Math.sin(time * .006 + index) * .22;
+      marker.scale.setScalar(marker.userData.focus ? 1.8 : pulse);
+    });
+    renderer.render(scene, camera);
+    state.worldNewsGlobe.frame = requestAnimationFrame(draw);
+  }
+
+  state.worldNewsGlobe = {
+    THREE,
+    arcGroup,
+    camera,
+    globe,
+    markerGroup,
+    renderer,
+    scene
+  };
+  window.addEventListener("resize", resize);
+  requestAnimationFrame(draw);
+}
+
+function updateWorldGlobeArticles(articles) {
+  const globe = state.worldNewsGlobe;
+  if (!globe) return;
+  const { THREE, markerGroup, arcGroup } = globe;
+  markerGroup.clear();
+  arcGroup.clear();
+  const seen = new Set();
+  articles.forEach((article, index) => {
+    const key = `${article.lat},${article.lon}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const position = latLonToVector(THREE, Number(article.lat), Number(article.lon), 1.65);
+    const marker = new THREE.Mesh(
+      new THREE.SphereGeometry(.035, 14, 14),
+      new THREE.MeshBasicMaterial({ color: index < 8 ? 0xffffff : 0xbdbdb5 })
+    );
+    marker.position.copy(position);
+    marker.userData = { id: article.id };
+    markerGroup.add(marker);
+
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        latLonToVector(THREE, 51.5, -0.1, 1.6),
+        position.clone().multiplyScalar(1.12),
+        position
+      ]),
+      new THREE.LineBasicMaterial({ color: 0xf7f7f2, transparent: true, opacity: .18 })
+    );
+    arcGroup.add(line);
+  });
+}
+
+function focusWorldArticle(id) {
+  const globe = state.worldNewsGlobe;
+  if (!globe) return;
+  globe.markerGroup.children.forEach((marker) => {
+    marker.userData.focus = marker.userData.id === id;
+  });
+}
+
+function latLonToVector(THREE, lat, lon, radius) {
+  const phi = (90 - lat) * Math.PI / 180;
+  const theta = (lon + 180) * Math.PI / 180;
+  return new THREE.Vector3(
+    -radius * Math.sin(phi) * Math.cos(theta),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.sin(theta)
+  );
 }
 
 async function createSecureMessageLink(event) {

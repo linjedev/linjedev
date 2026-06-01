@@ -12,6 +12,7 @@ const arcadeScores = new Map();
 const secureMessageRequests = new Map();
 const secureMessageAccess = new Map();
 const secureMessageEvents = [];
+const worldNewsUnlocks = new Map();
 const authEvents = [];
 const CAPTCHA_TTL_MS = 5 * 60 * 1000;
 const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || crypto.randomBytes(32).toString("hex");
@@ -103,6 +104,55 @@ async function handleApi(request, response, pathname) {
 
   if (pathname === "/api/arcade/leaderboard" && request.method === "GET") {
     sendJson(response, 200, { scores: getPreviewArcadeScores() });
+    return;
+  }
+
+  if (pathname === "/api/world-news/unlock" && request.method === "GET") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    sendJson(response, 200, {
+      unlocked: hasPreviewWorldNewsUnlock(user),
+      username: user.username
+    });
+    return;
+  }
+
+  if (pathname === "/api/world-news/unlock" && request.method === "POST") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    const body = await readBody(request);
+    const account = users.get(user.id);
+    if (!account || !verifyPassword(String(body.password || ""), account.password)) {
+      sendJson(response, 401, { error: "World Watch login failed." });
+      return;
+    }
+    const expiresAt = Math.floor(Date.now() / 1000) + 7200;
+    worldNewsUnlocks.set(user.id, expiresAt);
+    sendJson(response, 200, {
+      expiresAt,
+      unlocked: true,
+      username: user.username
+    });
+    return;
+  }
+
+  if (pathname === "/api/world-news/feed" && request.method === "GET") {
+    const user = currentUser(request);
+    if (!user) {
+      sendJson(response, 401, { error: "Login required." });
+      return;
+    }
+    if (!hasPreviewWorldNewsUnlock(user)) {
+      sendJson(response, 403, { error: "World Watch login required." });
+      return;
+    }
+    sendJson(response, 200, getPreviewWorldNews());
     return;
   }
 
@@ -540,6 +590,76 @@ function isPreviewAdmin(user) {
     .map((item) => normalizeUsername(item))
     .filter(Boolean);
   return Boolean(user && admins.includes(user.username));
+}
+
+function hasPreviewWorldNewsUnlock(user) {
+  const expiresAt = worldNewsUnlocks.get(user.id) || 0;
+  return expiresAt > Math.floor(Date.now() / 1000);
+}
+
+function getPreviewWorldNews() {
+  const updatedAt = new Date().toISOString();
+  const articles = [
+    {
+      id: "ww-preview-london",
+      title: "European capitals coordinate new infrastructure security exercises",
+      url: "https://example.com/europe-security",
+      domain: "example.com",
+      language: "English",
+      sourceCountry: "United Kingdom",
+      region: "Europe",
+      lat: 51.5,
+      lon: -0.1,
+      seenAt: updatedAt
+    },
+    {
+      id: "ww-preview-tokyo",
+      title: "Pacific markets watch chip supply signals after overnight policy update",
+      url: "https://example.com/pacific-markets",
+      domain: "example.com",
+      language: "English",
+      sourceCountry: "Japan",
+      region: "East Asia",
+      lat: 35.7,
+      lon: 139.7,
+      seenAt: updatedAt
+    },
+    {
+      id: "ww-preview-brasilia",
+      title: "South American climate summit tracks cross-border energy resilience",
+      url: "https://example.com/climate-energy",
+      domain: "example.com",
+      language: "English",
+      sourceCountry: "Brazil",
+      region: "South America",
+      lat: -15.8,
+      lon: -47.9,
+      seenAt: updatedAt
+    },
+    {
+      id: "ww-preview-delhi",
+      title: "Regional ports report higher freight checks across the Indian Ocean corridor",
+      url: "https://example.com/freight-checks",
+      domain: "example.com",
+      language: "English",
+      sourceCountry: "India",
+      region: "South Asia",
+      lat: 28.6,
+      lon: 77.2,
+      seenAt: updatedAt
+    }
+  ];
+  return {
+    articles,
+    regions: [
+      { region: "Europe", count: 1, latestAt: updatedAt },
+      { region: "East Asia", count: 1, latestAt: updatedAt },
+      { region: "South America", count: 1, latestAt: updatedAt },
+      { region: "South Asia", count: 1, latestAt: updatedAt }
+    ],
+    source: "Preview feed",
+    updatedAt
+  };
 }
 
 function normalizeAvatarUrl(value) {
