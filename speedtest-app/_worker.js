@@ -22,6 +22,7 @@ const LEGACY_BRAND_PATTERNS = [
   [new RegExp(["Worldwide", "View"].join(""), "g"), "Linje.track"],
   [new RegExp(["https://", "worldwideview", ".dev/"].join(""), "g"), "https://linje.dev/"],
   [new RegExp(["https://", "worldwideview", ".dev"].join(""), "g"), "https://linje.dev"],
+  ["https://discord.gg/k3F2N4eKnr", "https://discord.gg/y4eEFDeK5q"],
 ];
 
 function rewriteBrandText(value) {

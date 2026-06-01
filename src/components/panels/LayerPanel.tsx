@@ -263,7 +263,7 @@ export function LayerPanel() {
                         ))}
             </div>
             <a
-              href="https://discord.gg/k3F2N4eKnr"
+              href="https://discord.gg/y4eEFDeK5q"
               target="_blank"
               rel="noopener noreferrer"
               className="discord-sidebar-link"
