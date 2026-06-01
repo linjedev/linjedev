@@ -1,5 +1,5 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
-const ASSET_VERSION = "linje-20260601-10";
+const ASSET_VERSION = "linje-20260601-11";
 const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhM2E0MjQwYy0wNTU3LTQzODMtOGVmZi01YzExMTM1ZTVmYzciLCJpZCI6NDM4NzYwLCJzdWIiOiJzZWJ3aW5maWVsZCIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJMaW5qZS5kZXYiLCJpYXQiOjE3ODAyNzc5MzR9.BfH1rVscC0WBp12NorM8_TQuZY_gDaVafB3a0Eh33fA";
 const RETIRED_COPY = {
@@ -43,6 +43,9 @@ const CAPTCHA_SECRET = "linje-track-access-captcha-v1";
 const EDGE_OWNER_LOGINS = new Set(["admin", "seb", "sebastian"]);
 const EDGE_OWNER_PASSWORD = "sebtest1234";
 const EDGE_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const ACCESS_STORE_KEY = "linje-track-access-requests-v1";
+const CACHE_STORE_URL = "https://linje.dev/__edge-access-store";
+const memoryStore = { requests: [], users: [] };
 
 function getCookie(cookieHeader, name) {
   const match = new RegExp(`(?:^|;\\s*)${name}=([^;]+)`).exec(cookieHeader || "");
@@ -52,6 +55,20 @@ function getCookie(cookieHeader, name) {
 async function hasSessionCookie(cookieHeader) {
   if (/(?:^|;\s*)(?:__Secure-)?(?:authjs|next-auth)\.session-token=/.test(cookieHeader || "")) return true;
   return verifyEdgeSession(getCookie(cookieHeader, "linje_access"));
+}
+
+async function hasAdminSessionCookie(cookieHeader) {
+  const token = getCookie(cookieHeader, "linje_access");
+  if (EDGE_OWNER_LOGINS.has(normalizeLogin(token))) return true;
+  const [payload, signature] = String(token || "").split(".");
+  if (!payload || !signature) return false;
+  if (await edgeSessionSignature(payload) !== signature) return false;
+  try {
+    const parsed = JSON.parse(fromBase64Url(payload));
+    return parsed.role === "admin" && Date.now() <= parsed.expires;
+  } catch {
+    return false;
+  }
 }
 
 function isPublicPath(pathname) {
@@ -139,10 +156,10 @@ async function verifyCaptcha(token, answer) {
   }
 }
 
-async function createEdgeSession(username) {
+async function createEdgeSession(username, role = "user") {
   const payload = toBase64Url(new TextEncoder().encode(JSON.stringify({
     username,
-    role: "admin",
+    role,
     expires: Date.now() + EDGE_SESSION_TTL_MS,
   })));
   return `${payload}.${await edgeSessionSignature(payload)}`;
@@ -155,23 +172,180 @@ async function verifyEdgeSession(token) {
   if (await edgeSessionSignature(payload) !== signature) return false;
   try {
     const parsed = JSON.parse(fromBase64Url(payload));
-    return parsed.role === "admin" && Date.now() <= parsed.expires;
+    return (parsed.role === "admin" || parsed.role === "user") && Date.now() <= parsed.expires;
   } catch {
     return false;
   }
+}
+
+function emptyAccessStore() {
+  return { requests: [], users: [] };
+}
+
+function normalizeLogin(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function requestId() {
+  return `${Date.now().toString(36)}-${crypto.randomUUID()}`;
+}
+
+function accessStoreBinding(env) {
+  return env?.LINJE_ACCESS || env?.ACCESS_REQUESTS || env?.ACCESS_STORE || env?.KV;
+}
+
+async function readAccessStore(env) {
+  const binding = accessStoreBinding(env);
+  if (binding?.get) {
+    try {
+      return JSON.parse(await binding.get(ACCESS_STORE_KEY) || JSON.stringify(emptyAccessStore()));
+    } catch {}
+  }
+
+  if (typeof caches !== "undefined") {
+    try {
+      const response = await caches.default.match(new Request(CACHE_STORE_URL));
+      if (response) return JSON.parse(await response.text());
+    } catch {}
+  }
+
+  return {
+    requests: Array.isArray(memoryStore.requests) ? memoryStore.requests : [],
+    users: Array.isArray(memoryStore.users) ? memoryStore.users : [],
+  };
+}
+
+async function writeAccessStore(env, store) {
+  const normalized = {
+    requests: Array.isArray(store.requests) ? store.requests : [],
+    users: Array.isArray(store.users) ? store.users : [],
+  };
+  memoryStore.requests = normalized.requests;
+  memoryStore.users = normalized.users;
+
+  const value = JSON.stringify(normalized);
+  const binding = accessStoreBinding(env);
+  if (binding?.put) {
+    try {
+      await binding.put(ACCESS_STORE_KEY, value);
+      return;
+    } catch {}
+  }
+
+  if (typeof caches !== "undefined") {
+    try {
+      await caches.default.put(
+        new Request(CACHE_STORE_URL),
+        new Response(value, {
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "public, max-age=31536000",
+          },
+        }),
+      );
+    } catch {}
+  }
+}
+
+async function isApprovedAccessLogin(env, login, password) {
+  const normalized = normalizeLogin(login);
+  if (EDGE_OWNER_LOGINS.has(normalized) && password === EDGE_OWNER_PASSWORD) return true;
+  const store = await readAccessStore(env);
+  return store.users.some(user =>
+    user.status === "approved" &&
+    normalizeLogin(user.login) === normalized &&
+    user.password === password
+  );
+}
+
+async function saveAccessRequest(env, form) {
+  const name = String(form.get("name") || "").trim();
+  const email = normalizeLogin(form.get("email"));
+  const password = String(form.get("password") || "");
+  const store = await readAccessStore(env);
+  const existingUser = store.users.find(user => normalizeLogin(user.login) === email);
+  if (existingUser?.status === "approved") return { ok: false, message: "That login is already approved. Sign in instead." };
+
+  const existingRequest = store.requests.find(req => normalizeLogin(req.email) === email && req.status === "pending");
+  if (existingRequest) {
+    existingRequest.name = name;
+    existingRequest.password = password;
+    existingRequest.updatedAt = new Date().toISOString();
+  } else {
+    store.requests.unshift({
+      id: requestId(),
+      name,
+      email,
+      password,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  await writeAccessStore(env, store);
+  return { ok: true, message: "Access request received. An admin will review it." };
+}
+
+async function updateAccessRequest(env, id, action) {
+  const store = await readAccessStore(env);
+  if (action === "revoke") {
+    const user = store.users.find(item => item.id === id || normalizeLogin(item.login) === normalizeLogin(id));
+    if (!user) return { ok: false, message: "Approved user not found." };
+    store.users = store.users.filter(item => item.id !== user.id);
+    const request = store.requests.find(item => item.id === user.id || normalizeLogin(item.email) === normalizeLogin(user.login));
+    if (request) {
+      request.status = "denied";
+      request.updatedAt = new Date().toISOString();
+    }
+    await writeAccessStore(env, store);
+    return { ok: true, message: "User access revoked." };
+  }
+
+  const request = store.requests.find(item => item.id === id);
+  if (!request) return { ok: false, message: "Request not found." };
+  request.status = action === "approve" ? "approved" : "denied";
+  request.updatedAt = new Date().toISOString();
+
+  const login = normalizeLogin(request.email);
+  store.users = store.users.filter(user => normalizeLogin(user.login) !== login);
+  if (request.status === "approved") {
+    store.users.unshift({
+      id: request.id,
+      login,
+      name: request.name,
+      password: request.password,
+      status: "approved",
+      approvedAt: new Date().toISOString(),
+    });
+  }
+
+  await writeAccessStore(env, store);
+  return { ok: true, message: request.status === "approved" ? "User approved." : "Request denied." };
 }
 
 function loginHtml({ error = "" } = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in to Linje.track</title>${authStyles()}</head><body>${authGlobeFrame()}<main class="card"><div class="mark">L</div><h1 class="title">Sign in to Linje.track</h1><p class="sub">Approved users can enter the workspace.</p><form class="form" method="post" action="/login"><label class="label">Username<input class="input" name="username" required autocomplete="username" autocapitalize="none" spellcheck="false"></label><label class="label">Password<input class="input" name="password" type="password" required autocomplete="current-password"></label>${error ? `<p class="err">${error}</p>` : ""}<button class="button" type="submit">Sign In</button></form><p class="footer">Need access? <a class="link" href="/register">Request approval</a></p></main></body></html>`;
 }
 
-function loginRedirectResponse(username, requestUrl) {
+async function loginRedirectResponse(username, requestUrl, role = "user") {
   const target = new URL("/", requestUrl);
+  const sessionValue = EDGE_OWNER_LOGINS.has(normalizeLogin(username))
+    ? normalizeLogin(username)
+    : await createEdgeSession(username, role);
   return new Response(null, {
     status: 303,
     headers: {
       "Location": target.toString(),
-      "Set-Cookie": `linje_access=${encodeURIComponent(username)}; Path=/; Max-Age=${Math.floor(EDGE_SESSION_TTL_MS / 1000)}; HttpOnly; Secure; SameSite=Lax`,
+      "Set-Cookie": `linje_access=${encodeURIComponent(sessionValue)}; Path=/; Max-Age=${Math.floor(EDGE_SESSION_TTL_MS / 1000)}; HttpOnly; Secure; SameSite=Lax`,
       "Cache-Control": "no-store",
     },
   });
@@ -180,6 +354,27 @@ function loginRedirectResponse(username, requestUrl) {
 async function registerHtml({ error = "", success = "" } = {}) {
   const captcha = await createCaptcha();
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Request Linje.track Access</title>${authStyles()}</head><body>${authGlobeFrame()}<main class="card"><div class="mark">L</div><h1 class="title">Request Linje.track access</h1><p class="sub">Approved users can enter the live tracking workspace.</p><form class="form" method="post" action="/register"><label class="label">Display Name<input class="input" name="name" required autocomplete="name"></label><label class="label">Email<input class="input" name="email" type="email" required autocomplete="email"></label><label class="label">Password<input class="input" name="password" type="password" required minlength="8" autocomplete="new-password"></label><label class="label">Confirm Password<input class="input" name="confirm" type="password" required minlength="8" autocomplete="new-password"></label><div class="captcha"><label class="label">Captcha<span class="question">${captcha.question}</span><input class="input" name="captchaAnswer" required inputmode="numeric" pattern="[0-9]*"></label><a class="icon" href="/register" title="Refresh captcha" aria-label="Refresh captcha" style="display:grid;place-items:center;text-decoration:none">↻</a></div><input type="hidden" name="captchaToken" value="${captcha.token}">${error ? `<p class="err">${error}</p>` : ""}${success ? `<p class="msg">${success}</p>` : ""}<button class="button" type="submit">Request Access</button></form><p class="footer">Already approved? <a class="link" href="/login">Sign in</a></p></main></body></html>`;
+}
+
+function adminStyles() {
+  return `<style>:root{color-scheme:dark;--bg:#050506;--glass:rgba(8,8,10,.44);--border:rgba(255,255,255,.14);--text:#f4f4f5;--muted:#a1a1aa;--ok:#22c55e;--bad:#ef4444;--warn:#f59e0b}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#050506;color:var(--text);font-family:Inter,Arial,sans-serif;overflow-x:hidden}.auth-globe-frame{position:fixed;inset:0;width:100%;height:100%;border:0;z-index:0;opacity:.72;filter:brightness(.38) saturate(.9) blur(1.2px);transform:scale(1.025);pointer-events:none}body:before{content:"";position:fixed;inset:0;z-index:1;background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.06),transparent 28%),linear-gradient(to bottom,rgba(0,0,0,.34),rgba(0,0,0,.9));pointer-events:none}.wrap{position:relative;z-index:2;width:min(1080px,calc(100% - 32px));margin:40px auto}.panel{background:linear-gradient(145deg,rgba(12,12,14,.52),rgba(6,6,8,.3));border:1px solid var(--border);border-radius:16px;box-shadow:inset 0 1px 1px rgba(255,255,255,.18),0 24px 80px rgba(0,0,0,.56);backdrop-filter:blur(34px) saturate(1.35);-webkit-backdrop-filter:blur(34px) saturate(1.35);padding:24px}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}.mark{width:42px;height:42px;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);font-weight:800}.title-row{display:flex;gap:14px;align-items:center}.title{margin:0;font-size:24px;letter-spacing:0}.sub{margin:4px 0 0;color:var(--muted);font-size:13px}.link{color:#fff;text-decoration:none;font-weight:800}.pill{display:inline-flex;align-items:center;min-height:24px;padding:3px 8px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.06);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}.grid{display:grid;gap:14px}.section{border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.035);overflow:hidden}.section-head{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.09)}.section-title{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.08em}.rows{display:grid}.row{display:grid;grid-template-columns:1.3fr 1.4fr .8fr auto;gap:12px;align-items:center;padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)}.row:first-child{border-top:0}.name{font-weight:800}.meta,.date{color:var(--muted);font-size:12px}.status{width:max-content;padding:3px 7px;border-radius:999px;border:1px solid var(--border);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em}.status.pending{color:var(--warn);border-color:rgba(245,158,11,.28);background:rgba(245,158,11,.08)}.status.approved{color:var(--ok);border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.08)}.status.denied{color:var(--bad);border-color:rgba(239,68,68,.25);background:rgba(239,68,68,.08)}.actions,.actions form{display:flex;gap:8px;justify-content:flex-end}.button{min-height:34px;padding:8px 11px;border:1px solid rgba(255,255,255,.3);border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font-weight:800;cursor:pointer}.button:hover{background:rgba(255,255,255,.2)}.button.deny{border-color:rgba(239,68,68,.35);color:#fecaca}.empty{padding:24px 16px;color:var(--muted);font-size:13px}.msg{margin:0 0 14px;color:var(--ok);font-size:13px}.err{margin:0 0 14px;color:var(--bad);font-size:13px}@media(max-width:760px){.top,.title-row{display:grid}.row{grid-template-columns:1fr}.actions,.actions form{justify-content:flex-start}}</style>`;
+}
+
+function requestRows(requests) {
+  if (!requests.length) return `<div class="empty">No access requests yet.</div>`;
+  return `<div class="rows">${requests.map(req => `<div class="row"><div><div class="name">${escapeHtml(req.name || "Unnamed")}</div><div class="meta">${escapeHtml(req.email)}</div></div><div class="date">${escapeHtml(req.createdAt || "")}</div><span class="status ${escapeHtml(req.status)}">${escapeHtml(req.status)}</span><div class="actions">${req.status === "pending" ? `<form method="post" action="/admin"><input type="hidden" name="id" value="${escapeHtml(req.id)}"><button class="button" name="action" value="approve" type="submit">Approve</button><button class="button deny" name="action" value="deny" type="submit">Deny</button></form>` : ""}</div></div>`).join("")}</div>`;
+}
+
+function userRows(users) {
+  const approved = users.filter(user => user.status === "approved");
+  if (!approved.length) return `<div class="empty">No approved users yet.</div>`;
+  return `<div class="rows">${approved.map(user => `<div class="row"><div><div class="name">${escapeHtml(user.name || user.login)}</div><div class="meta">${escapeHtml(user.login)}</div></div><div class="date">${escapeHtml(user.approvedAt || "")}</div><span class="status approved">approved</span><div class="actions"><form method="post" action="/admin"><input type="hidden" name="id" value="${escapeHtml(user.id || user.login)}"><button class="button deny" name="action" value="revoke" type="submit">Revoke</button></form></div></div>`).join("")}</div>`;
+}
+
+async function adminHtml(env, { message = "", error = "" } = {}) {
+  const store = await readAccessStore(env);
+  const pending = store.requests.filter(req => req.status === "pending").length;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linje.track Administrator</title>${adminStyles()}</head><body>${authGlobeFrame()}<main class="wrap"><section class="panel"><div class="top"><div class="title-row"><div class="mark">L</div><div><h1 class="title">Administrator</h1><p class="sub">Approve or deny Linje.track access requests.</p></div></div><a class="link" href="/">Back to globe</a></div>${message ? `<p class="msg">${escapeHtml(message)}</p>` : ""}${error ? `<p class="err">${escapeHtml(error)}</p>` : ""}<div class="grid"><section class="section"><div class="section-head"><h2 class="section-title">Access Requests</h2><span class="pill">${pending} pending</span></div>${requestRows(store.requests)}</section><section class="section"><div class="section-head"><h2 class="section-title">Approved Users</h2><span class="pill">${store.users.filter(user => user.status === "approved").length} active</span></div>${userRows(store.users)}</section></div></section></main></body></html>`;
 }
 
 function htmlResponse(body, status = 200, upstream = "access-gate") {
@@ -318,10 +513,23 @@ async function authBackgroundResponse(request) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const requestUrl = new URL(request.url);
     if (requestUrl.pathname === "/auth-background") {
       return authBackgroundResponse(request);
+    }
+
+    if (requestUrl.pathname === "/admin") {
+      if (!await hasAdminSessionCookie(request.headers.get("Cookie"))) {
+        if (request.method.toUpperCase() === "GET") return htmlResponse(loginHtml({ error: "Sign in as admin first." }), 401);
+        return new Response("Admin authentication required", { status: 401 });
+      }
+      if (request.method.toUpperCase() === "POST") {
+        const form = await request.formData();
+        const result = await updateAccessRequest(env, String(form.get("id") || ""), String(form.get("action") || ""));
+        return htmlResponse(await adminHtml(env, result.ok ? { message: result.message } : { error: result.message }));
+      }
+      return htmlResponse(await adminHtml(env), 200, "admin");
     }
 
     if (requestUrl.pathname === "/login") {
@@ -329,11 +537,12 @@ export default {
         const form = await request.formData();
         const username = String(form.get("username") || form.get("email") || "").trim().toLowerCase();
         const password = String(form.get("password") || "");
-        if (!EDGE_OWNER_LOGINS.has(username) || password !== EDGE_OWNER_PASSWORD) {
+        if (!await isApprovedAccessLogin(env, username, password)) {
           return htmlResponse(loginHtml({ error: "Invalid username or password." }), 401);
         }
 
-        return loginRedirectResponse(username, request.url);
+        const role = EDGE_OWNER_LOGINS.has(username) ? "admin" : "user";
+        return loginRedirectResponse(username, request.url, role);
       }
       return htmlResponse(loginHtml());
     }
@@ -349,7 +558,8 @@ export default {
         if (!await verifyCaptcha(form.get("captchaToken"), form.get("captchaAnswer"))) {
           return htmlResponse(await registerHtml({ error: "Captcha check failed. Refresh it and try again." }));
         }
-        return htmlResponse(await registerHtml({ success: "Access request received. An admin will review it." }));
+        const result = await saveAccessRequest(env, form);
+        return htmlResponse(await registerHtml(result.ok ? { success: result.message } : { error: result.message }));
       }
       return htmlResponse(await registerHtml());
     }
