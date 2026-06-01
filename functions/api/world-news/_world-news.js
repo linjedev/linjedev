@@ -74,12 +74,6 @@ const PLACE_CATALOG = [
   { name: "Jakarta", aliases: ["jakarta"], country: "Indonesia", region: "Southeast Asia", lat: -6.2088, lon: 106.8456, population: 10670000, kind: "capital" }
 ];
 
-const FALLBACK_SIGNALS = [
-  { title: "Global wire monitor awaiting fresh article burst", domain: "gdeltproject.org", language: "English", place: PLACE_CATALOG[0], url: "https://www.gdeltproject.org/", seenAt: new Date().toISOString() },
-  { title: "Aviation layer checks live ADS-B state vectors", domain: "opensky-network.org", language: "English", place: PLACE_CATALOG[5], url: "https://opensky-network.org/", seenAt: new Date().toISOString() },
-  { title: "Maritime layer ready for AISStream API key", domain: "aisstream.io", language: "English", place: { name: "Strait of Hormuz", country: "International waters", region: "Shipping lanes", lat: 26.5667, lon: 56.25, population: 0, kind: "strait" }, url: "https://aisstream.io/documentation", seenAt: new Date().toISOString() }
-];
-
 export async function ensureWorldNewsTables(env) {
   await env.DB.prepare(
     `CREATE TABLE IF NOT EXISTS world_news_requests (
@@ -201,7 +195,7 @@ export async function getWorldNewsFeed(env) {
         status: error.message || "World news feed is using cached data."
       };
     }
-    feed = await fallbackWorldFeed(error.message || "World news feed is using fallback signals.");
+    feed = await emptyFreeWorldFeed(error.message || "Free world news feed is temporarily unavailable.");
   }
   await env.DB.prepare(
     `INSERT INTO world_news_cache (cache_key, payload, updated_at)
@@ -252,10 +246,6 @@ async function fetchGdeltFeed() {
     .filter(Boolean)
     .slice(0, 72);
 
-  if (!articles.length) {
-    articles = FALLBACK_SIGNALS.map((signal, index) => normalizeFallbackSignal(signal, index));
-  }
-
   const regions = articles.reduce((items, article) => {
     const current = items.get(article.region) || { count: 0, latestAt: "" };
     current.count += 1;
@@ -273,28 +263,27 @@ async function fetchGdeltFeed() {
     sources: [
       { name: "GDELT DOC 2.0", status: "news articles", url: "https://www.gdeltproject.org/" },
       { name: "OpenSky Network", status: "ADS-B state vectors when rate limit permits", url: "https://opensky-network.org/" },
-      { name: "AISStream", status: "configure AISSTREAM_KEY for live vessel WebSocket streaming", url: "https://aisstream.io/documentation" }
+      { name: "AISStream", status: "configure free AISSTREAM_KEY for live vessel WebSocket streaming", url: "https://aisstream.io/documentation" }
     ],
+    status: articles.length ? "live" : "GDELT returned no articles for the current window.",
     source: "GDELT DOC 2.0 / OpenSky / AIS-ready",
     updatedAt: new Date().toISOString()
   };
 }
 
-async function fallbackWorldFeed(status) {
-  const articles = FALLBACK_SIGNALS.map((signal, index) => normalizeFallbackSignal(signal, index));
+async function emptyFreeWorldFeed(status) {
   return {
-    articles,
+    articles: [],
     flights: await fetchOpenSkyFlights(),
-    places: buildPlaces(articles),
-    regions: [{ region: "Fallback signals", count: articles.length, latestAt: new Date().toISOString() }],
+    places: [],
+    regions: [],
     ships: getMaritimeLayer(),
     sources: [
-      { name: "GDELT DOC 2.0", status: status || "rate limited", url: "https://www.gdeltproject.org/" },
+      { name: "GDELT DOC 2.0", status: status || "unavailable", url: "https://www.gdeltproject.org/" },
       { name: "OpenSky Network", status: "ADS-B state vectors when rate limit permits", url: "https://opensky-network.org/" },
-      { name: "AISStream", status: "configure AISSTREAM_KEY for live vessel WebSocket streaming", url: "https://aisstream.io/documentation" }
+      { name: "AISStream", status: "configure free AISSTREAM_KEY for live vessel WebSocket streaming", url: "https://aisstream.io/documentation" }
     ],
-    source: "fallback / OpenSky / AIS-ready",
-    stale: true,
+    source: "free APIs",
     status,
     updatedAt: new Date().toISOString()
   };
@@ -319,25 +308,6 @@ function normalizeArticle(article) {
     lon: place.lon,
     seenAt: normalizeGdeltDate(article.seendate || ""),
     image: article.socialimage || ""
-  };
-}
-
-function normalizeFallbackSignal(signal, index) {
-  const place = signal.place;
-  return {
-    id: `fallback-${index}`,
-    title: signal.title,
-    url: signal.url,
-    domain: signal.domain,
-    language: signal.language,
-    sourceCountry: place.country || place.label,
-    place,
-    placeName: place.name || place.label,
-    region: place.region,
-    lat: place.lat,
-    lon: place.lon,
-    seenAt: signal.seenAt,
-    image: ""
   };
 }
 
@@ -430,16 +400,10 @@ async function fetchOpenSkyFlights() {
 function getMaritimeLayer() {
   return {
     source: "AISStream",
-    status: "AISSTREAM_KEY required for live vessel WebSocket streaming",
+    status: "free AISSTREAM_KEY required for live vessel WebSocket streaming",
     updatedAt: new Date().toISOString(),
     vessels: [],
-    lanes: [
-      { name: "Strait of Hormuz", lat: 26.5667, lon: 56.25, traffic: "critical energy chokepoint" },
-      { name: "Suez Canal", lat: 30.5852, lon: 32.2654, traffic: "Europe-Asia container and tanker corridor" },
-      { name: "Bab el-Mandeb", lat: 12.5833, lon: 43.3333, traffic: "Red Sea gateway" },
-      { name: "Strait of Malacca", lat: 2.5, lon: 101.0, traffic: "Asia-Europe trade lane" },
-      { name: "Panama Canal", lat: 9.08, lon: -79.68, traffic: "Atlantic-Pacific canal corridor" }
-    ]
+    lanes: []
   };
 }
 

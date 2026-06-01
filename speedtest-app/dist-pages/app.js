@@ -2220,11 +2220,10 @@ async function loadWorldNews(force = false) {
     state.worldNewsArticles = feed.articles || [];
     renderWorldNews(feed);
     updateWorldGlobeData(feed);
-    const freshness = feed.stale ? "fallback" : feed.source || "global feed";
-    els.worldWatchStatus.textContent = `${state.worldNewsArticles.length} signals / ${freshness} / ${formatDateTime(feed.updatedAt)}`;
+    els.worldWatchStatus.textContent = `${countWorldSignals(feed)} signals / ${feed.source || "free APIs"} / ${feed.status || formatDateTime(feed.updatedAt)}`;
   } catch (error) {
     els.worldWatchStatus.textContent = error.message || "World news feed is unavailable.";
-    const feed = createClientWorldFallback(error.message || "World news feed is using local fallback signals.");
+    const feed = normalizeWorldFeed({ status: error.message || "Free APIs unavailable." });
     state.worldNewsFeed = feed;
     state.worldNewsArticles = feed.articles;
     renderWorldNews(feed);
@@ -2233,85 +2232,22 @@ async function loadWorldNews(force = false) {
 }
 
 function normalizeWorldFeed(data = {}) {
-  if (Array.isArray(data.articles) && data.articles.length) return data;
-  return createClientWorldFallback(data.status || "World news providers returned no articles.");
-}
-
-function createClientWorldFallback(status) {
-  const updatedAt = new Date().toISOString();
-  const articles = [
-    {
-      id: "client-fallback-tehran",
-      title: "Global feed fallback: Middle East monitoring point",
-      url: "https://www.gdeltproject.org/",
-      domain: "gdeltproject.org",
-      language: "English",
-      sourceCountry: "Iran",
-      placeName: "Tehran",
-      place: { name: "Tehran", country: "Iran", region: "Middle East", population: 9380000, kind: "capital", lat: 35.6892, lon: 51.389 },
-      region: "Middle East",
-      lat: 35.6892,
-      lon: 51.389,
-      seenAt: updatedAt
-    },
-    {
-      id: "client-fallback-london",
-      title: "Global feed fallback: European wire monitoring point",
-      url: "https://www.reuters.com/",
-      domain: "reuters.com",
-      language: "English",
-      sourceCountry: "United Kingdom",
-      placeName: "London",
-      place: { name: "London", country: "United Kingdom", region: "Europe", population: 8799800, kind: "capital", lat: 51.5072, lon: -0.1276 },
-      region: "Europe",
-      lat: 51.5072,
-      lon: -0.1276,
-      seenAt: updatedAt
-    },
-    {
-      id: "client-fallback-hormuz",
-      title: "Maritime fallback: Strait of Hormuz traffic chokepoint",
-      url: "https://aisstream.io/documentation",
-      domain: "aisstream.io",
-      language: "English",
-      sourceCountry: "International waters",
-      placeName: "Strait of Hormuz",
-      place: { name: "Strait of Hormuz", country: "International waters", region: "Shipping lanes", population: 0, kind: "strait", lat: 26.5667, lon: 56.25 },
-      region: "Shipping lanes",
-      lat: 26.5667,
-      lon: 56.25,
-      seenAt: updatedAt
-    }
-  ];
+  const updatedAt = data.updatedAt || new Date().toISOString();
   return {
-    articles,
-    flights: {
-      source: "Client fallback",
-      status: "OpenSky unavailable or not loaded",
-      updatedAt,
-      aircraft: []
-    },
-    places: articles.map((article) => ({ ...article.place, articleCount: 1, articles: [{ id: article.id, title: article.title, url: article.url, domain: article.domain }] })),
-    regions: [
-      { region: "Middle East", count: 1, latestAt: updatedAt },
-      { region: "Europe", count: 1, latestAt: updatedAt },
-      { region: "Shipping lanes", count: 1, latestAt: updatedAt }
-    ],
-    ships: {
-      source: "AISStream",
-      status: "AISSTREAM_KEY required for live vessel WebSocket streaming",
-      updatedAt,
-      vessels: [],
-      lanes: [
-        { name: "Strait of Hormuz", lat: 26.5667, lon: 56.25, traffic: "critical energy chokepoint" },
-        { name: "Suez Canal", lat: 30.5852, lon: 32.2654, traffic: "Europe-Asia container and tanker corridor" }
-      ]
-    },
-    source: "client fallback",
-    stale: true,
-    status,
+    articles: Array.isArray(data.articles) ? data.articles : [],
+    flights: data.flights || { source: "OpenSky Network", status: "not loaded", updatedAt, aircraft: [] },
+    places: Array.isArray(data.places) ? data.places : [],
+    regions: Array.isArray(data.regions) ? data.regions : [],
+    ships: data.ships || { source: "AISStream", status: "free AISSTREAM_KEY required for live vessel WebSocket streaming", updatedAt, vessels: [], lanes: [] },
+    sources: Array.isArray(data.sources) ? data.sources : [],
+    source: data.source || "free APIs",
+    status: data.status || "Free providers returned no current signals.",
     updatedAt
   };
+}
+
+function countWorldSignals(feed = {}) {
+  return (feed.articles?.length || 0) + (feed.flights?.aircraft?.length || 0) + (feed.ships?.vessels?.length || 0);
 }
 
 function renderWorldNews(data) {
@@ -2337,9 +2273,8 @@ function renderWorldNews(data) {
   if (!articles.length) {
     const empty = document.createElement("p");
     empty.className = "admin-empty";
-    empty.textContent = "No global signals available right now.";
+    empty.textContent = data.status || "No free-provider articles are available right now.";
     els.worldNewsList.append(empty);
-    return;
   }
 
   articles.forEach((article, index) => {
@@ -2513,14 +2448,18 @@ function updateWorldGlobeData(data) {
     flightGroup.add(marker);
   });
 
-  (data.ships?.lanes || []).forEach((lane) => {
-    const position = latLonToVector(THREE, Number(lane.lat), Number(lane.lon), 1.68);
+  const maritimeMarkers = [
+    ...(data.ships?.vessels || []),
+    ...(data.ships?.lanes || [])
+  ];
+  maritimeMarkers.forEach((ship) => {
+    const position = latLonToVector(THREE, Number(ship.lat), Number(ship.lon), 1.68);
     const marker = new THREE.Mesh(
       new THREE.BoxGeometry(.055, .026, .026),
       new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: .9 })
     );
     marker.position.copy(position);
-    marker.userData = { id: lane.name, payload: lane, type: "ship" };
+    marker.userData = { id: ship.id || ship.name, payload: ship, type: "ship" };
     marker.visible = state.worldLayers.ships;
     shipGroup.add(marker);
   });
@@ -2570,12 +2509,14 @@ function showWorldIntel(type, item) {
   if (type === "ship") {
     els.worldIntelPanel.innerHTML = `
       <p class="eyebrow">Maritime</p>
-      <h3>${escapeHtml(item.name || "Shipping lane")}</h3>
-      <p>${escapeHtml(item.traffic || "AIS provider not configured.")}</p>
+      <h3>${escapeHtml(item.name || item.id || "Vessel")}</h3>
+      <p>${escapeHtml(item.destination ? `Destination: ${item.destination}` : item.traffic || "AISStream key not configured.")}</p>
       <dl>
+        <div><dt>Flag</dt><dd>${escapeHtml(item.flag || "--")}</dd></div>
+        <div><dt>Speed</dt><dd>${item.speedKnots ? `${formatNumber(item.speedKnots, 1)} kn` : "--"}</dd></div>
         <div><dt>Latitude</dt><dd>${escapeHtml(String(item.lat || "--"))}</dd></div>
         <div><dt>Longitude</dt><dd>${escapeHtml(String(item.lon || "--"))}</dd></div>
-        <div><dt>Live AIS</dt><dd>Configure AISSTREAM_KEY</dd></div>
+        <div><dt>Last seen</dt><dd>${escapeHtml(item.lastSeenAt ? formatDateTime(item.lastSeenAt) : "--")}</dd></div>
       </dl>
     `;
     return;
