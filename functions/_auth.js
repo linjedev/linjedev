@@ -277,7 +277,7 @@ export function requireSameOrigin(request) {
 }
 
 export function isAdminUser(user, env) {
-  const admins = String((env && env.ADMIN_USERS) || "")
+  const admins = String((env && env.ADMIN_USERS) || "seb")
     .split(",")
     .map((item) => normalizeUsername(item))
     .filter(Boolean);

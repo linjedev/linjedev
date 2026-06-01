@@ -45,7 +45,7 @@ Linje.dev uses Cloudflare Pages Functions and a D1 database binding named `DB`.
    - D1 database: `linje-auth`
 6. Add Pages environment variables:
    - `CAPTCHA_SECRET`: at least 32 random characters, used to sign captcha tokens. If omitted, Linje.dev creates a durable fallback secret in D1.
-   - `ADMIN_USERS`: comma-separated usernames that can read `/api/admin/events`, for example `seb`.
+   - `ADMIN_USERS`: comma-separated usernames that can read admin APIs, for example `seb`. If omitted, `seb` is treated as the owner account.
 7. Redeploy the latest Pages deployment.
 
 The auth endpoints live in the repository root `functions/` directory:
