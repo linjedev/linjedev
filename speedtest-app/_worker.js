@@ -199,7 +199,9 @@ function requestId() {
 }
 
 function accessStoreBinding(env) {
-  return env?.LINJE_ACCESS || env?.ACCESS_REQUESTS || env?.ACCESS_STORE || env?.KV;
+  const named = env?.LINJE_ACCESS || env?.ACCESS_REQUESTS || env?.ACCESS_STORE || env?.KV;
+  if (named?.get && named?.put) return named;
+  return Object.values(env || {}).find(value => value?.get && value?.put) || null;
 }
 
 async function readAccessStore(env) {
