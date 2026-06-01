@@ -306,10 +306,8 @@ async function saveAccessRequest(env, form) {
     });
   }
 
-  await writeAccessStore(env, store);
-  const check = await readAccessStore(env);
-  const saved = check.requests.some(req => normalizeLogin(req.email) === email && req.status === "pending");
-  if (!saved) {
+  const written = await writeAccessStore(env, store);
+  if (!written) {
     return {
       ok: false,
       message: "Access storage is not connected yet. Add a Cloudflare KV binding named LINJE_ACCESS, then try again.",
