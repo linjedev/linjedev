@@ -155,7 +155,7 @@ async function verifyEdgeSession(token) {
 }
 
 function loginHtml({ error = "" } = {}) {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in to Linje.track</title>${authStyles()}</head><body><main class="card"><div class="mark">L</div><h1 class="title">Sign in to Linje.track</h1><p class="sub">Approved users can enter the workspace.</p><form class="form" method="post" action="/login"><label class="label">Username<input class="input" name="email" required autocomplete="username"></label><label class="label">Password<input class="input" name="password" type="password" required autocomplete="current-password"></label>${error ? `<p class="err">${error}</p>` : ""}<button class="button" type="submit">Sign In</button></form><p class="footer">Need access? <a class="link" href="/register">Request approval</a></p></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in to Linje.track</title>${authStyles()}</head><body><main class="card"><div class="mark">L</div><h1 class="title">Sign in to Linje.track</h1><p class="sub">Approved users can enter the workspace.</p><form class="form" method="post" action="/login"><label class="label">Username<input class="input" name="username" required autocomplete="username"></label><label class="label">Password<input class="input" name="password" type="password" required autocomplete="current-password"></label>${error ? `<p class="err">${error}</p>` : ""}<button class="button" type="submit">Sign In</button></form><p class="footer">Need access? <a class="link" href="/register">Request approval</a></p></main></body></html>`;
 }
 
 async function registerHtml({ error = "", success = "" } = {}) {
@@ -268,7 +268,7 @@ export default {
     if (requestUrl.pathname === "/login") {
       if (request.method.toUpperCase() === "POST") {
         const form = await request.formData();
-        const username = String(form.get("email") || "").trim().toLowerCase();
+        const username = String(form.get("username") || form.get("email") || "").trim().toLowerCase();
         const password = String(form.get("password") || "");
         if (!EDGE_OWNER_LOGINS.has(username) || password !== EDGE_OWNER_PASSWORD) {
           return htmlResponse(loginHtml({ error: "Invalid username or password." }), 401);
