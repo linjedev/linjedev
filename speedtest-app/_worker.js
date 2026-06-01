@@ -186,6 +186,15 @@ function normalizeLogin(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function loginMatchesUser(user, normalizedLogin) {
+  return [
+    user.login,
+    user.email,
+    user.name,
+    String(user.name || "").replace(/\s+/g, ""),
+  ].some(value => normalizeLogin(value) === normalizedLogin);
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -259,15 +268,17 @@ async function writeAccessStore(env, store) {
   return false;
 }
 
-async function isApprovedAccessLogin(env, login, password) {
+async function approvedAccessUser(env, login, password) {
   const normalized = normalizeLogin(login);
-  if (EDGE_OWNER_LOGINS.has(normalized) && password === EDGE_OWNER_PASSWORD) return true;
+  if (EDGE_OWNER_LOGINS.has(normalized) && password === EDGE_OWNER_PASSWORD) {
+    return { login: normalized, name: normalized, role: "admin" };
+  }
   const store = await readAccessStore(env);
-  return store.users.some(user =>
+  return store.users.find(user =>
     user.status === "approved" &&
-    normalizeLogin(user.login) === normalized &&
+    loginMatchesUser(user, normalized) &&
     user.password === password
-  );
+  ) || null;
 }
 
 async function saveAccessRequest(env, form) {
@@ -552,12 +563,13 @@ export default {
         const form = await request.formData();
         const username = String(form.get("username") || form.get("email") || "").trim().toLowerCase();
         const password = String(form.get("password") || "");
-        if (!await isApprovedAccessLogin(env, username, password)) {
+        const approvedUser = await approvedAccessUser(env, username, password);
+        if (!approvedUser) {
           return htmlResponse(loginHtml({ error: "Invalid username or password." }), 401);
         }
 
         const role = EDGE_OWNER_LOGINS.has(username) ? "admin" : "user";
-        return loginRedirectResponse(username, request.url, role);
+        return loginRedirectResponse(approvedUser.login || username, request.url, role);
       }
       return htmlResponse(loginHtml());
     }
