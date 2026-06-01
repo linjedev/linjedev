@@ -35,6 +35,7 @@ export async function ensureLocalUserPersisted(params: {
     email: string;
     name: string;
     role: string;
+    status?: string;
     hashedPassword?: string;
 }): Promise<void> {
     await prisma.user.upsert({
@@ -45,6 +46,7 @@ export async function ensureLocalUserPersisted(params: {
             email: params.email,
             name: params.name,
             role: params.role,
+            status: params.status ?? "approved",
             hashedPassword: params.hashedPassword ?? DEMO_ADMIN_PW_SENTINEL,
         },
     });
@@ -91,6 +93,7 @@ const localCredentialsProvider = Credentials({
                 name: "Demo Admin",
                 email: "admin",
                 role: DEMO_ADMIN_ROLE,
+                status: "approved",
             };
         }
 
@@ -101,6 +104,7 @@ const localCredentialsProvider = Credentials({
 
         const isValid = compareSync(password, user.hashedPassword);
         if (!isValid) return null;
+        if (user.role !== "admin" && user.status !== "approved") return null;
 
         // On the local edition, upsert the user row so that session.user.id
         // always corresponds to a real `users` record even after a DB reset.
@@ -111,6 +115,7 @@ const localCredentialsProvider = Credentials({
                 email: user.email,
                 name: user.name,
                 role: user.role,
+                status: user.status,
                 hashedPassword: user.hashedPassword,
             });
         }
@@ -120,6 +125,7 @@ const localCredentialsProvider = Credentials({
             name: user.name,
             email: user.email,
             role: user.role,
+            status: user.status,
         };
     },
 });
@@ -139,6 +145,7 @@ export const {
         async jwt({ token, user }) {
             if (user) {
                 token.role = (user as { role?: string }).role ?? "user";
+                token.status = (user as { status?: string }).status ?? "approved";
                 token.id = user.id;
                 // Persist the demo-admin synthetic identity on first sign-in so
                 // that the `users` FK target exists for API key creation. Runs
@@ -152,6 +159,7 @@ export const {
             if (session.user) {
                 session.user.id = token.id as string;
                 (session.user as { role?: string }).role = token.role as string;
+                (session.user as { status?: string }).status = token.status as string;
             }
             return session;
         },

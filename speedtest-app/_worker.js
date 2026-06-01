@@ -1,5 +1,5 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
-const ASSET_VERSION = "linje-20260601-4";
+const ASSET_VERSION = "linje-20260601-5";
 const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
 const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhM2E0MjQwYy0wNTU3LTQzODMtOGVmZi01YzExMTM1ZTVmYzciLCJpZCI6NDM4NzYwLCJzdWIiOiJzZWJ3aW5maWVsZCIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJMaW5qZS5kZXYiLCJpYXQiOjE3ODAyNzc5MzR9.BfH1rVscC0WBp12NorM8_TQuZY_gDaVafB3a0Eh33fA";
 const RETIRED_COPY = {
@@ -23,6 +23,32 @@ const CSP = [
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
 ].join("; ");
+
+const PUBLIC_PATH_PREFIXES = [
+  "/login",
+  "/api/auth",
+  "/_next",
+  "/cesium",
+  "/favicon",
+  "/icon",
+  "/manifest",
+  "/robots.txt",
+  "/sitemap.xml",
+];
+const PUBLIC_FILE_SUFFIXES = [".ico", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".css", ".js", ".woff", ".woff2"];
+
+function hasSessionCookie(cookieHeader) {
+  return /(?:^|;\s*)(?:__Secure-)?(?:authjs|next-auth)\.session-token=/.test(cookieHeader || "");
+}
+
+function isPublicPath(pathname) {
+  return PUBLIC_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix))
+    || PUBLIC_FILE_SUFFIXES.some(suffix => pathname.endsWith(suffix));
+}
+
+function accessGateHtml() {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Linje.track Access</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0a0a0f;color:#e5e5e5;font-family:Inter,Arial,sans-serif;padding:16px}.card{width:min(420px,100%);background:#13131a;border:1px solid rgba(255,255,255,.08);padding:40px 32px;text-align:center}.mark{width:48px;height:48px;margin:0 auto 16px;display:grid;place-items:center;background:rgb(200,30,30);font-weight:800}.title{margin:0 0 6px;font-size:22px}.sub{margin:0 0 24px;color:#9ca3af;font-size:14px;line-height:1.45}.actions{display:grid;gap:10px}.button{display:block;padding:12px 14px;background:rgb(200,30,30);color:#fff;text-decoration:none;font-weight:800;border:0}.ghost{background:#0a0a0f;border:1px solid rgba(255,255,255,.12)}</style></head><body><main class="card"><div class="mark">L</div><h1 class="title">Linje.track</h1><p class="sub">Access is restricted to approved users.</p><div class="actions"><a class="button" href="/login">Sign In</a><a class="button ghost" href="/register">Request Access</a></div></main></body></html>`;
+}
 
 const LEGACY_BRAND_PATTERNS = [
   [new RegExp(["WORLD", "WIDE", "VIEW"].join(" "), "g"), "LINJE.TRACK"],
@@ -110,6 +136,29 @@ function rewriteLocation(location, requestUrl) {
 export default {
   async fetch(request) {
     const requestUrl = new URL(request.url);
+    const authenticated = hasSessionCookie(request.headers.get("Cookie"));
+    if (!authenticated && !isPublicPath(requestUrl.pathname)) {
+      const acceptsHtml = (request.headers.get("Accept") || "").includes("text/html");
+      if (request.method === "GET" && (acceptsHtml || requestUrl.pathname === "/" || requestUrl.pathname === "/register")) {
+        return new Response(accessGateHtml(), {
+          status: 200,
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Content-Security-Policy": CSP,
+            "Cache-Control": "no-store",
+            "X-Linje-Upstream": "access-gate",
+          },
+        });
+      }
+      return new Response("Authentication required", {
+        status: 401,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
     const upstreamUrl = new URL(requestUrl.pathname + requestUrl.search, UPSTREAM_ORIGIN);
     const headers = new Headers(request.headers);
 

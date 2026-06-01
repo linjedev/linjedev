@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isDemo } from "@/core/edition";
 import { loginAction } from "./actions";
@@ -49,9 +50,9 @@ export default function LoginForm() {
     return (
       <div className={styles.container}>
         <div className={styles.card}>
-          <div className={styles.logo}>W</div>
+          <div className={styles.logo}>L</div>
           <h1 className={styles.title}>Sign in to Linje.track</h1>
-          <p className={styles.subtitle}>Enter your credentials to continue</p>
+          <p className={styles.subtitle}>Approved users can enter the workspace</p>
 
           <form onSubmit={handleSubmit} method="post" className={styles.form}>
             <label className={styles.label} htmlFor="email">
@@ -83,6 +84,10 @@ export default function LoginForm() {
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
+
+          <p className={styles.footer}>
+            Need access? <Link className={styles.link} href="/register">Request approval</Link>
+          </p>
         </div>
       </div>
     );

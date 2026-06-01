@@ -1,5 +1,4 @@
 import type { NextAuthConfig } from "next-auth";
-import { isDemo } from "@/core/edition";
 
 /**
  * Lightweight auth config for proxy.ts (middleware).
@@ -14,16 +13,14 @@ export const authConfig: NextAuthConfig = {
             const isLoggedIn = !!auth?.user;
             const isSetup = nextUrl.pathname.startsWith("/setup");
             const isLogin = nextUrl.pathname.startsWith("/login");
+            const isRegister = nextUrl.pathname.startsWith("/register");
             const isApi = nextUrl.pathname.startsWith("/api");
 
             // API routes: let through (bridge uses token auth)
             if (isApi) return true;
 
-            // Setup/login pages: always accessible
-            if (isSetup || isLogin) return true;
-
-            // Public hosted edition: all pages accessible (no login required)
-            if (isDemo) return true;
+            // Setup/login/register pages: always accessible
+            if (isSetup || isLogin || isRegister) return true;
 
             // Everything else requires login
             return isLoggedIn;

@@ -14,7 +14,11 @@ model User {
   name           String
   hashedPassword String
   role           String            @default("user")
+  status         String            @default("pending")
   createdAt      DateTime          @default(now())
+  requestedAt    DateTime          @default(now())
+  approvedAt     DateTime?
+  approvedById   String?
   favorites      Favorite[]
   memberships    WorkspaceMember[]
   apiKeys        UserApiKey[]

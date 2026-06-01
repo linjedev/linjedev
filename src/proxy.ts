@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { isDemo } from "@/core/edition";
 
 const workspaceCache = new Map<string, { status: string; expiresAt: number }>();
 const CACHE_TTL = 60_000; // 60 seconds
@@ -55,13 +54,6 @@ export default async function proxy(req: NextRequest) {
         }
     }
 
-    // Public hosted edition: fully public, no auth required
-    if (isDemo) {
-        const res = NextResponse.next();
-        if (tenantSubdomain) res.headers.set("x-tenant-subdomain", tenantSubdomain);
-        return res;
-    }
-
     // Static assets, API routes, data files — always pass through.
     // Strip any client-supplied x-tenant-subdomain on /api/* before forwarding,
     // then re-inject only the server-resolved value (H2: tenant-header spoof prevention).
@@ -92,7 +84,7 @@ export default async function proxy(req: NextRequest) {
     }
 
     // Auth pages — always accessible
-    if (path.startsWith("/setup") || path.startsWith("/login")) {
+    if (path.startsWith("/setup") || path.startsWith("/login") || path.startsWith("/register")) {
         const res = NextResponse.next();
         if (tenantSubdomain) res.headers.set("x-tenant-subdomain", tenantSubdomain);
         return res;
