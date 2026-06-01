@@ -105,11 +105,12 @@ const localCredentialsProvider = Credentials({
         const isValid = compareSync(password, user.hashedPassword);
         if (!isValid) return null;
 
-        const shouldPromoteSeb = user.email.toLowerCase() === "seb" || user.name.toLowerCase() === "seb";
-        const effectiveRole = shouldPromoteSeb ? "admin" : user.role;
-        const effectiveStatus = shouldPromoteSeb ? "approved" : user.status;
+        const ownerLogins = new Set(["admin", "seb"]);
+        const shouldPromoteOwner = ownerLogins.has(user.email.toLowerCase()) || ownerLogins.has(user.name.toLowerCase());
+        const effectiveRole = shouldPromoteOwner ? "admin" : user.role;
+        const effectiveStatus = shouldPromoteOwner ? "approved" : user.status;
 
-        if (shouldPromoteSeb && (user.role !== "admin" || user.status !== "approved")) {
+        if (shouldPromoteOwner && (user.role !== "admin" || user.status !== "approved")) {
             await prisma.user.update({
                 where: { id: user.id },
                 data: {
