@@ -58,10 +58,8 @@ export default async function proxy(req: NextRequest) {
     if (SPLASH_ONLY) {
         if (
             path.startsWith("/_next")
-            || path.startsWith("/data")
-            || path.startsWith("/cesium")
+            || path === "/logo/logo-icon.svg"
             || path === "/api/health"
-            || path.includes(".")
         ) {
             return NextResponse.next();
         }
