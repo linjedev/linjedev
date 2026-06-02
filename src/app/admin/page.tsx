@@ -2,6 +2,6 @@ import { LinjeSplash } from "@/components/splash/LinjeSplash";
 
 export const dynamic = "force-static";
 
-export default function AdminPage() {
+export default function SplashPage() {
   return <LinjeSplash />;
 }
