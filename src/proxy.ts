@@ -69,7 +69,7 @@ export default async function proxy(req: NextRequest) {
         }
 
         if (path !== "/") {
-            return NextResponse.rewrite(new URL("/", req.url));
+            return NextResponse.redirect(new URL("/", req.url));
         }
 
         return NextResponse.next();

@@ -10,7 +10,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Linje",
-  description: "New signal coming soon.",
+  description: "Linje",
 };
 
 export default function RootLayout({
