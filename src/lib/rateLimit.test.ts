@@ -84,6 +84,17 @@ describe("RateLimiter", () => {
 });
 
 describe("getClientIp", () => {
+    it("prefers Cloudflare connecting IP when present", () => {
+        const req = new Request("http://localhost", {
+            headers: {
+                "cf-connecting-ip": "203.0.113.10",
+                "x-forwarded-for": "1.2.3.4, 5.6.7.8",
+                "x-real-ip": "9.8.7.6",
+            },
+        });
+        expect(getClientIp(req)).toBe("203.0.113.10");
+    });
+
     it("extracts IP from x-forwarded-for (first entry)", () => {
         const req = new Request("http://localhost", {
             headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8" },

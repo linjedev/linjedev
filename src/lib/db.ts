@@ -45,13 +45,8 @@ function applyTenantIsolation(client: PrismaClient) {
                             }
                         }
 
-                        // Inject into data for updates
-                        if (operation === 'update' || operation === 'updateMany') {
-                            if (args.data && typeof args.data === 'object') (args.data as Record<string, unknown>).tenantId = tenantSubdomain;
-                        }
                         if (operation === 'upsert') {
                             if (args.create && typeof args.create === 'object') (args.create as Record<string, unknown>).tenantId = tenantSubdomain;
-                            if (args.update && typeof args.update === 'object') (args.update as Record<string, unknown>).tenantId = tenantSubdomain;
                         }
 
                         // Inject into where filters

@@ -29,11 +29,23 @@ if (-Not (Test-Path .env)) {
     $bytes = New-Object Byte[] 32
     [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
     $secret = -join ($bytes | ForEach-Object { $_.ToString("x2") })
+    $encBytes = New-Object Byte[] 16
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($encBytes)
+    $encryptionKey = -join ($encBytes | ForEach-Object { $_.ToString("x2") })
+    $dbBytes = New-Object Byte[] 24
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($dbBytes)
+    $dbPassword = -join ($dbBytes | ForEach-Object { $_.ToString("x2") })
     Write-Host "[*] Downloading .env template..."
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/silvertakana/worldwideview/main/.env.example" -OutFile .env
     
     $envContent = Get-Content .env -Raw
     $envContent = $envContent -replace "(?m)^AUTH_SECRET=.*", "AUTH_SECRET=$secret"
+    $envContent = $envContent -replace "(?m)^ENCRYPTION_MASTER_KEY=.*", "ENCRYPTION_MASTER_KEY=$encryptionKey"
+    if ($envContent -match "(?m)^POSTGRES_PASSWORD=") {
+        $envContent = $envContent -replace "(?m)^POSTGRES_PASSWORD=.*", "POSTGRES_PASSWORD=$dbPassword"
+    } else {
+        $envContent = "$envContent`nPOSTGRES_PASSWORD=$dbPassword`n"
+    }
     $envContent | Out-File -FilePath .env -Encoding utf8
 } else {
     Write-Host "[Success] .env already exists, skipping generation."

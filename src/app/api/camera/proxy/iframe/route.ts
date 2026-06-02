@@ -7,6 +7,14 @@ import { safeFetch } from "@/lib/security/ssrf";
 
 const MAX_IFRAME_DURATION_MS = 10 * 1000; // 10 seconds timeout for HTML
 
+function escapeHtmlAttribute(value: string): string {
+    return value
+        .replaceAll("&", "&amp;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+}
+
 /**
  * Proxy for iframe HTML pages.
  * Fetches the target HTML, strips X-Frame-Options and CSP, and injects a <base href="...">
@@ -62,7 +70,7 @@ export async function GET(req: NextRequest) {
         let html = await upstream.text();
 
         // Inject <base href="..."> right after <head> or at the very beginning of the document
-        const baseTag = `<base href="${targetUrl}">\n`;
+        const baseTag = `<base href="${escapeHtmlAttribute(targetUrl)}">\n`;
         if (html.includes("<head>")) {
             html = html.replace("<head>", `<head>\n${baseTag}`);
         } else if (html.includes("<HEAD>")) {

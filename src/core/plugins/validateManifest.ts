@@ -63,12 +63,13 @@ export function validateManifest(
     } else {
         const entry = manifest.entry.trim();
         const isRelative = entry.startsWith("/") || entry.startsWith("./");
-        const isLocal = entry.startsWith("http://localhost") || entry.startsWith("http://127.0.0.1");
+        const allowLocalEntries = process.env.NODE_ENV === "development" || process.env.WWV_PLUGIN_DEV === "true";
+        const isLocal = allowLocalEntries && (entry.startsWith("http://localhost") || entry.startsWith("http://127.0.0.1"));
         const isWWV = entry.includes(".worldwideview.dev");
         const isCDN = entry.startsWith("https://cdn.jsdelivr.net") || entry.startsWith("https://unpkg.com");
 
         if (!isRelative && !isLocal && !isWWV && !isCDN) {
-            errors.push("entry URL must be a relative path, CDN, localhost, or worldwideview.dev domain");
+            errors.push("entry URL must be a relative path, approved CDN, worldwideview.dev domain, or localhost in plugin dev mode");
         }
     }
 

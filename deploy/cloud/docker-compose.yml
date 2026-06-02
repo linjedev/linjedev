@@ -3,7 +3,7 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: postgres
     ports:
       - "5432:5432"
@@ -17,11 +17,11 @@ services:
     restart: always
     environment:
       NEXT_PUBLIC_WWV_EDITION: cloud
-      DATABASE_URL: postgresql://postgres:password@db:5432/postgres
-      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-http://dummy}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-dummy}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dummy}
-      AUTH_SECRET: ${AUTH_SECRET:-dummy_secret_for_local_testing_only_1234567890}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:?SUPABASE_URL is required}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?SUPABASE_ANON_KEY is required}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?SUPABASE_SERVICE_ROLE_KEY is required}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
     ports:
       - "3001:3000"
     labels:

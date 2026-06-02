@@ -1,16 +1,49 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { isAuthEnabled } from "@/core/edition";
+import { getClientIp, placesLimiter } from "@/lib/rateLimiters";
 import { transliterate } from "@/lib/utils/transliterate";
 
 // Server-side cache: keyed by normalised input, 1-hour TTL
 const cache = new Map<string, { data: unknown; expiresAt: number }>();
 const TTL_MS = 60 * 60 * 1000; // 1 hour
+const MAX_INPUT_LENGTH = 160;
+
+interface GooglePlacePrediction {
+    description?: string;
+    place_id?: string;
+    structured_formatting?: {
+        main_text?: string;
+        secondary_text?: string;
+    };
+    types?: string[];
+}
+
+interface GoogleAutocompleteResponse {
+    status?: string;
+    predictions?: GooglePlacePrediction[];
+    error_message?: string;
+}
 
 export async function GET(request: Request) {
-    const { searchParams } = new URL(request.url);
-    const input = searchParams.get("input");
+    const rateLimited = placesLimiter.check(getClientIp(request));
+    if (rateLimited) return rateLimited;
 
-    if (!input || typeof input !== "string") {
+    if (isAuthEnabled) {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+    }
+
+    const { searchParams } = new URL(request.url);
+    const input = searchParams.get("input")?.trim() ?? "";
+
+    if (!input) {
         return NextResponse.json({ error: "Input is required" }, { status: 400 });
+    }
+    if (input.length > MAX_INPUT_LENGTH) {
+        return NextResponse.json({ error: "Input is too long" }, { status: 413 });
     }
 
     // Use user-provided key if present in header AND looks valid, otherwise fall back to .env
@@ -37,20 +70,22 @@ export async function GET(request: Request) {
         )}&key=${apiKey}`;
 
         const response = await fetch(url);
-        const data = await response.json();
+        const data = await response.json() as GoogleAutocompleteResponse;
 
         if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-            console.error("Google Places API Error:", data);
+            console.error("Google Places API Error:", data.status, data.error_message);
             return NextResponse.json({ error: "Failed to fetch predictions" }, { status: 500 });
         }
 
-        const predictions = data.predictions.map((p: any) => ({
-            description: transliterate(p.description ?? ""),
-            placeId: p.place_id,
-            mainText: transliterate(p.structured_formatting?.main_text || p.description),
-            secondaryText: transliterate(p.structured_formatting?.secondary_text || ""),
-            types: p.types,
-        }));
+        const predictions = (data.predictions ?? [])
+            .filter((p) => typeof p.place_id === "string" && p.place_id.length > 0)
+            .map((p) => ({
+                description: transliterate(p.description ?? ""),
+                placeId: p.place_id as string,
+                mainText: transliterate(p.structured_formatting?.main_text || p.description || ""),
+                secondaryText: transliterate(p.structured_formatting?.secondary_text || ""),
+                types: p.types ?? [],
+            }));
 
         const result = { predictions };
         cache.set(cacheKey, { data: result, expiresAt: Date.now() + TTL_MS });

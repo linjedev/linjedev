@@ -1,6 +1,6 @@
 {
   "name": "worldwideview",
-  "version": "2.31.4",
+  "version": "2.31.5",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.4",
@@ -23,6 +23,7 @@
     "lint": "eslint .",
     "db:reset": "npx prisma migrate reset --force",
     "db:prune": "node scripts/db-prune.mjs",
+    "edge:hash-password": "node scripts/hash-edge-password.mjs",
     "generate": "prisma generate"
   },
   "dependencies": {
@@ -41,7 +42,6 @@
     "cesium": "^1.141.0",
     "cheerio": "^1.2.0",
     "hls.js": "^1.6.16",
-    "insecam-api": "^0.0.3",
     "ioredis": "^5.4.1",
     "jose": "^6.2.3",
     "lucide-react": "^1.17.0",
@@ -105,7 +105,10 @@
       "form-data@<2.5.4": "^2.5.5",
       "form-data@>=3.0.0 <3.0.4": "^3.0.4",
       "form-data@>=4.0.0 <4.0.4": "^4.0.5",
-      "fast-uri@<3.1.2": "^3.1.2"
+      "fast-uri@<3.1.2": "^3.1.2",
+      "@hono/node-server@<1.19.13": "^1.19.14",
+      "postcss@<8.5.10": "^8.5.10",
+      "qs@>=6.11.1 <=6.15.1": "^6.15.2"
     },
     "onlyBuiltDependencies": [
       "@prisma/engines",

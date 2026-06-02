@@ -55,7 +55,7 @@ pnpm add -D prisma @prisma/client
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...   # server-only, never expose to client
+SUPABASE_SERVICE_ROLE_KEY=replace-with-supabase-service-role-key   # server-only, never expose to client
 
 # Prisma (Supabase Postgres — use the "Transaction" pooler URL)
 DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true

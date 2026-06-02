@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { NextResponse } from "next/server";
 import { corsHeaders, handlePreflight, withCors } from "./cors";
 
@@ -9,6 +9,10 @@ function fakeRequest(origin?: string): Request {
 }
 
 describe("CORS utility", () => {
+    afterEach(() => {
+        delete process.env.MARKETPLACE_CORS_ORIGINS;
+    });
+
     describe("corsHeaders", () => {
         it("returns empty object if no origin is provided", () => {
             const headers = corsHeaders(fakeRequest(""));
@@ -25,20 +29,26 @@ describe("CORS utility", () => {
             expect(headers["Access-Control-Allow-Origin"]).toBe("https://marketplace.worldwideview.dev");
         });
 
-        it("returns allowed origin for local network IPs", () => {
+        it("blocks local network IPs unless explicitly configured", () => {
             const headers1 = corsHeaders(fakeRequest("http://192.168.68.53:3001"));
-            expect(headers1["Access-Control-Allow-Origin"]).toBe("http://192.168.68.53:3001");
+            expect(headers1).toEqual({});
 
             const headers2 = corsHeaders(fakeRequest("http://10.0.0.5:8080"));
-            expect(headers2["Access-Control-Allow-Origin"]).toBe("http://10.0.0.5:8080");
+            expect(headers2).toEqual({});
 
             const headers3 = corsHeaders(fakeRequest("http://127.0.0.1:4000"));
             expect(headers3["Access-Control-Allow-Origin"]).toBe("http://127.0.0.1:4000");
         });
 
-        it("returns allowed origin for ANY unknown origin (wide open for marketplace APIs)", () => {
+        it("blocks unknown origins", () => {
             const headers = corsHeaders(fakeRequest("http://evil.com"));
-            expect(headers["Access-Control-Allow-Origin"]).toBe("http://evil.com");
+            expect(headers).toEqual({});
+        });
+
+        it("allows configured self-hosted marketplace origins", () => {
+            process.env.MARKETPLACE_CORS_ORIGINS = "https://market.example.com";
+            const headers = corsHeaders(fakeRequest("https://market.example.com"));
+            expect(headers["Access-Control-Allow-Origin"]).toBe("https://market.example.com");
         });
 
         it("includes required methods and headers", () => {

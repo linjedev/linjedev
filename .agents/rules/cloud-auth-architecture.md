@@ -159,8 +159,8 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/wwv?schema=public
 NEXT_PUBLIC_WWV_EDITION=cloud
 DATABASE_URL=postgresql://...
 NEXT_PUBLIC_SUPABASE_URL=https://[project].supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=replace-with-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=replace-with-supabase-service-role-key
 WWV_TENANT_MODE=rls
 WWV_STORAGE_PROVIDER=supabase
 ```

@@ -1,16 +1,49 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { isAuthEnabled } from "@/core/edition";
+import { getClientIp, placesLimiter } from "@/lib/rateLimiters";
 import { transliterate } from "@/lib/utils/transliterate";
 
 // Server-side cache: keyed by place_id, 24-hour TTL (place geometry is stable)
 const cache = new Map<string, { data: unknown; expiresAt: number }>();
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_PLACE_ID_LENGTH = 256;
+
+interface GooglePlaceDetailsResponse {
+    status?: string;
+    error_message?: string;
+    result?: {
+        geometry?: {
+            location?: {
+                lat?: number;
+                lng?: number;
+            };
+            viewport?: unknown;
+        };
+        name?: string;
+        types?: string[];
+    };
+}
 
 export async function GET(request: Request) {
-    const { searchParams } = new URL(request.url);
-    const placeId = searchParams.get("place_id");
+    const rateLimited = placesLimiter.check(getClientIp(request));
+    if (rateLimited) return rateLimited;
 
-    if (!placeId || typeof placeId !== "string") {
+    if (isAuthEnabled) {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+    }
+
+    const { searchParams } = new URL(request.url);
+    const placeId = searchParams.get("place_id")?.trim() ?? "";
+
+    if (!placeId) {
         return NextResponse.json({ error: "place_id is required" }, { status: 400 });
+    }
+    if (placeId.length > MAX_PLACE_ID_LENGTH) {
+        return NextResponse.json({ error: "place_id is too long" }, { status: 413 });
     }
 
     // Use user-provided key if present in header AND looks valid, otherwise fall back to .env
@@ -36,24 +69,24 @@ export async function GET(request: Request) {
         )}&fields=geometry,name,types,formatted_address&key=${apiKey}`;
 
         const response = await fetch(url);
-        const data = await response.json();
+        const data = await response.json() as GooglePlaceDetailsResponse;
 
         if (data.status !== "OK") {
-            console.error("Google Places Details API Error:", data);
+            console.error("Google Places Details API Error:", data.status, data.error_message);
             return NextResponse.json({ error: "Failed to fetch place details" }, { status: 500 });
         }
 
-        const location = data.result.geometry?.location;
-        if (!location) {
+        const location = data.result?.geometry?.location;
+        if (!location || typeof location.lat !== "number" || typeof location.lng !== "number") {
             return NextResponse.json({ error: "No geometry found for place" }, { status: 404 });
         }
 
         const result = {
             lat: location.lat,
             lon: location.lng,
-            name: transliterate(data.result.name ?? ""),
-            types: data.result.types || [],
-            viewport: data.result.geometry?.viewport || null,
+            name: transliterate(data.result?.name ?? ""),
+            types: data.result?.types || [],
+            viewport: data.result?.geometry?.viewport || null,
         };
         cache.set(cacheId, { data: result, expiresAt: Date.now() + TTL_MS });
         return NextResponse.json(result);

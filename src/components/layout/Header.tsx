@@ -18,6 +18,7 @@ import { trackEvent } from "@/lib/analytics";
 import { isDemo, DEMO_ADMIN_ROLE } from "@/core/edition";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useIsMobile } from "@/core/hooks/useIsMobile";
 import { SearchBar } from "./SearchBar";
 import "./timeSelect.css";
@@ -120,8 +121,8 @@ export function Header() {
           <>
             <header className="header header--mobile glass-panel">
               <div className="header__brand">
-                <a
-                  href="https://linje.dev/"
+                <Link
+                  href="/"
                   onClick={handleBrandClick}
                   style={{
  display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "inherit"
@@ -129,7 +130,7 @@ export function Header() {
                 >
                   <Image src="/logo/logo-icon.svg" alt="Logo" width={20} height={20} style={{ objectFit: "contain" }} />
                   <div className="header__logo header__logo--compact">LIN</div>
-                </a>
+                </Link>
                 <span className="alpha-badge">ALPHA</span>
                 {isDemoAdmin && <span className="alpha-badge" style={{ background: "var(--accent-orange, #f59e0b)" }}>ADMIN</span>}
               </div>
@@ -221,7 +222,7 @@ export function Header() {
       <>
         <header className="header glass-panel">
           <div className="header__brand">
-            <a href="/" onClick={handleBrandClick} style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}>
+            <Link href="/" onClick={handleBrandClick} style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <Image src="/logo/logo-icon.svg" alt="Logo" width={22} height={22} style={{ objectFit: "contain" }} />
                 <div className="header__logo">LINJE.TRACK</div>
@@ -229,7 +230,7 @@ export function Header() {
                 {isDemoAdmin && <span className="alpha-badge" style={{ background: "var(--accent-orange, #f59e0b)" }}>ADMIN</span>}
               </div>
               <div className="header__subtitle">Geospatial Intelligence</div>
-            </a>
+            </Link>
             <div style={{ marginLeft: "var(--space-xl)" }}>
               <SearchBar />
             </div>

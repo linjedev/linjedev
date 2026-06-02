@@ -31,6 +31,15 @@ describe("marketplaceToken", () => {
             expect(payload.aud).toBe("worldwideview-marketplace");
         });
 
+        it("issues short-lived tokens", async () => {
+            const token = await issueMarketplaceToken(TEST_USER_ID);
+            const payload = await verifyMarketplaceToken(token);
+            const lifetimeSeconds = payload.exp - payload.iat;
+
+            expect(lifetimeSeconds).toBeGreaterThanOrEqual(14 * 60);
+            expect(lifetimeSeconds).toBeLessThanOrEqual(15 * 60);
+        });
+
         it("throws on a tampered token", async () => {
             const token = await issueMarketplaceToken(TEST_USER_ID);
             const [h, p, s] = token.split(".");

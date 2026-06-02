@@ -20,11 +20,11 @@ services:
       - path: .env
         required: false
     environment:
-      - "AUTH_SECRET=${AUTH_SECRET:-default_secret_for_local_dev}"
-      - "ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY:-local_dev_encryption_key_change_in_prod}"
+      - "AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET is required. Run pnpm setup or set it in .env.local.}"
+      - "ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY:?ENCRYPTION_MASTER_KEY is required. Run pnpm setup or set it in .env.local.}"
       - "WWV_DEMO_ADMIN_SECRET=${WWV_DEMO_ADMIN_SECRET:-}"
       - "WWV_BRIDGE_TOKEN=${WWV_BRIDGE_TOKEN:-}"
-      - "DATABASE_URL=postgresql://postgres:postgres@db:5432/worldwideview?schema=public"
+      - "DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/worldwideview?schema=public"
     depends_on:
       db:
         condition: service_healthy
@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: worldwideview
     ports:
       - "${WWV_DB_PORT:-5432}:5432"

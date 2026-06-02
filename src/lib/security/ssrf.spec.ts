@@ -80,10 +80,9 @@ describe("SSRF Protection Utility", () => {
             await expect(safeFetch("https://blocked.example.com/feed")).rejects.toThrow(/not in PROXY_HOST_ALLOWLIST/);
         });
 
-        it("passes the allowlist check for '*' but still rejects private IPs", async () => {
+        it("rejects wildcard allowlists", async () => {
             process.env.PROXY_HOST_ALLOWLIST = "*";
-            // Private IP clears the allowlist but the post-DNS private-IP check still fires
-            await expect(safeFetch("https://127.0.0.1/data")).rejects.toThrow(/SSRF/);
+            await expect(safeFetch("https://camera.example.com/feed")).rejects.toThrow(/wildcard mode is disabled/);
         });
     });
 
@@ -92,7 +91,7 @@ describe("SSRF Protection Utility", () => {
 
         beforeEach(() => {
             vi.clearAllMocks();
-            process.env.PROXY_HOST_ALLOWLIST = "*";
+            process.env.PROXY_HOST_ALLOWLIST = "camera.example.com,example.com";
         });
 
         afterEach(() => {

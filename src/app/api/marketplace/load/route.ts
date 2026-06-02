@@ -14,6 +14,7 @@ import { seedDefaultPlugins } from "@/lib/marketplace/seedDefaultPlugins";
 import * as Sentry from "@sentry/nextjs";
 
 const MARKETPLACE_URL = process.env.NEXT_PUBLIC_MARKETPLACE_URL || "https://marketplace.worldwideview.dev";
+const allowUnverifiedPlugins = process.env.ALLOW_UNVERIFIED_MARKETPLACE_PLUGINS === "true";
 
 export async function OPTIONS(request: Request) {
     return handlePreflight(request);
@@ -176,6 +177,12 @@ export async function GET(request: Request) {
                     m.trust = verifiedIds.has(m.id) ? "verified" : "unverified";
                 }
                 return m;
+            })
+            .filter((m: PluginManifest) => {
+                if (m.trust !== "unverified") return true;
+                if (allowUnverifiedPlugins) return true;
+                console.warn(`[Marketplace API] Blocking unverified plugin ${m.id}; set ALLOW_UNVERIFIED_MARKETPLACE_PLUGINS=true to allow explicit testing.`);
+                return false;
             });
 
         // Strip sensitive configuration fields on demo for non-admin visitors

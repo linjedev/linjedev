@@ -5,7 +5,7 @@ import type { MarketplaceSessionToken } from "@worldwideview/wwv-plugin-sdk";
 const SCOPE = "marketplace";
 const ISSUER = "worldwideview";
 const AUDIENCE = "worldwideview-marketplace";
-const EXPIRY = "4h";
+const EXPIRY = "15m";
 
 // Simple in-memory revocation list for JWT tokens (resets on restart)
 // In a distributed setup, this should be backed by Redis.

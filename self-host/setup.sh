@@ -27,8 +27,12 @@ if [ ! -f .env ]; then
   # Use openssl if available, otherwise use urandom
   if command -v openssl &> /dev/null; then
     SECRET=$(openssl rand -hex 32)
+    ENCRYPTION_KEY=$(openssl rand -hex 16)
+    DB_PASSWORD=$(openssl rand -hex 24)
   else
     SECRET=$(head -c 32 /dev/urandom | xxd -p)
+    ENCRYPTION_KEY=$(head -c 16 /dev/urandom | xxd -p)
+    DB_PASSWORD=$(head -c 24 /dev/urandom | xxd -p)
   fi
   echo "📥 Downloading .env template..."
   curl -fsSL -o .env https://raw.githubusercontent.com/silvertakana/worldwideview/main/.env.example
@@ -36,6 +40,12 @@ if [ ! -f .env ]; then
   # Replace AUTH_SECRET= with the generated secret
   # (macOS sed requires an empty string backup extension, Linux does not. Perl is safer across platforms)
   perl -pi -e "s/^AUTH_SECRET=.*$/AUTH_SECRET=$SECRET/" .env
+  perl -pi -e "s/^ENCRYPTION_MASTER_KEY=.*$/ENCRYPTION_MASTER_KEY=$ENCRYPTION_KEY/" .env
+  if grep -q "^POSTGRES_PASSWORD=" .env; then
+    perl -pi -e "s/^POSTGRES_PASSWORD=.*$/POSTGRES_PASSWORD=$DB_PASSWORD/" .env
+  else
+    printf "\nPOSTGRES_PASSWORD=%s\n" "$DB_PASSWORD" >> .env
+  fi
 else
   echo "✅ .env already exists, skipping generation."
 fi

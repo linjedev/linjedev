@@ -32,7 +32,7 @@ No removals required.
 | `worldwideview-demo` | `ENCRYPTION_MASTER_KEY` | **C1 hard gate** | **Step 1 — first action** | Without it the app boots but step-1 code will refuse to start |
 | `worldwideview-demo` | `MARKETPLACE_URL` | C3 ticketClient | Step 1 | Server-side token exchange endpoint |
 | `worldwideview-demo` | `NEXT_PUBLIC_WWV_MARKETPLACE_URL` | C3/C5 client | Step 1 | Client-side Marketplace link |
-| `worldwideview-demo` | `PROXY_HOST_ALLOWLIST` | C2 SSRF | Step 1 | Set to `"*"` (observation mode); tighten in step 7c |
+| `worldwideview-demo` | `PROXY_HOST_ALLOWLIST` | C2 SSRF | Step 1 | Set an explicit host allowlist; do not use `"*"` in production |
 | `worldwideview-demo` | `NEXT_PUBLIC_WWV_TICKET_AUTH_PLUGINS` | C5 flag | Step 6 | Leave empty (dormant) until step 6 cutover |
 | `worldwideview-marketplace` | `DATABASE_URL`, `AUTH_SECRET` | A basics | Step 2 | Marketplace cannot function without these |
 | `worldwideview-marketplace` | EdDSA signing key + JWKS endpoint | A1–A2 | Step 2 | Required for `/api/auth/exchange` to sign tickets |

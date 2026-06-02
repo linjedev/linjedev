@@ -5,6 +5,7 @@ import { getToken } from "next-auth/jwt";
 
 const workspaceCache = new Map<string, { status: string; expiresAt: number }>();
 const CACHE_TTL = 60_000; // 60 seconds
+const SPLASH_ONLY = process.env.LINJE_SPLASH_ONLY !== "false";
 
 async function resolveWorkspace(subdomain: string) {
     const cached = workspaceCache.get(subdomain);
@@ -52,6 +53,28 @@ export default async function proxy(req: NextRequest) {
                 tenantSubdomain = subdomain;
             }
         }
+    }
+
+    if (SPLASH_ONLY) {
+        if (
+            path.startsWith("/_next")
+            || path.startsWith("/data")
+            || path.startsWith("/cesium")
+            || path === "/api/health"
+            || path.includes(".")
+        ) {
+            return NextResponse.next();
+        }
+
+        if (path.startsWith("/api")) {
+            return NextResponse.json({ error: "Linje is offline" }, { status: 404 });
+        }
+
+        if (path !== "/") {
+            return NextResponse.rewrite(new URL("/", req.url));
+        }
+
+        return NextResponse.next();
     }
 
     // Static assets, API routes, data files — always pass through.

@@ -19,6 +19,30 @@ export const cameraProxyLimiter = new RateLimiter({
     maxRequests: 30,
 });
 
+/** /api/plugins/osm-search — bounds expensive Overpass proxy calls. */
+export const osmSearchLimiter = new RateLimiter({
+    windowMs: 60_000,
+    maxRequests: 12,
+});
+
+/** /api/places/search and /api/places/details — protects Google API quota. */
+export const placesLimiter = new RateLimiter({
+    windowMs: 60_000,
+    maxRequests: 60,
+});
+
+/** /api/glitchtip-tunnel — prevents monitoring spam. */
+export const telemetryTunnelLimiter = new RateLimiter({
+    windowMs: 60_000,
+    maxRequests: 30,
+});
+
+/** /api/billing/checkout — prevents checkout-session spam. */
+export const billingLimiter = new RateLimiter({
+    windowMs: 60_000,
+    maxRequests: 10,
+});
+
 /** /api/marketplace/install-redirect — prevents install spam. */
 export const installLimiter = new RateLimiter({
     windowMs: 60_000,

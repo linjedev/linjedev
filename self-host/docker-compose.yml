@@ -10,10 +10,10 @@ services:
       - path: .env
         required: false
     environment:
-      - "AUTH_SECRET=${AUTH_SECRET:-default_secret_for_local_dev}"
+      - "AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET is required. Run ./setup.sh or set it in .env.}"
       - "WWV_DEMO_ADMIN_SECRET=${WWV_DEMO_ADMIN_SECRET:-}"
       - "WWV_BRIDGE_TOKEN=${WWV_BRIDGE_TOKEN:-}"
-      - "DATABASE_URL=postgresql://postgres:postgres@db:5432/worldwideview?schema=public"
+      - "DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required. Run ./setup.sh or set it in .env.}@db:5432/worldwideview?schema=public"
     depends_on:
       db:
         condition: service_healthy
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required. Run ./setup.sh or set it in .env.}
       POSTGRES_DB: worldwideview
     ports:
       - "5432:5432"

@@ -23,7 +23,20 @@ export default function RegisterPage() {
     }
 
     useEffect(() => {
-        refreshCaptcha().catch(() => setError("Captcha failed to load."));
+        let isMounted = true;
+
+        fetch("/api/captcha", { cache: "no-store" })
+            .then((response) => response.json() as Promise<CaptchaChallenge>)
+            .then((challenge) => {
+                if (isMounted) setCaptcha(challenge);
+            })
+            .catch(() => {
+                if (isMounted) setError("Captcha failed to load.");
+            });
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

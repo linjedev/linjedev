@@ -60,8 +60,40 @@ describe("validateManifest base contract", () => {
         const result = validateManifest(baseManifest({ entry: "https://hacker.com/malicious.js" }));
         expect(result.valid).toBe(false);
         expect(result.errors).toContain(
-            "entry URL must be a relative path, CDN, localhost, or worldwideview.dev domain",
+            "entry URL must be a relative path, approved CDN, worldwideview.dev domain, or localhost in plugin dev mode",
         );
+    });
+
+    it("rejects localhost entry URLs unless plugin dev mode is enabled", () => {
+        const originalPluginDev = process.env.WWV_PLUGIN_DEV;
+        delete process.env.WWV_PLUGIN_DEV;
+
+        try {
+            const result = validateManifest(baseManifest({ entry: "http://localhost:3005/plugin.mjs" }));
+            expect(result.valid).toBe(false);
+        } finally {
+            if (originalPluginDev === undefined) {
+                delete process.env.WWV_PLUGIN_DEV;
+            } else {
+                process.env.WWV_PLUGIN_DEV = originalPluginDev;
+            }
+        }
+    });
+
+    it("accepts localhost entry URLs in explicit plugin dev mode", () => {
+        const originalPluginDev = process.env.WWV_PLUGIN_DEV;
+        process.env.WWV_PLUGIN_DEV = "true";
+
+        try {
+            const result = validateManifest(baseManifest({ entry: "http://localhost:3005/plugin.mjs" }));
+            expect(result.valid).toBe(true);
+        } finally {
+            if (originalPluginDev === undefined) {
+                delete process.env.WWV_PLUGIN_DEV;
+            } else {
+                process.env.WWV_PLUGIN_DEV = originalPluginDev;
+            }
+        }
     });
 
     it("requires extends for extension plugins", () => {

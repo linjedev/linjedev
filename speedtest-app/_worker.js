@@ -1,7 +1,5 @@
 const UPSTREAM_ORIGIN = "https://demo.worldwideview.dev";
 const ASSET_VERSION = "linje-20260601-15";
-const GOOGLE_MAPS_API_KEY = "AIzaSyAmfqmvFlTkrdvAKButynkA7R_pf6cuozU";
-const CESIUM_ION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhM2E0MjQwYy0wNTU3LTQzODMtOGVmZi01YzExMTM1ZTVmYzciLCJpZCI6NDM4NzYwLCJzdWIiOiJzZWJ3aW5maWVsZCIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJMaW5qZS5kZXYiLCJpYXQiOjE3ODAyNzc5MzR9.BfH1rVscC0WBp12NorM8_TQuZY_gDaVafB3a0Eh33fA";
 const OVERPASS_MIRRORS = [
   "https://lz4.overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
@@ -44,30 +42,27 @@ const PUBLIC_PATH_PREFIXES = [
   "/sitemap.xml",
 ];
 const PUBLIC_FILE_SUFFIXES = [".ico", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".css", ".js", ".woff", ".woff2"];
-const CAPTCHA_SECRET = "linje-track-access-captcha-v1";
-const EDGE_OWNER_LOGINS = new Set(["admin", "seb", "sebastian"]);
-const EDGE_OWNER_PASSWORD = "sebtest1234";
+const DEFAULT_EDGE_OWNER_LOGINS = ["admin"];
 const EDGE_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ACCESS_STORE_KEY = "linje-track-access-requests-v1";
-const CACHE_STORE_URL = "https://linje.dev/__edge-access-store";
 const memoryStore = { requests: [], users: [] };
+const PASSWORD_HASH_PREFIX = "pbkdf2-sha256";
+const PASSWORD_HASH_ITERATIONS = 210000;
 
 function getCookie(cookieHeader, name) {
   const match = new RegExp(`(?:^|;\\s*)${name}=([^;]+)`).exec(cookieHeader || "");
   return match ? decodeURIComponent(match[1]) : "";
 }
 
-async function hasSessionCookie(cookieHeader) {
-  if (/(?:^|;\s*)(?:__Secure-)?(?:authjs|next-auth)\.session-token=/.test(cookieHeader || "")) return true;
-  return verifyEdgeSession(getCookie(cookieHeader, "linje_access"));
+async function hasSessionCookie(env, cookieHeader) {
+  return verifyEdgeSession(env, getCookie(cookieHeader, "linje_access"));
 }
 
-async function hasAdminSessionCookie(cookieHeader) {
+async function hasAdminSessionCookie(env, cookieHeader) {
   const token = getCookie(cookieHeader, "linje_access");
-  if (EDGE_OWNER_LOGINS.has(normalizeLogin(token))) return true;
   const [payload, signature] = String(token || "").split(".");
   if (!payload || !signature) return false;
-  if (await edgeSessionSignature(payload) !== signature) return false;
+  if (await edgeSessionSignature(env, payload) !== signature) return false;
   try {
     const parsed = JSON.parse(fromBase64Url(payload));
     return parsed.role === "admin" && Date.now() <= parsed.expires;
@@ -117,6 +112,31 @@ function fromBase64Url(value) {
   return atob(base64);
 }
 
+function envValue(env, name) {
+  return String(env?.[name] || "").trim();
+}
+
+function requiredSecret(env, name) {
+  const value = envValue(env, name);
+  if (!value) throw new Error(`${name} is not configured`);
+  if (value.length < 32) throw new Error(`${name} must be at least 32 characters`);
+  return value;
+}
+
+function getOwnerLogins(env) {
+  const raw = envValue(env, "LINJE_EDGE_OWNER_LOGINS");
+  const values = raw ? raw.split(",") : DEFAULT_EDGE_OWNER_LOGINS;
+  return new Set(values.map(normalizeLogin).filter(Boolean));
+}
+
+function configuredGoogleMapsKey(env) {
+  return envValue(env, "GOOGLE_MAPS_API_KEY") || envValue(env, "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
+}
+
+function configuredCesiumIonToken(env) {
+  return envValue(env, "CESIUM_ION_TOKEN") || envValue(env, "NEXT_PUBLIC_CESIUM_ION_TOKEN");
+}
+
 async function hmacSignature(secret, payload) {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -128,15 +148,15 @@ async function hmacSignature(secret, payload) {
   return toBase64Url(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload)));
 }
 
-async function captchaSignature(payload) {
-  return hmacSignature(CAPTCHA_SECRET, payload);
+async function captchaSignature(env, payload) {
+  return hmacSignature(requiredSecret(env, "LINJE_EDGE_CAPTCHA_SECRET"), payload);
 }
 
-async function edgeSessionSignature(payload) {
-  return hmacSignature(CAPTCHA_SECRET, payload);
+async function edgeSessionSignature(env, payload) {
+  return hmacSignature(requiredSecret(env, "LINJE_EDGE_SESSION_SECRET"), payload);
 }
 
-async function createCaptcha() {
+async function createCaptcha(env) {
   const left = Math.floor(Math.random() * 8) + 2;
   const right = Math.floor(Math.random() * 8) + 2;
   const payload = toBase64Url(new TextEncoder().encode(JSON.stringify({
@@ -145,14 +165,14 @@ async function createCaptcha() {
   })));
   return {
     question: `${left} + ${right}`,
-    token: `${payload}.${await captchaSignature(payload)}`,
+    token: `${payload}.${await captchaSignature(env, payload)}`,
   };
 }
 
-async function verifyCaptcha(token, answer) {
+async function verifyCaptcha(env, token, answer) {
   const [payload, signature] = String(token || "").split(".");
   if (!payload || !signature) return false;
-  if (await captchaSignature(payload) !== signature) return false;
+  if (await captchaSignature(env, payload) !== signature) return false;
   try {
     const parsed = JSON.parse(fromBase64Url(payload));
     return Date.now() <= parsed.expires && String(parsed.answer) === String(answer || "").trim();
@@ -161,20 +181,19 @@ async function verifyCaptcha(token, answer) {
   }
 }
 
-async function createEdgeSession(username, role = "user") {
+async function createEdgeSession(env, username, role = "user") {
   const payload = toBase64Url(new TextEncoder().encode(JSON.stringify({
     username,
     role,
     expires: Date.now() + EDGE_SESSION_TTL_MS,
   })));
-  return `${payload}.${await edgeSessionSignature(payload)}`;
+  return `${payload}.${await edgeSessionSignature(env, payload)}`;
 }
 
-async function verifyEdgeSession(token) {
-  if (EDGE_OWNER_LOGINS.has(String(token || "").trim().toLowerCase())) return true;
+async function verifyEdgeSession(env, token) {
   const [payload, signature] = String(token || "").split(".");
   if (!payload || !signature) return false;
-  if (await edgeSessionSignature(payload) !== signature) return false;
+  if (await edgeSessionSignature(env, payload) !== signature) return false;
   try {
     const parsed = JSON.parse(fromBase64Url(payload));
     return (parsed.role === "admin" || parsed.role === "user") && Date.now() <= parsed.expires;
@@ -200,6 +219,62 @@ function loginMatchesUser(user, normalizedLogin) {
   ].some(value => normalizeLogin(value) === normalizedLogin);
 }
 
+function constantTimeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function randomSalt() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return toBase64Url(bytes);
+}
+
+async function derivePassword(password, salt, iterations = PASSWORD_HASH_ITERATIONS) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt: new TextEncoder().encode(salt),
+      iterations,
+    },
+    key,
+    256,
+  );
+  return toBase64Url(bits);
+}
+
+async function hashPassword(password) {
+  const salt = randomSalt();
+  const digest = await derivePassword(password, salt);
+  return `${PASSWORD_HASH_PREFIX}$${PASSWORD_HASH_ITERATIONS}$${salt}$${digest}`;
+}
+
+async function verifyPasswordHash(password, encodedHash) {
+  const [prefix, iterationsRaw, salt, expected] = String(encodedHash || "").split("$");
+  const iterations = Number(iterationsRaw);
+  if (prefix !== PASSWORD_HASH_PREFIX || !Number.isInteger(iterations) || iterations < 100000 || !salt || !expected) {
+    return false;
+  }
+  const actual = await derivePassword(password, salt, iterations);
+  return constantTimeEqual(actual, expected);
+}
+
+async function verifyOwnerPassword(env, password) {
+  const hash = envValue(env, "LINJE_EDGE_OWNER_PASSWORD_HASH");
+  if (!hash) return false;
+  return verifyPasswordHash(password, hash);
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -222,20 +297,21 @@ async function readAccessStore(env) {
   const binding = accessStoreBinding(env);
   if (binding?.get) {
     try {
-      return JSON.parse(await binding.get(ACCESS_STORE_KEY) || JSON.stringify(emptyAccessStore()));
-    } catch {}
-  }
-
-  if (typeof caches !== "undefined") {
-    try {
-      const response = await caches.default.match(new Request(CACHE_STORE_URL));
-      if (response) return JSON.parse(await response.text());
+      return normalizeAccessStore(JSON.parse(await binding.get(ACCESS_STORE_KEY) || JSON.stringify(emptyAccessStore())));
     } catch {}
   }
 
   return {
-    requests: Array.isArray(memoryStore.requests) ? memoryStore.requests : [],
-    users: Array.isArray(memoryStore.users) ? memoryStore.users : [],
+    requests: Array.isArray(memoryStore.requests) ? memoryStore.requests.map(item => {
+      const copy = { ...item };
+      delete copy.password;
+      return copy;
+    }) : [],
+    users: Array.isArray(memoryStore.users) ? memoryStore.users.map(item => {
+      const copy = { ...item };
+      delete copy.password;
+      return copy;
+    }) : [],
   };
 }
 
@@ -255,41 +331,44 @@ async function writeAccessStore(env, store) {
       return true;
     } catch {}
   }
-
-  if (typeof caches !== "undefined") {
-    try {
-      await caches.default.put(
-        new Request(CACHE_STORE_URL),
-        new Response(value, {
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "public, max-age=31536000",
-          },
-        }),
-      );
-      return true;
-    } catch {}
-  }
   return false;
+}
+
+function normalizeAccessStore(store) {
+  const sanitize = (item) => {
+    const copy = { ...(item || {}) };
+    delete copy.password;
+    return copy;
+  };
+  return {
+    requests: Array.isArray(store?.requests) ? store.requests.map(sanitize) : [],
+    users: Array.isArray(store?.users) ? store.users.map(sanitize) : [],
+  };
 }
 
 async function approvedAccessUser(env, login, password) {
   const normalized = normalizeLogin(login);
-  if (EDGE_OWNER_LOGINS.has(normalized) && password === EDGE_OWNER_PASSWORD) {
+  if (getOwnerLogins(env).has(normalized) && await verifyOwnerPassword(env, password)) {
     return { login: normalized, name: normalized, role: "admin" };
   }
   const store = await readAccessStore(env);
-  return store.users.find(user =>
-    user.status === "approved" &&
-    loginMatchesUser(user, normalized) &&
-    user.password === password
-  ) || null;
+  for (const user of store.users) {
+    if (
+      user.status === "approved"
+      && loginMatchesUser(user, normalized)
+      && await verifyPasswordHash(password, user.passwordHash)
+    ) {
+      return user;
+    }
+  }
+  return null;
 }
 
 async function saveAccessRequest(env, form) {
   const name = String(form.get("name") || "").trim();
   const email = normalizeLogin(form.get("email"));
   const password = String(form.get("password") || "");
+  const passwordHash = await hashPassword(password);
   const store = await readAccessStore(env);
   const existingUser = store.users.find(user => normalizeLogin(user.login) === email);
   if (existingUser?.status === "approved") return { ok: false, message: "That login is already approved. Sign in instead." };
@@ -297,14 +376,15 @@ async function saveAccessRequest(env, form) {
   const existingRequest = store.requests.find(req => normalizeLogin(req.email) === email && req.status === "pending");
   if (existingRequest) {
     existingRequest.name = name;
-    existingRequest.password = password;
+    existingRequest.passwordHash = passwordHash;
+    delete existingRequest.password;
     existingRequest.updatedAt = new Date().toISOString();
   } else {
     store.requests.unshift({
       id: requestId(),
       name,
       email,
-      password,
+      passwordHash,
       status: "pending",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -343,13 +423,16 @@ async function updateAccessRequest(env, id, action) {
   request.updatedAt = new Date().toISOString();
 
   const login = normalizeLogin(request.email);
+  if (request.status === "approved" && !request.passwordHash) {
+    return { ok: false, message: "This request predates secure password storage. Ask the user to submit a new request." };
+  }
   store.users = store.users.filter(user => normalizeLogin(user.login) !== login);
   if (request.status === "approved") {
     store.users.unshift({
       id: request.id,
       login,
       name: request.name,
-      password: request.password,
+      passwordHash: request.passwordHash,
       status: "approved",
       approvedAt: new Date().toISOString(),
     });
@@ -364,11 +447,9 @@ function loginHtml({ error = "" } = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in to Linje.track</title>${authStyles()}</head><body>${authGlobeFrame()}<main class="card"><div class="mark">L</div><h1 class="title">Sign in to Linje.track</h1><p class="sub">Approved users can enter the workspace.</p><form class="form" method="post" action="/login"><label class="label">Username<input class="input" name="username" required autocomplete="username" autocapitalize="none" spellcheck="false"></label><label class="label">Password<input class="input" name="password" type="password" required autocomplete="current-password"></label>${error ? `<p class="err">${error}</p>` : ""}<button class="button" type="submit">Sign In</button></form><p class="footer">Need access? <a class="link" href="/register">Request approval</a></p></main></body></html>`;
 }
 
-async function loginRedirectResponse(username, requestUrl, role = "user") {
+async function loginRedirectResponse(env, username, requestUrl, role = "user") {
   const target = new URL("/", requestUrl);
-  const sessionValue = EDGE_OWNER_LOGINS.has(normalizeLogin(username))
-    ? normalizeLogin(username)
-    : await createEdgeSession(username, role);
+  const sessionValue = await createEdgeSession(env, username, role);
   return new Response(null, {
     status: 303,
     headers: {
@@ -379,8 +460,8 @@ async function loginRedirectResponse(username, requestUrl, role = "user") {
   });
 }
 
-async function registerHtml({ error = "", success = "" } = {}) {
-  const captcha = await createCaptcha();
+async function registerHtml(env, { error = "", success = "" } = {}) {
+  const captcha = await createCaptcha(env);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Request Linje.track Access</title>${authStyles()}</head><body>${authGlobeFrame()}<main class="card"><div class="mark">L</div><h1 class="title">Request Linje.track access</h1><p class="sub">Approved users can enter the live tracking workspace.</p><form class="form" method="post" action="/register"><label class="label">Display Name<input class="input" name="name" required autocomplete="name"></label><label class="label">Email<input class="input" name="email" type="email" required autocomplete="email"></label><label class="label">Password<input class="input" name="password" type="password" required minlength="8" autocomplete="new-password"></label><label class="label">Confirm Password<input class="input" name="confirm" type="password" required minlength="8" autocomplete="new-password"></label><div class="captcha"><label class="label">Captcha<span class="question">${captcha.question}</span><input class="input" name="captchaAnswer" required inputmode="numeric" pattern="[0-9]*"></label><a class="icon" href="/register" title="Refresh captcha" aria-label="Refresh captcha" style="display:grid;place-items:center;text-decoration:none">↻</a></div><input type="hidden" name="captchaToken" value="${captcha.token}">${error ? `<p class="err">${error}</p>` : ""}${success ? `<p class="msg">${success}</p>` : ""}<button class="button" type="submit">Request Access</button></form><p class="footer">Already approved? <a class="link" href="/login">Sign in</a></p></main></body></html>`;
 }
 
@@ -550,22 +631,29 @@ function rewriteBrandText(value) {
   );
 }
 
-function rewriteHtml(value, pathname = "") {
+function rewriteHtml(env, value, pathname = "") {
   const branded = pathname === "/login"
     ? restyleLoginHtml(stripRetiredCopy(rewriteBrandText(value)))
     : stripRetiredCopy(rewriteBrandText(value));
 
   return branded.replace(
     "<head>",
-    `<head>${googleMapsKeyScript()}`,
+    `<head>${serviceKeyScript(env)}`,
   ).replace(
     /(src|href)="(\/_next\/static\/[^"?]+)(?:\?[^"]*)?"/g,
     `$1="$2?v=${ASSET_VERSION}"`,
-  ).replace("</body>", `${pathname === "/auth-background" ? authBackgroundPatch() : ""}${brandPatchScript()}${pathname === "/auth-background" ? "" : `${streetViewPatchScript()}${floatingViewerPatchScript()}`}</body>`);
+  ).replace("</body>", `${pathname === "/auth-background" ? authBackgroundPatch() : ""}${brandPatchScript()}${pathname === "/auth-background" ? "" : `${streetViewPatchScript(env)}${floatingViewerPatchScript()}`}</body>`);
 }
 
-function googleMapsKeyScript() {
-  return `<script>try{localStorage.setItem("wwv_key_google_maps","${GOOGLE_MAPS_API_KEY}");localStorage.setItem("wwv_cesium_ion_token","${CESIUM_ION_TOKEN}");localStorage.setItem("wwv_map_layer","google-3d");document.cookie="wwv_graphics="+encodeURIComponent(JSON.stringify({resolutionScale:1,antiAliasing:"fxaa",maxScreenSpaceError:16,shadowsEnabled:false,enableLighting:false,showFps:false,showOsmBuildings:false,weatherOverlay:null}))+"; path=/; max-age=31536000"}catch(e){}</script>`;
+function serviceKeyScript(env) {
+  const googleKey = configuredGoogleMapsKey(env);
+  const cesiumToken = configuredCesiumIonToken(env);
+  const assignments = [];
+  if (googleKey) assignments.push(`localStorage.setItem("wwv_key_google_maps",${JSON.stringify(googleKey)})`);
+  if (cesiumToken) assignments.push(`localStorage.setItem("wwv_cesium_ion_token",${JSON.stringify(cesiumToken)})`);
+  assignments.push(`localStorage.setItem("wwv_map_layer","google-3d")`);
+  assignments.push(`document.cookie="wwv_graphics="+encodeURIComponent(JSON.stringify({resolutionScale:1,antiAliasing:"fxaa",maxScreenSpaceError:16,shadowsEnabled:false,enableLighting:false,showFps:false,showOsmBuildings:false,weatherOverlay:null}))+"; path=/; max-age=31536000"`);
+  return `<script>try{${assignments.join(";")}}catch(e){}</script>`;
 }
 
 function stripRetiredCopy(value) {
@@ -580,7 +668,8 @@ function brandPatchScript() {
   return `<script>(()=>{const h=["worldwideview","dev"].join(".");const oldHistory=["History unavailable on","demo"].join(" ");const oldTitle=["Linje.track","demo"].join(" ");const oldLower=["linje.track","demo"].join(" ");const privacy=["Privacy","Policy"].join(" ");const terms=["Terms","of","Service"].join(" ");const apiTitle=["API","Keys"].join(" ");const r=[[[ "WORLD","WIDE","VIEW"].join(" "),"LINJE.TRACK"],[[ "World","Wide","View"].join(" "),"Linje.track"],[[ "World","WideView"].join(""),"Linje.track"],[[ "Worldwide","View"].join(""),"Linje.track"],["WWV","LIN"],[[ "https://",h,"/"].join(""),"https://linje.dev/"],[[ "https://",h].join(""),"https://linje.dev"],[oldHistory,"History controls unavailable"],[oldTitle,"Linje.track"],[oldLower,"linje.track"]];const f=s=>r.reduce((v,[a,b])=>v.split(a).join(b),s);let clickCount=0,lastClick=0;const bindAdminLogo=()=>{const logo=[...document.querySelectorAll(".header__brand a,.header__logo")].find(el=>/LIN/i.test(el.textContent||""));const target=logo?.closest("a")||logo;if(!target||target.dataset.linjeAdminTripleClick==="true")return;target.dataset.linjeAdminTripleClick="true";target.style.cursor="pointer";target.addEventListener("click",ev=>{if(ev.target&&ev.target.closest&&ev.target.closest(".search-bar,input,button"))return;const now=Date.now();clickCount=now-lastClick>1200?1:clickCount+1;lastClick=now;if(clickCount<3){ev.preventDefault();ev.stopPropagation();return}ev.preventDefault();ev.stopPropagation();clickCount=0;lastClick=0;window.location.href="/admin"},true)};const clean=()=>{document.querySelectorAll(".header__logo--compact").forEach(e=>{if((e.textContent||"").trim()==="WWV"||(e.textContent||"").trim()==="LINJE")e.textContent="LIN"});document.querySelectorAll(".administrator-link").forEach(e=>e.remove());document.querySelectorAll("#linje-admin-link-style").forEach(e=>e.remove());document.querySelectorAll(".legal-footer").forEach(e=>e.remove());document.querySelectorAll("button[title]").forEach(b=>{b.getAttribute("title")===apiTitle&&b.remove()});document.querySelectorAll("a").forEach(a=>{const t=a.textContent||"";(t.includes(privacy)||t.includes(terms))&&a.remove()});document.querySelectorAll(".timeline__history-unavailable").forEach(e=>{e.innerHTML="";const i=document.createElement("span");i.className="timeline__history-unavailable-icon";i.setAttribute("aria-hidden","true");i.textContent=String.fromCodePoint(128274);e.append(i," History controls unavailable")});bindAdminLogo()};const p=()=>{const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;while(n=w.nextNode()){const v=f(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}document.querySelectorAll("a[href]").forEach(a=>{const v=f(a.getAttribute("href")||"");if(v!==a.getAttribute("href"))a.setAttribute("href",v)});clean()};p();new MutationObserver(p).observe(document.documentElement,{childList:true,subtree:true,characterData:true});setInterval(p,1500)})();</script>`;
 }
 
-function streetViewPatchScript() {
+function streetViewPatchScript(env) {
+  const googleKey = configuredGoogleMapsKey(env);
   const css = `<style id="linje-street-style">
 body.linje-street-picking .app-shell__globe,body.linje-street-picking .cesium-widget,body.linje-street-picking canvas{cursor:crosshair!important}
 .linje-street-active{border-color:rgba(59,130,246,.62)!important;box-shadow:0 0 22px rgba(59,130,246,.26),inset 0 1px 0 rgba(255,255,255,.2)!important}
@@ -595,7 +684,7 @@ body.linje-street-picking .app-shell__globe,body.linje-street-picking .cesium-wi
 .linje-street-open{color:#fff;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.35);font-size:12px;font-weight:800}
 @media(max-width:760px){.linje-street-prompt{bottom:70px;align-items:flex-start}.linje-street-sub{white-space:normal}.linje-street-actions{display:grid}.linje-street-panel{left:12px;right:12px;bottom:74px;width:auto;height:min(380px,calc(100vh - 112px))}.linje-street-coords{display:none}}
 </style>`;
-  const js = `<script>(()=>{const KEY="${GOOGLE_MAPS_API_KEY}";const state={picking:false,prompt:null,panel:null,last:null};const stop=e=>{e.preventDefault();e.stopPropagation()};const stat=name=>{const group=[...document.querySelectorAll(".camera-stats__group")].find(g=>(g.querySelector(".camera-stats__label")?.textContent||"").trim().toUpperCase()===name);const value=group?.querySelector(".camera-stats__value")?.textContent||"";const n=parseFloat(value.replace(/[^0-9.+-]/g,""));return Number.isFinite(n)?n:null};const cameraCoords=()=>{const lat=stat("LAT");const lng=stat("LON");return lat!==null&&lng!==null?{lat,lng,source:"view"}:null};const findViewer=()=>window.linjeCesiumViewer||window.cesiumViewer||window.viewer||window.wwvViewer||window.CesiumViewer;const pickCesium=ev=>{try{const viewer=findViewer();const Cesium=window.Cesium;if(!viewer||!Cesium||!viewer.scene||!viewer.camera)return null;const canvas=viewer.scene.canvas||document.querySelector(".cesium-widget canvas,canvas");const rect=canvas.getBoundingClientRect();const pos=new Cesium.Cartesian2(ev.clientX-rect.left,ev.clientY-rect.top);let cartesian=null;if(viewer.scene.pickPositionSupported){try{cartesian=viewer.scene.pickPosition(pos)}catch{}}if(!cartesian&&viewer.camera.pickEllipsoid)cartesian=viewer.camera.pickEllipsoid(pos,viewer.scene.globe?.ellipsoid);if(!cartesian)return null;const c=Cesium.Cartographic.fromCartesian(cartesian);return{lat:Cesium.Math.toDegrees(c.latitude),lng:Cesium.Math.toDegrees(c.longitude),source:"drop"}}catch{}return null};const coordsFromEvent=ev=>pickCesium(ev)||cameraCoords();const streetUrl=coords=>"https://www.google.com/maps/embed/v1/streetview?key="+encodeURIComponent(localStorage.getItem("wwv_key_google_maps")||KEY)+"&location="+encodeURIComponent(coords.lat+","+coords.lng)+"&fov=85&heading=0&pitch=0";const mapsUrl=coords=>"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint="+encodeURIComponent(coords.lat+","+coords.lng);function ensurePrompt(){if(state.prompt)return state.prompt;const el=document.createElement("div");el.className="linje-street-prompt";el.hidden=true;el.innerHTML='<span class="linje-street-dot"></span><span class="linje-street-copy"><span class="linje-street-title">Linje.street dropper active</span><span class="linje-street-sub">Click the globe, or use the current camera position for nearest Google Street View.</span></span><span class="linje-street-actions"><button class="linje-street-btn" data-street-current>Use view</button><button class="linje-street-btn" data-street-cancel>Cancel</button></span>';el.querySelector("[data-street-current]").addEventListener("click",e=>{stop(e);const c=cameraCoords();if(c)openStreet(c);stopPick()});el.querySelector("[data-street-cancel]").addEventListener("click",e=>{stop(e);stopPick()});document.body.appendChild(el);state.prompt=el;return el}function ensurePanel(){if(state.panel)return state.panel;const panel=document.createElement("section");panel.className="linje-street-panel";panel.hidden=true;panel.innerHTML='<div class="linje-street-head"><strong>Linje.street</strong><a class="linje-street-open" target="_blank" rel="noopener noreferrer">Open in Maps</a><span class="linje-street-coords"></span><button class="linje-street-close" type="button" aria-label="Close">x</button></div><div class="linje-street-empty">Drop a point on the globe to load Street View.</div>';panel.querySelector(".linje-street-close").addEventListener("click",()=>{panel.hidden=true});document.body.appendChild(panel);state.panel=panel;return panel}function openStreet(coords){const panel=ensurePanel();panel.querySelector(".linje-street-coords").textContent=coords.lat.toFixed(5)+", "+coords.lng.toFixed(5);panel.querySelector(".linje-street-open").href=mapsUrl(coords);let frame=panel.querySelector("iframe");if(!frame){frame=document.createElement("iframe");frame.className="linje-street-frame";frame.allow="fullscreen; geolocation";frame.loading="eager";panel.appendChild(frame)}const empty=panel.querySelector(".linje-street-empty");if(empty)empty.remove();frame.src=streetUrl(coords);panel.hidden=false;state.last=coords}function startPick(){state.picking=true;document.body.classList.add("linje-street-picking");ensurePrompt().hidden=false;document.querySelectorAll(".dock-btn[data-linje-street]").forEach(b=>b.classList.add("linje-street-active"))}function stopPick(){state.picking=false;document.body.classList.remove("linje-street-picking");if(state.prompt)state.prompt.hidden=true;document.querySelectorAll(".dock-btn[data-linje-street]").forEach(b=>b.classList.remove("linje-street-active"))}function togglePick(){state.picking?stopPick():startPick()}document.addEventListener("click",ev=>{if(!state.picking)return;if(ev.target.closest&&ev.target.closest(".linje-street-prompt,.linje-street-panel,.header,.sidebar,.bottom-panel-dock"))return;const globe=document.querySelector(".app-shell__globe");if(globe&&!globe.contains(ev.target))return;stop(ev);const coords=coordsFromEvent(ev);if(coords)openStreet(coords);stopPick()},true);function bindButton(){const btn=[...document.querySelectorAll(".bottom-panel-dock .dock-btn")].find(b=>b.dataset.linjeStreet||b.getAttribute("title")==="Timeline"||/\\bTimeline\\b/i.test(b.textContent||""));if(!btn)return;if(btn.dataset.linjeStreet!=="true")btn.dataset.linjeStreet="true";if(btn.getAttribute("title")!=="Linje.street")btn.setAttribute("title","Linje.street");const label=btn.querySelector(".dock-btn-label");if(label&&label.textContent!=="Linje.street")label.textContent="Linje.street";const svg=btn.querySelector("svg");if(svg&&!svg.dataset.linjeStreetIcon){svg.dataset.linjeStreetIcon="true";svg.setAttribute("viewBox","0 0 24 24");svg.innerHTML='<path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12z"></path><circle cx="12" cy="9" r="2.4"></circle>'}if(btn.__linjeStreetBound)return;btn.__linjeStreetBound=true;btn.dataset.linjeStreetBound="true";btn.addEventListener("click",ev=>{stop(ev);togglePick()},true)}bindButton();new MutationObserver(bindButton).observe(document.documentElement,{childList:true,subtree:true});setInterval(bindButton,1500)})();</script>`;
+  const js = `<script>(()=>{const KEY=${JSON.stringify(googleKey)};const state={picking:false,prompt:null,panel:null,last:null};const stop=e=>{e.preventDefault();e.stopPropagation()};const stat=name=>{const group=[...document.querySelectorAll(".camera-stats__group")].find(g=>(g.querySelector(".camera-stats__label")?.textContent||"").trim().toUpperCase()===name);const value=group?.querySelector(".camera-stats__value")?.textContent||"";const n=parseFloat(value.replace(/[^0-9.+-]/g,""));return Number.isFinite(n)?n:null};const cameraCoords=()=>{const lat=stat("LAT");const lng=stat("LON");return lat!==null&&lng!==null?{lat,lng,source:"view"}:null};const findViewer=()=>window.linjeCesiumViewer||window.cesiumViewer||window.viewer||window.wwvViewer||window.CesiumViewer;const pickCesium=ev=>{try{const viewer=findViewer();const Cesium=window.Cesium;if(!viewer||!Cesium||!viewer.scene||!viewer.camera)return null;const canvas=viewer.scene.canvas||document.querySelector(".cesium-widget canvas,canvas");const rect=canvas.getBoundingClientRect();const pos=new Cesium.Cartesian2(ev.clientX-rect.left,ev.clientY-rect.top);let cartesian=null;if(viewer.scene.pickPositionSupported){try{cartesian=viewer.scene.pickPosition(pos)}catch{}}if(!cartesian&&viewer.camera.pickEllipsoid)cartesian=viewer.camera.pickEllipsoid(pos,viewer.scene.globe?.ellipsoid);if(!cartesian)return null;const c=Cesium.Cartographic.fromCartesian(cartesian);return{lat:Cesium.Math.toDegrees(c.latitude),lng:Cesium.Math.toDegrees(c.longitude),source:"drop"}}catch{}return null};const coordsFromEvent=ev=>pickCesium(ev)||cameraCoords();const streetUrl=coords=>{const key=localStorage.getItem("wwv_key_google_maps")||KEY;if(!key)return "";return "https://www.google.com/maps/embed/v1/streetview?key="+encodeURIComponent(key)+"&location="+encodeURIComponent(coords.lat+","+coords.lng)+"&fov=85&heading=0&pitch=0"};const mapsUrl=coords=>"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint="+encodeURIComponent(coords.lat+","+coords.lng);function ensurePrompt(){if(state.prompt)return state.prompt;const el=document.createElement("div");el.className="linje-street-prompt";el.hidden=true;el.innerHTML='<span class="linje-street-dot"></span><span class="linje-street-copy"><span class="linje-street-title">Linje.street dropper active</span><span class="linje-street-sub">Click the globe, or use the current camera position for nearest Google Street View.</span></span><span class="linje-street-actions"><button class="linje-street-btn" data-street-current>Use view</button><button class="linje-street-btn" data-street-cancel>Cancel</button></span>';el.querySelector("[data-street-current]").addEventListener("click",e=>{stop(e);const c=cameraCoords();if(c)openStreet(c);stopPick()});el.querySelector("[data-street-cancel]").addEventListener("click",e=>{stop(e);stopPick()});document.body.appendChild(el);state.prompt=el;return el}function ensurePanel(){if(state.panel)return state.panel;const panel=document.createElement("section");panel.className="linje-street-panel";panel.hidden=true;panel.innerHTML='<div class="linje-street-head"><strong>Linje.street</strong><a class="linje-street-open" target="_blank" rel="noopener noreferrer">Open in Maps</a><span class="linje-street-coords"></span><button class="linje-street-close" type="button" aria-label="Close">x</button></div><div class="linje-street-empty">Drop a point on the globe to load Street View.</div>';panel.querySelector(".linje-street-close").addEventListener("click",()=>{panel.hidden=true});document.body.appendChild(panel);state.panel=panel;return panel}function openStreet(coords){const panel=ensurePanel();panel.querySelector(".linje-street-coords").textContent=coords.lat.toFixed(5)+", "+coords.lng.toFixed(5);panel.querySelector(".linje-street-open").href=mapsUrl(coords);let frame=panel.querySelector("iframe");if(!frame){frame=document.createElement("iframe");frame.className="linje-street-frame";frame.allow="fullscreen; geolocation";frame.loading="eager";panel.appendChild(frame)}const empty=panel.querySelector(".linje-street-empty");if(empty)empty.remove();const url=streetUrl(coords);if(url)frame.src=url;else frame.replaceWith(Object.assign(document.createElement("div"),{className:"linje-street-empty",textContent:"Google Maps key is not configured."}));panel.hidden=false;state.last=coords}function startPick(){state.picking=true;document.body.classList.add("linje-street-picking");ensurePrompt().hidden=false;document.querySelectorAll(".dock-btn[data-linje-street]").forEach(b=>b.classList.add("linje-street-active"))}function stopPick(){state.picking=false;document.body.classList.remove("linje-street-picking");if(state.prompt)state.prompt.hidden=true;document.querySelectorAll(".dock-btn[data-linje-street]").forEach(b=>b.classList.remove("linje-street-active"))}function togglePick(){state.picking?stopPick():startPick()}document.addEventListener("click",ev=>{if(!state.picking)return;if(ev.target.closest&&ev.target.closest(".linje-street-prompt,.linje-street-panel,.header,.sidebar,.bottom-panel-dock"))return;const globe=document.querySelector(".app-shell__globe");if(globe&&!globe.contains(ev.target))return;stop(ev);const coords=coordsFromEvent(ev);if(coords)openStreet(coords);stopPick()},true);function bindButton(){const btn=[...document.querySelectorAll(".bottom-panel-dock .dock-btn")].find(b=>b.dataset.linjeStreet||b.getAttribute("title")==="Timeline"||/\\bTimeline\\b/i.test(b.textContent||""));if(!btn)return;if(btn.dataset.linjeStreet!=="true")btn.dataset.linjeStreet="true";if(btn.getAttribute("title")!=="Linje.street")btn.setAttribute("title","Linje.street");const label=btn.querySelector(".dock-btn-label");if(label&&label.textContent!=="Linje.street")label.textContent="Linje.street";const svg=btn.querySelector("svg");if(svg&&!svg.dataset.linjeStreetIcon){svg.dataset.linjeStreetIcon="true";svg.setAttribute("viewBox","0 0 24 24");svg.innerHTML='<path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12z"></path><circle cx="12" cy="9" r="2.4"></circle>'}if(btn.__linjeStreetBound)return;btn.__linjeStreetBound=true;btn.dataset.linjeStreetBound="true";btn.addEventListener("click",ev=>{stop(ev);togglePick()},true)}bindButton();new MutationObserver(bindButton).observe(document.documentElement,{childList:true,subtree:true});setInterval(bindButton,1500)})();</script>`;
   return css + js;
 }
 
@@ -663,7 +752,7 @@ function upstreamRequestHeaders(request, requestUrl) {
   return headers;
 }
 
-async function authBackgroundResponse(request) {
+async function authBackgroundResponse(env, request) {
   const requestUrl = new URL(request.url);
   const upstreamResponse = await fetch(new URL("/", UPSTREAM_ORIGIN), {
     method: "GET",
@@ -677,7 +766,7 @@ async function authBackgroundResponse(request) {
   responseHeaders.set("Cache-Control", "no-store");
   responseHeaders.set("X-Linje-Upstream", "auth-background");
   const body = await upstreamResponse.text();
-  return new Response(rewriteHtml(body, "/auth-background"), {
+  return new Response(rewriteHtml(env, body, "/auth-background"), {
     status: upstreamResponse.status,
     statusText: upstreamResponse.statusText,
     headers: responseHeaders,
@@ -688,11 +777,11 @@ export default {
   async fetch(request, env) {
     const requestUrl = new URL(request.url);
     if (requestUrl.pathname === "/auth-background") {
-      return authBackgroundResponse(request);
+      return authBackgroundResponse(env, request);
     }
 
     if (requestUrl.pathname === "/admin") {
-      if (!await hasAdminSessionCookie(request.headers.get("Cookie"))) {
+      if (!await hasAdminSessionCookie(env, request.headers.get("Cookie"))) {
         if (request.method.toUpperCase() === "GET") return htmlResponse(loginHtml({ error: "Sign in as admin first." }), 401);
         return new Response("Admin authentication required", { status: 401 });
       }
@@ -714,8 +803,7 @@ export default {
           return htmlResponse(loginHtml({ error: "Invalid username or password." }), 401);
         }
 
-        const role = EDGE_OWNER_LOGINS.has(username) ? "admin" : "user";
-        return loginRedirectResponse(approvedUser.login || username, request.url, role);
+        return loginRedirectResponse(env, approvedUser.login || username, request.url, approvedUser.role === "admin" ? "admin" : "user");
       }
       return htmlResponse(loginHtml());
     }
@@ -726,18 +814,18 @@ export default {
         const password = String(form.get("password") || "");
         const confirm = String(form.get("confirm") || "");
         if (password !== confirm) {
-          return htmlResponse(await registerHtml({ error: "Passwords do not match." }));
+          return htmlResponse(await registerHtml(env, { error: "Passwords do not match." }));
         }
-        if (!await verifyCaptcha(form.get("captchaToken"), form.get("captchaAnswer"))) {
-          return htmlResponse(await registerHtml({ error: "Captcha check failed. Refresh it and try again." }));
+        if (!await verifyCaptcha(env, form.get("captchaToken"), form.get("captchaAnswer"))) {
+          return htmlResponse(await registerHtml(env, { error: "Captcha check failed. Refresh it and try again." }));
         }
         const result = await saveAccessRequest(env, form);
-        return htmlResponse(await registerHtml(result.ok ? { success: result.message } : { error: result.message }));
+        return htmlResponse(await registerHtml(env, result.ok ? { success: result.message } : { error: result.message }));
       }
-      return htmlResponse(await registerHtml());
+      return htmlResponse(await registerHtml(env));
     }
 
-    const authenticated = await hasSessionCookie(request.headers.get("Cookie"));
+    const authenticated = await hasSessionCookie(env, request.headers.get("Cookie"));
     if (!authenticated && !isPublicPath(requestUrl.pathname)) {
       const acceptsHtml = (request.headers.get("Accept") || "").includes("text/html");
       if (request.method === "GET" && (acceptsHtml || requestUrl.pathname === "/" || requestUrl.pathname === "/register")) {
@@ -785,7 +873,7 @@ export default {
     ) {
       const body = await upstreamResponse.text();
       const rewritten = contentType.includes("text/html")
-        ? rewriteHtml(body, requestUrl.pathname)
+        ? rewriteHtml(env, body, requestUrl.pathname)
         : rewriteBrandText(body);
 
       return new Response(rewritten, {

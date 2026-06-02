@@ -37,13 +37,12 @@ function checkHostAllowlist(hostname: string): void {
     const raw = process.env.PROXY_HOST_ALLOWLIST ?? "";
     const allowlist = raw.trim();
 
-    if (allowlist === "*") {
-        console.warn(`[SSRF] PROXY_HOST_ALLOWLIST="*" — permissive mode, host: ${hostname}. Populate the list from WARN logs then tighten.`);
-        return;
+    if (!allowlist) {
+        throw new Error("SSRF Error: PROXY_HOST_ALLOWLIST is not configured. Set a comma-separated host allowlist.");
     }
 
-    if (!allowlist) {
-        throw new Error(`SSRF Error: PROXY_HOST_ALLOWLIST is not configured. Set to "*" to allow all (permissive) or a comma-separated host list.`);
+    if (allowlist === "*") {
+        throw new Error("SSRF Error: PROXY_HOST_ALLOWLIST wildcard mode is disabled. Set a comma-separated host allowlist.");
     }
 
     const allowed = allowlist.split(",").map((h) => h.trim()).filter(Boolean);
@@ -53,14 +52,14 @@ function checkHostAllowlist(hostname: string): void {
 }
 
 export async function safeFetch(urlStr: string, options: FetchOptions = {}): Promise<Response> {
+    if (!validateOrigin(urlStr)) {
+        throw new Error("SSRF Error: Invalid protocol. Only HTTP and HTTPS are allowed.");
+    }
+
     const hostForCheck = (() => {
         try { return new URL(urlStr).hostname; } catch { return ""; }
     })();
     checkHostAllowlist(hostForCheck);
-
-    if (!validateOrigin(urlStr)) {
-        throw new Error("SSRF Error: Invalid protocol. Only HTTP and HTTPS are allowed.");
-    }
 
     const url = new URL(urlStr);
 

@@ -54,7 +54,7 @@ Canonical flag names used throughout this plan:
 - **Engine (Data Engine), per-plugin enforcement:** `REQUIRE_TICKET_AUTH_PLUGINS` (comma-separated).
 - **Engine, global default-deny:** `REQUIRE_TICKET_AUTH` (boolean, default `false`).
 - **Engine, Origin allowlist enforcement:** `ENFORCE_ORIGIN_ALLOWLIST` (boolean, default `false`).
-- **Local App SSRF allowlist:** `PROXY_HOST_ALLOWLIST` (`*` sentinel, empty/unset = deny, or concrete list).
+- **Local App SSRF allowlist:** `PROXY_HOST_ALLOWLIST` (empty/unset = deny, concrete list = allow only those hosts).
 
 When all three engine flags are off, Data Engine accepts unauthenticated connections (today's behavior). When `REQUIRE_TICKET_AUTH_PLUGINS` includes a plugin, the client must send `{type:"auth", v:1, token}` first message and engine validates.
 
@@ -112,10 +112,10 @@ Deliverables:
 
 **C2. SSRF hardening (ADR-001D)**
 - Add `PROXY_HOST_ALLOWLIST` env var (comma-separated). Enforce in `src/lib/security/ssrf.ts` before scheme/IP checks. **Default behavior:**
-  - `PROXY_HOST_ALLOWLIST="*"` → permissive (current behavior), logs a `WARN` per request naming the host so operators can populate the list from observed traffic. **Sentinel-based instead of relying on unset-vs-empty** because Coolify and similar PaaS UIs may send `""` for "unset."
+  - Wildcard mode is disabled; use explicit hosts only.
   - `PROXY_HOST_ALLOWLIST=""` or unset → deny all (safe default).
   - `PROXY_HOST_ALLOWLIST="a.example,b.example"` → only those hosts allowed.
-  Ship C2 with the var set to `*` in all environments; populate over a week of log observation; flip to a concrete allowlist in step 7c.
+  Ship C2 with explicit host allowlists in all environments.
 - `src/app/api/camera/proxy/iframe/route.ts` — route through `safeFetch`; add 5 MB size cap; reject redirects to non-allowlisted hosts (don't follow by default).
 - Document the allowlist procedure in `.agents/context/environment-config.md`.
 
@@ -172,7 +172,7 @@ Steps 1–5 are individually deployable and dormant for the new ticket flow. **S
 7. **Default-deny rollout — split into three independent steps with 24h soak between each** so attribution is clear if anything breaks:
    - **7a.** Set `REQUIRE_TICKET_AUTH=true` on the Data Engine. Soak 24h.
    - **7b.** Set `ENFORCE_ORIGIN_ALLOWLIST=true` on the Data Engine (after populating the Origin allowlist from observed connections). Soak 24h.
-   - **7c.** Replace `PROXY_HOST_ALLOWLIST="*"` with the concrete observed list on the Local App. Soak 24h.
+   - **7c.** Confirm `PROXY_HOST_ALLOWLIST` remains a concrete observed list on the Local App. Soak 24h.
    Each step is independently revertable by flipping its single flag back.
 8. **Accept** the ADR; schedule HS256 marketplace-session token review as a follow-up (out of scope here).
 
