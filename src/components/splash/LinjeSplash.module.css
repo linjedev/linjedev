@@ -61,18 +61,17 @@
   height: 42%;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.12);
   color: #fff;
   font-size: 24px;
   font-weight: 800;
-  box-shadow: 0 0 42px rgba(255, 255, 255, 0.18);
 }
 
 .mark img {
   width: 52%;
   height: 52%;
+  filter:
+    drop-shadow(0 0 10px rgba(255, 255, 255, 0.28))
+    drop-shadow(0 0 24px rgba(255, 255, 255, 0.16));
 }
 
 @keyframes spin {
