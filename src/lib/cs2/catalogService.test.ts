@@ -650,6 +650,88 @@ describe("CS2 catalog service", () => {
     expect(catalog.items[0].marketHashName).toBe("AK-47 | Redline (Field-Tested)");
   });
 
+  it("filters the catalog by extended marketplace sources", async () => {
+    vi.mocked(prisma.cs2Item.count).mockResolvedValue(2 as never);
+    vi.mocked(prisma.cs2Item.findMany).mockResolvedValue([{
+      id: "db-dmarket-knife",
+      marketHashName: "\u2605 Karambit | Doppler (Factory New)",
+      itemType: "knife",
+      category: "Karambit",
+      rarity: "Covert",
+      exterior: "Factory New",
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [{
+        provider: "cs2cap",
+        marketName: "DMarket",
+        marketRegion: "global",
+        askCents: 170000,
+        bidCents: null,
+        medianCents: null,
+        askVolume: 2,
+        bidVolume: null,
+        salesVolume24h: null,
+        liquidityScore: 5,
+        observedAt: new Date("2026-06-05T12:00:00.000Z"),
+        sourceUrl: null,
+      }],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: 170000,
+        bestBidCents: null,
+        chineseAskCents: null,
+        globalAskCents: 170000,
+        spreadPercent: null,
+      },
+    }, {
+      id: "db-bitskins-sticker",
+      marketHashName: "Sticker | Crown (Foil)",
+      itemType: "sticker",
+      category: "sticker",
+      rarity: "Contraband",
+      exterior: null,
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [{
+        provider: "cs2cap",
+        marketName: "BitSkins",
+        marketRegion: "global",
+        askCents: 90000,
+        bidCents: null,
+        medianCents: null,
+        askVolume: 1,
+        bidVolume: null,
+        salesVolume24h: null,
+        liquidityScore: 3,
+        observedAt: new Date("2026-06-05T12:00:00.000Z"),
+        sourceUrl: null,
+      }],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: 90000,
+        bestBidCents: null,
+        chineseAskCents: null,
+        globalAskCents: 90000,
+        spreadPercent: null,
+      },
+    }] as never);
+
+    const catalog = await getCs2Catalog({
+      source: "dmarket",
+      page: 1,
+      limit: 50,
+      sort: "name",
+    });
+
+    expect(catalog.source).toBe("dmarket");
+    expect(catalog.items).toHaveLength(1);
+    expect(catalog.items[0].marketHashName).toBe("\u2605 Karambit | Doppler (Factory New)");
+  });
+
   it("falls back to metadata search results when Skinport is unavailable", async () => {
     const metadataItem = {
       marketHashName: "Knife | Autotronic",

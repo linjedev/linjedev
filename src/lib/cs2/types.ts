@@ -173,7 +173,19 @@ export type Cs2CatalogCoverageFilter =
   | "spreadable";
 
 export type Cs2CatalogMarketFocus = "all" | "china" | "global";
-export type Cs2CatalogSourceFilter = "all" | "buff" | "youpin" | "c5game" | "csfloat" | "skinport" | "steam";
+export type Cs2CatalogSourceFilter =
+  | "all"
+  | "buff"
+  | "youpin"
+  | "c5game"
+  | "csfloat"
+  | "skinport"
+  | "steam"
+  | "dmarket"
+  | "bitskins"
+  | "buffmarket"
+  | "waxpeer"
+  | "whitemarket";
 
 export type Cs2CatalogResponse = {
   generatedAt: string;

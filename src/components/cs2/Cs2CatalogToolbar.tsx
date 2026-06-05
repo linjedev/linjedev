@@ -118,6 +118,11 @@ export function Cs2CatalogToolbar({
           <option value="csfloat">CSFloat</option>
           <option value="skinport">Skinport</option>
           <option value="steam">Steam</option>
+          <option value="dmarket">DMarket</option>
+          <option value="bitskins">BitSkins</option>
+          <option value="buffmarket">BUFF.Market</option>
+          <option value="waxpeer">WAXPEER</option>
+          <option value="whitemarket">white.market</option>
         </select>
         <select
           aria-label="Filter by market coverage"

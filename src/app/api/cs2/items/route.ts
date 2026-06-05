@@ -8,7 +8,7 @@ const querySchema = z.object({
   itemType: z.string().nullable().optional(),
   coverage: z.enum(["all", "with-history", "missing-history", "with-china", "missing-china", "spreadable"]).optional(),
   marketFocus: z.enum(["all", "china", "global"]).optional(),
-  source: z.enum(["all", "buff", "youpin", "c5game", "csfloat", "skinport", "steam"]).optional(),
+  source: z.enum(["all", "buff", "youpin", "c5game", "csfloat", "skinport", "steam", "dmarket", "bitskins", "buffmarket", "waxpeer", "whitemarket"]).optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
   sort: z.enum(["updated", "name", "price-asc", "price-desc", "china-discount"]).optional(),

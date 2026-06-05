@@ -33,6 +33,11 @@ function sourceFilterToMarketName(source: Cs2CatalogSourceFilter) {
   if (source === "csfloat") return "CSFloat";
   if (source === "skinport") return "Skinport";
   if (source === "steam") return "Steam";
+  if (source === "dmarket") return "DMarket";
+  if (source === "bitskins") return "BitSkins";
+  if (source === "buffmarket") return "BUFF.Market";
+  if (source === "waxpeer") return "WAXPEER";
+  if (source === "whitemarket") return "white.market";
   return null;
 }
 
