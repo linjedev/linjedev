@@ -4,7 +4,7 @@ import { fetchCs2CapCandles, fetchCs2CapCatalogItems, fetchCs2CapLatestItems } f
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
-import { fetchCsMarketApiHistory, fetchCsMarketApiLatestItems } from "@/lib/cs2/providers/csmarketapi";
+import { fetchCsMarketApiCatalogItems, fetchCsMarketApiHistory, fetchCsMarketApiLatestItems } from "@/lib/cs2/providers/csmarketapi";
 import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
 import { fetchDMarketLatestItems } from "@/lib/cs2/providers/dmarket";
 import { fetchMarketCsgoLatestItems, fetchMarketCsgoSalesHistory } from "@/lib/cs2/providers/marketcsgo";
@@ -40,6 +40,7 @@ vi.mock("@/lib/cs2/providers/cs2sh", () => ({
 }));
 
 vi.mock("@/lib/cs2/providers/csmarketapi", () => ({
+  fetchCsMarketApiCatalogItems: vi.fn(),
   fetchCsMarketApiHistory: vi.fn(),
   fetchCsMarketApiLatestItems: vi.fn(),
 }));
@@ -104,6 +105,7 @@ describe("CS2 sync service hydration", () => {
     delete process.env.MARKET_CSGO_API_KEY;
     delete process.env.WAXPEER_API_KEY;
     vi.mocked(fetchBitSkinsLatestItems).mockResolvedValue([] as never);
+    vi.mocked(fetchCsMarketApiCatalogItems).mockResolvedValue([] as never);
     vi.mocked(fetchCsMarketApiHistory).mockResolvedValue([] as never);
     vi.mocked(fetchCsMarketApiLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchDMarketLatestItems).mockResolvedValue([] as never);
@@ -548,6 +550,39 @@ describe("CS2 sync service hydration", () => {
     })]);
     expect(summary).toEqual(expect.objectContaining({
       provider: "metadata",
+      status: "ok",
+      itemCount: 1,
+      snapshotCount: 0,
+    }));
+  });
+
+  it("syncs the CSMarketAPI keyed catalog into the database", async () => {
+    vi.mocked(fetchCsMarketApiCatalogItems).mockResolvedValue([{
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: "Classified",
+      exterior: "Field-Tested",
+      collection: "The Phoenix Collection",
+      imageUrl: "https://cdn.example.com/redline.png",
+      tradable: true,
+    }] as never);
+    vi.mocked(persistProviderCatalogItems).mockResolvedValue(undefined as never);
+
+    const summary = await syncCs2Catalog({
+      provider: "csmarketapi",
+      limit: 250,
+    });
+
+    expect(fetchCsMarketApiCatalogItems).toHaveBeenCalledWith({
+      limit: 250,
+    });
+    expect(persistProviderCatalogItems).toHaveBeenCalledWith([expect.objectContaining({
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+    })]);
+    expect(summary).toEqual(expect.objectContaining({
+      provider: "csmarketapi",
       status: "ok",
       itemCount: 1,
       snapshotCount: 0,

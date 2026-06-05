@@ -3,7 +3,7 @@ import { fetchBitSkinsLatestItems } from "@/lib/cs2/providers/bitskins";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
-import { fetchCsMarketApiHistory, fetchCsMarketApiLatestItems } from "@/lib/cs2/providers/csmarketapi";
+import { fetchCsMarketApiCatalogItems, fetchCsMarketApiHistory, fetchCsMarketApiLatestItems } from "@/lib/cs2/providers/csmarketapi";
 import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
 import { fetchDMarketLatestItems } from "@/lib/cs2/providers/dmarket";
 import { fetchMarketCsgoLatestItems, fetchMarketCsgoSalesHistory } from "@/lib/cs2/providers/marketcsgo";
@@ -33,7 +33,7 @@ import {
 
 export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "csmarketapi" | "marketcsgo" | "waxpeer" | "bitskins" | "dmarket";
 export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam" | "marketcsgo" | "csmarketapi";
-export type Cs2CatalogProvider = "metadata" | "cs2cap";
+export type Cs2CatalogProvider = "metadata" | "cs2cap" | "csmarketapi";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
 
 export { getCs2SyncStatus };
@@ -449,6 +449,10 @@ export async function syncCs2Catalog(params: {
         imageUrl: item.imageUrl,
         tradable: true,
       }))
+      : params.provider === "csmarketapi"
+        ? await fetchCsMarketApiCatalogItems({
+          limit: params.limit,
+        })
       : await fetchCs2CapCatalogItems({
         query: params.query,
         limit: params.limit,
@@ -784,6 +788,13 @@ export async function syncCs2MarketPipeline(params: {
   if (includeCatalog && process.env.CS2CAP_API_KEY) {
     runs.push(await syncCs2Catalog({
       provider: "cs2cap",
+      limit: params.catalogLimit,
+    }));
+  }
+
+  if (includeCatalog && process.env.CSMARKETAPI_API_KEY) {
+    runs.push(await syncCs2Catalog({
+      provider: "csmarketapi",
       limit: params.catalogLimit,
     }));
   }

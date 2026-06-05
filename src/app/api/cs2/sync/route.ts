@@ -44,7 +44,7 @@ const latestSchema = z.object({
 
 const catalogSchema = z.object({
   mode: z.literal("catalog"),
-  provider: z.enum(["metadata", "cs2cap"]).default("metadata"),
+  provider: z.enum(["metadata", "cs2cap", "csmarketapi"]).default("metadata"),
   query: z.string().min(1).optional(),
   limit: z.number().int().positive().max(100000).optional(),
 });

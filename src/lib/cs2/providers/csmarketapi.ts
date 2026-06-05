@@ -6,7 +6,7 @@ import {
   normalizeMarketName,
   toCents,
 } from "@/lib/cs2/normalization";
-import type { ProviderCandleInput, ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
+import type { ProviderCandleInput, ProviderCatalogItemInput, ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
 
 const CSMARKETAPI_BASE_URL = process.env.CSMARKETAPI_BASE_URL ?? "https://api.csmarketapi.com";
 const DEFAULT_CURRENCY = "USD";
@@ -51,6 +51,43 @@ function parseTimestamp(value: unknown) {
   if (!raw) return new Date();
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function csMarketApiItemToCatalogItem(row: Record<string, unknown>): ProviderCatalogItemInput | null {
+  const marketHashName = readString(row.market_hash_name);
+  if (!marketHashName) return null;
+
+  const itemType = readString(row.type) ?? inferItemType(marketHashName);
+  const category = readString(row.weapon) ?? readString(row.category) ?? inferCategory(marketHashName);
+  const collection = readString(row.collection)
+    ?? readString(row.sticker_collection)
+    ?? readString(row.graffiti_collection)
+    ?? readString(row.patch_collection);
+
+  return {
+    marketHashName,
+    itemType,
+    category,
+    rarity: readString(row.quality),
+    exterior: readString(row.exterior) ?? inferExterior(marketHashName),
+    collection,
+    imageUrl: readString(row.cloudflare_icon_url) ?? readString(row.akamai_icon_url),
+    tradable: true,
+  };
+}
+
+export function flattenCsMarketApiCatalogItems(payload: unknown, limit?: number) {
+  const rows = Array.isArray(payload) ? payload : [];
+  const items: ProviderCatalogItemInput[] = [];
+
+  for (const row of rows) {
+    if (limit && items.length >= limit) break;
+    if (typeof row !== "object" || row === null) continue;
+    const item = csMarketApiItemToCatalogItem(row as Record<string, unknown>);
+    if (item) items.push(item);
+  }
+
+  return items;
 }
 
 function csMarketApiListingToSnapshot(row: Record<string, unknown>): ProviderSnapshotInput | null {
@@ -157,6 +194,17 @@ export async function fetchCsMarketApiLatestItems(params: {
   }));
 
   return items.filter((item): item is ProviderItemInput => item !== null);
+}
+
+export async function fetchCsMarketApiCatalogItems(params: {
+  limit?: number;
+} = {}) {
+  const url = new URL(`${CSMARKETAPI_BASE_URL}/v1/items/`);
+  url.searchParams.set("key", apiKey());
+
+  const response = await fetch(url, { next: { revalidate: 3600 } });
+  if (!response.ok) throw new Error(`CSMarketAPI items returned ${response.status}`);
+  return flattenCsMarketApiCatalogItems(await response.json(), params.limit);
 }
 
 export async function fetchCsMarketApiHistory(params: {

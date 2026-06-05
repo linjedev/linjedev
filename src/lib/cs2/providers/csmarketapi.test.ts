@@ -1,7 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { csMarketApiHistoryToCandles, csMarketApiLatestToProviderItem } from "@/lib/cs2/providers/csmarketapi";
+import { csMarketApiHistoryToCandles, csMarketApiLatestToProviderItem, flattenCsMarketApiCatalogItems } from "@/lib/cs2/providers/csmarketapi";
 
 describe("CSMarketAPI provider normalization", () => {
+  it("maps catalog item metadata into provider catalog rows", () => {
+    const items = flattenCsMarketApiCatalogItems([
+      {
+        market_hash_name: "AK-47 | Redline (Field-Tested)",
+        type: "skin",
+        weapon: "AK-47",
+        exterior: "Field-Tested",
+        quality: "Classified",
+        collection: "The Phoenix Collection",
+        cloudflare_icon_url: "https://cdn.example.com/redline.png",
+      },
+      {
+        market_hash_name: "Sticker | Crown (Foil)",
+        type: "sticker",
+        sticker_collection: "Community Stickers",
+        quality: "Exotic",
+        akamai_icon_url: "https://cdn.example.com/crown.png",
+      },
+    ], 1);
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+        itemType: "skin",
+        category: "AK-47",
+        exterior: "Field-Tested",
+        rarity: "Classified",
+        collection: "The Phoenix Collection",
+        imageUrl: "https://cdn.example.com/redline.png",
+        tradable: true,
+      }),
+    ]);
+  });
+
   it("maps aggregate latest listings into per-market snapshots", () => {
     const item = csMarketApiLatestToProviderItem({
       market_hash_name: "AK-47 | Redline (Field-Tested)",
