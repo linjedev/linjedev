@@ -436,6 +436,220 @@ describe("CS2 catalog service", () => {
     warnSpy.mockRestore();
   });
 
+  it("filters the catalog by coverage gaps for analysis workflows", async () => {
+    vi.mocked(prisma.cs2Item.count).mockResolvedValue(2 as never);
+    vi.mocked(prisma.cs2Item.findMany).mockResolvedValue([{
+      id: "db-ak47-redline",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: "Classified",
+      exterior: "Field-Tested",
+      collection: "The Phoenix Case",
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [],
+      marketSnapshots: [],
+      priceCandles: [{
+        provider: "cs2.sh",
+        marketName: "BUFF163",
+        interval: "1d",
+        openCents: 3000,
+        highCents: 3200,
+        lowCents: 2950,
+        closeCents: 3150,
+        volume: 12,
+        startsAt: new Date("2026-06-01T00:00:00.000Z"),
+      }, {
+        provider: "cs2.sh",
+        marketName: "BUFF163",
+        interval: "1d",
+        openCents: 3150,
+        highCents: 3250,
+        lowCents: 3100,
+        closeCents: 3200,
+        volume: 18,
+        startsAt: new Date("2026-06-02T00:00:00.000Z"),
+      }],
+      marketSummary: {
+        bestAskCents: 3200,
+        bestBidCents: 3000,
+        chineseAskCents: 3100,
+        globalAskCents: 3200,
+        spreadPercent: -3.1,
+      },
+    }, {
+      id: "db-crown-foil",
+      marketHashName: "Sticker | Crown (Foil)",
+      itemType: "sticker",
+      category: "sticker",
+      rarity: "Contraband",
+      exterior: null,
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: 89540,
+        bestBidCents: null,
+        chineseAskCents: null,
+        globalAskCents: 89540,
+        spreadPercent: null,
+      },
+    }] as never);
+
+    const catalog = await getCs2Catalog({
+      coverage: "missing-history",
+      page: 1,
+      limit: 50,
+      sort: "name",
+    });
+
+    expect(catalog.coverage).toBe("missing-history");
+    expect(catalog.items).toHaveLength(1);
+    expect(catalog.items[0].marketHashName).toBe("Sticker | Crown (Foil)");
+  });
+
+  it("filters the catalog by market focus for China-first analysis", async () => {
+    vi.mocked(prisma.cs2Item.count).mockResolvedValue(2 as never);
+    vi.mocked(prisma.cs2Item.findMany).mockResolvedValue([{
+      id: "db-ak47-redline",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: "Classified",
+      exterior: "Field-Tested",
+      collection: "The Phoenix Case",
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: 3200,
+        bestBidCents: 3000,
+        chineseAskCents: 3100,
+        globalAskCents: 3200,
+        spreadPercent: -3.1,
+      },
+    }, {
+      id: "db-crown-foil",
+      marketHashName: "Sticker | Crown (Foil)",
+      itemType: "sticker",
+      category: "sticker",
+      rarity: "Contraband",
+      exterior: null,
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: 89540,
+        bestBidCents: null,
+        chineseAskCents: null,
+        globalAskCents: 89540,
+        spreadPercent: null,
+      },
+    }] as never);
+
+    const catalog = await getCs2Catalog({
+      marketFocus: "china",
+      page: 1,
+      limit: 50,
+      sort: "name",
+    });
+
+    expect(catalog.marketFocus).toBe("china");
+    expect(catalog.items).toHaveLength(1);
+    expect(catalog.items[0].marketHashName).toBe("AK-47 | Redline (Field-Tested)");
+  });
+
+  it("filters the catalog by specific market source", async () => {
+    vi.mocked(prisma.cs2Item.count).mockResolvedValue(2 as never);
+    vi.mocked(prisma.cs2Item.findMany).mockResolvedValue([{
+      id: "db-ak47-redline",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: "Classified",
+      exterior: "Field-Tested",
+      collection: "The Phoenix Case",
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [{
+        provider: "cspriceapi",
+        marketName: "BUFF163",
+        marketRegion: "china",
+        askCents: 3100,
+        bidCents: null,
+        medianCents: null,
+        askVolume: 12,
+        bidVolume: null,
+        salesVolume24h: null,
+        liquidityScore: 8,
+        observedAt: new Date("2026-06-05T12:00:00.000Z"),
+        sourceUrl: null,
+      }],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: 3200,
+        bestBidCents: 3000,
+        chineseAskCents: 3100,
+        globalAskCents: 3200,
+        spreadPercent: -3.1,
+      },
+    }, {
+      id: "db-crown-foil",
+      marketHashName: "Sticker | Crown (Foil)",
+      itemType: "sticker",
+      category: "sticker",
+      rarity: "Contraband",
+      exterior: null,
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [{
+        provider: "skinport",
+        marketName: "Skinport",
+        marketRegion: "global",
+        askCents: 89540,
+        bidCents: null,
+        medianCents: null,
+        askVolume: 5,
+        bidVolume: null,
+        salesVolume24h: null,
+        liquidityScore: 4,
+        observedAt: new Date("2026-06-05T12:00:00.000Z"),
+        sourceUrl: null,
+      }],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: 89540,
+        bestBidCents: null,
+        chineseAskCents: null,
+        globalAskCents: 89540,
+        spreadPercent: null,
+      },
+    }] as never);
+
+    const catalog = await getCs2Catalog({
+      source: "buff",
+      page: 1,
+      limit: 50,
+      sort: "name",
+    });
+
+    expect(catalog.source).toBe("buff");
+    expect(catalog.items).toHaveLength(1);
+    expect(catalog.items[0].marketHashName).toBe("AK-47 | Redline (Field-Tested)");
+  });
+
   it("falls back to metadata search results when Skinport is unavailable", async () => {
     const metadataItem = {
       marketHashName: "Knife | Autotronic",

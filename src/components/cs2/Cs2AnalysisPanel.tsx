@@ -54,6 +54,40 @@ export function Cs2AnalysisPanel({ analysis }: { analysis: Cs2MarketAnalysis }) 
       </div>
 
       <div className={styles.panelHeader}>
+        <ScanSearch size={16} />
+        <span>Market depth</span>
+      </div>
+      <div className={styles.signalList}>
+        {analysis.marketCoverage.markets.slice(0, 4).map((market) => (
+          <div className={styles.signalRow} key={`${market.provider}-${market.marketName}`}>
+            <span>
+              <strong>{market.marketName}</strong>
+              <small>{market.itemCount} items / {market.askCount} asks / {market.marketRegion}</small>
+            </span>
+            <b>{market.staleItemCount > 0 ? `${market.staleItemCount} stale` : "fresh"}</b>
+          </div>
+        ))}
+        {analysis.marketCoverage.markets.length === 0 && <div className={styles.emptyState}>No market coverage yet</div>}
+      </div>
+
+      <div className={styles.panelHeader}>
+        <ScanSearch size={16} />
+        <span>Item type depth</span>
+      </div>
+      <div className={styles.signalList}>
+        {analysis.marketCoverage.itemTypes.slice(0, 4).map((itemType) => (
+          <div className={styles.signalRow} key={itemType.itemType}>
+            <span>
+              <strong>{itemType.itemType}</strong>
+              <small>{itemType.itemCount} tracked / {itemType.itemsWithHistory} with history</small>
+            </span>
+            <b>{itemType.itemsWithChinesePrice}/{itemType.itemCount} CN</b>
+          </div>
+        ))}
+        {analysis.marketCoverage.itemTypes.length === 0 && <div className={styles.emptyState}>No item type coverage yet</div>}
+      </div>
+
+      <div className={styles.panelHeader}>
         <TrendingDown size={16} />
         <span>Top CN discounts</span>
       </div>

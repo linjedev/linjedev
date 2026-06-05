@@ -18,7 +18,7 @@ const cs2HistorySourceEnum = z.enum([
 
 const latestSchema = z.object({
   mode: z.literal("latest").default("latest"),
-  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "skinport"]).default("cs2.sh"),
+  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "skinport", "c5game", "cspriceapi"]).default("cs2.sh"),
   marketHashNames: z.array(z.string().min(2)).max(250).optional(),
   providers: z.array(z.string().min(2)).max(80).optional(),
   limit: z.number().int().positive().max(100000).optional(),

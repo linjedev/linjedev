@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { buildCs2MarketAnalysis } from "@/lib/cs2/analysisService";
 import { CS2_MARKET_SOURCES, getConfiguredMarketProviders } from "@/lib/cs2/marketSources";
 import { calculateCs2DerivedPrices, dbItemToCs2ItemView } from "@/lib/cs2/itemView";
+import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
+import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
 import { getCs2ItemMetadataByMarketHashName } from "@/lib/cs2/itemMetadataService";
 import { hydrateCs2ItemsFromConfiguredProviders } from "@/lib/cs2/syncService";
@@ -36,9 +38,23 @@ function buildSearchQueryTokens(query: string | null) {
     .filter(Boolean) ?? [];
 }
 
-async function fetchCs2ShLatest(marketHashNames: string[]): Promise<Map<string, Cs2MarketSnapshotView[]>> {
-  if (!process.env.CS2SH_API_KEY || marketHashNames.length === 0) return new Map();
-  const providerItems = await fetchCs2ShLatestItems({ marketHashNames });
+function providerItemsToSnapshotMap(providerItems: Array<{
+  marketHashName: string;
+  snapshots: Array<{
+    provider: string;
+    marketName: string;
+    marketRegion: Cs2MarketRegion;
+    askCents: number | null;
+    bidCents: number | null;
+    medianCents: number | null;
+    askVolume: number | null;
+    bidVolume: number | null;
+    salesVolume24h: number | null;
+    liquidityScore: number | null;
+    observedAt: Date;
+    sourceUrl?: string;
+  }>;
+}>): Map<string, Cs2MarketSnapshotView[]> {
   const mapped = new Map<string, Cs2MarketSnapshotView[]>();
 
   for (const item of providerItems) {
@@ -60,6 +76,50 @@ async function fetchCs2ShLatest(marketHashNames: string[]): Promise<Map<string, 
   }
 
   return mapped;
+}
+
+function mergeLiveSnapshotMaps(snapshotMaps: Map<string, Cs2MarketSnapshotView[]>[]) {
+  const merged = new Map<string, Cs2MarketSnapshotView[]>();
+
+  for (const snapshotMap of snapshotMaps) {
+    for (const [marketHashName, snapshots] of snapshotMap.entries()) {
+      const existing = merged.get(marketHashName) ?? [];
+      const byMarket = new Map(existing.map((snapshot) => [`${snapshot.provider}\u0000${snapshot.marketName}`, snapshot]));
+      for (const snapshot of snapshots) {
+        byMarket.set(`${snapshot.provider}\u0000${snapshot.marketName}`, snapshot);
+      }
+      merged.set(marketHashName, [...byMarket.values()]);
+    }
+  }
+
+  return merged;
+}
+
+async function fetchConfiguredLatestSnapshots(marketHashNames: string[]): Promise<Map<string, Cs2MarketSnapshotView[]>> {
+  if (marketHashNames.length === 0) return new Map();
+
+  const snapshotMaps = await Promise.all([
+    process.env.CS2SH_API_KEY
+      ? fetchCs2ShLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
+        console.warn("[cs2] cs2.sh overview refresh failed.", error);
+        return new Map<string, Cs2MarketSnapshotView[]>();
+      })
+      : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
+    process.env.C5GAME_API_KEY
+      ? fetchC5GameLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
+        console.warn("[cs2] C5Game overview refresh failed.", error);
+        return new Map<string, Cs2MarketSnapshotView[]>();
+      })
+      : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
+    process.env.CSPRICEAPI_API_KEY
+      ? fetchCsPriceApiLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
+        console.warn("[cs2] CSPriceAPI overview refresh failed.", error);
+        return new Map<string, Cs2MarketSnapshotView[]>();
+      })
+      : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
+  ]);
+
+  return mergeLiveSnapshotMaps(snapshotMaps);
 }
 
 function buildItemSearchWhere(query?: string | null) {
@@ -149,6 +209,74 @@ function buildMetrics(items: Cs2ItemView[], watchlist: Cs2WatchlistEntryView[]) 
   };
 }
 
+function buildSourceStatus(params: {
+  sources: Cs2TrackerOverview["sources"];
+  items: Cs2ItemView[];
+  configuredProviders: string[];
+}) {
+  const configured = new Set(params.configuredProviders.map((provider) => provider.toLowerCase()));
+  const marketCounts = new Map<string, { itemIds: Set<string>; marketNames: Set<string> }>();
+
+  for (const item of params.items) {
+    for (const snapshot of item.snapshots) {
+      const marketKey = snapshot.marketName.toLowerCase();
+      const providerKey = snapshot.provider.toLowerCase();
+      for (const key of [marketKey, providerKey]) {
+        const existing = marketCounts.get(key) ?? { itemIds: new Set<string>(), marketNames: new Set<string>() };
+        existing.itemIds.add(item.id);
+        existing.marketNames.add(snapshot.marketName);
+        marketCounts.set(key, existing);
+      }
+    }
+  }
+
+  return params.sources.map((source) => {
+    const coverage = marketCounts.get(source.id.toLowerCase()) ?? marketCounts.get(source.name.toLowerCase()) ?? {
+      itemIds: new Set<string>(),
+      marketNames: new Set<string>(),
+    };
+    const hasLiveCoverage = coverage.itemIds.size > 0;
+    const configuredDirect = configured.has(source.id.toLowerCase());
+    const officialApi: "official" | "indirect" | "unknown" = source.id === "c5game"
+      ? "official"
+      : source.role === "aggregator"
+        ? "official"
+        : source.id === "buff" || source.id === "youpin"
+          ? "unknown"
+          : "indirect";
+    const integration: "direct" | "aggregated" | "unavailable" = configuredDirect
+      ? "direct"
+      : hasLiveCoverage
+        ? "aggregated"
+        : "unavailable";
+
+    const note = integration === "direct"
+      ? officialApi === "official"
+        ? "Direct API configured."
+        : "Direct source configured."
+      : integration === "aggregated"
+        ? "Visible through configured aggregator feeds."
+        : source.id === "buff" || source.id === "youpin"
+          ? "No direct official public API verified in this build."
+          : "No live source configured.";
+
+    return {
+      id: source.id,
+      name: source.name,
+      homepageUrl: source.homepageUrl,
+      region: source.region,
+      role: source.role,
+      configured: configuredDirect,
+      hasLiveCoverage,
+      integration,
+      officialApi,
+      marketsSeen: coverage.marketNames.size,
+      itemCount: coverage.itemIds.size,
+      note,
+    };
+  });
+}
+
 export async function getCs2TrackerOverview(params: {
   ownerKey: string;
   query?: string | null;
@@ -171,9 +299,9 @@ export async function getCs2TrackerOverview(params: {
   }
 
   const configuredProviders = getConfiguredMarketProviders();
-  if (configuredProviders.includes("cs2.sh")) {
+  if (configuredProviders.includes("cs2.sh") || configuredProviders.includes("c5game") || configuredProviders.includes("cspriceapi")) {
     try {
-      const liveSnapshots = await fetchCs2ShLatest(items.slice(0, 40).map((item) => item.marketHashName));
+      const liveSnapshots = await fetchConfiguredLatestSnapshots(items.slice(0, 40).map((item) => item.marketHashName));
       if (liveSnapshots.size > 0) {
         items = items.map((item) => {
           const snapshots = liveSnapshots.get(item.marketHashName);
@@ -183,7 +311,7 @@ export async function getCs2TrackerOverview(params: {
         mode = mode === "sample" ? "mixed" : "live";
       }
     } catch (error) {
-      warning = error instanceof Error ? error.message : "Live cs2.sh fetch failed.";
+      warning = error instanceof Error ? error.message : "Live market refresh failed.";
     }
   }
 
@@ -193,6 +321,11 @@ export async function getCs2TrackerOverview(params: {
     mode,
     warning,
     sources: CS2_MARKET_SOURCES,
+    sourceStatus: buildSourceStatus({
+      sources: CS2_MARKET_SOURCES,
+      items: filteredItems,
+      configuredProviders,
+    }),
     configuredProviders,
     items: filteredItems,
     watchlist,

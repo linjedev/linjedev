@@ -1,14 +1,20 @@
 "use client";
 
-import type { Cs2CatalogResponse, Cs2CatalogSort } from "@/lib/cs2/types";
+import type { Cs2CatalogCoverageFilter, Cs2CatalogMarketFocus, Cs2CatalogResponse, Cs2CatalogSort, Cs2CatalogSourceFilter } from "@/lib/cs2/types";
 import styles from "./Cs2MarketTracker.module.css";
 
 type Cs2CatalogToolbarProps = {
   catalog: Cs2CatalogResponse | null;
   itemType: string | null;
+  coverage: Cs2CatalogCoverageFilter;
+  marketFocus: Cs2CatalogMarketFocus;
+  source: Cs2CatalogSourceFilter;
   page: number;
   sort: Cs2CatalogSort;
   onItemTypeChange: (itemType: string | null) => void;
+  onCoverageChange: (coverage: Cs2CatalogCoverageFilter) => void;
+  onMarketFocusChange: (marketFocus: Cs2CatalogMarketFocus) => void;
+  onSourceChange: (source: Cs2CatalogSourceFilter) => void;
   onPageChange: (page: number | ((current: number) => number)) => void;
   onSortChange: (sort: Cs2CatalogSort) => void;
 };
@@ -16,9 +22,15 @@ type Cs2CatalogToolbarProps = {
 export function Cs2CatalogToolbar({
   catalog,
   itemType,
+  coverage,
+  marketFocus,
+  source,
   page,
   sort,
   onItemTypeChange,
+  onCoverageChange,
+  onMarketFocusChange,
+  onSourceChange,
   onPageChange,
   onSortChange,
 }: Cs2CatalogToolbarProps) {
@@ -79,6 +91,49 @@ export function Cs2CatalogToolbar({
       </div>
 
       <div className={styles.catalogControls}>
+        <select
+          aria-label="Filter by market focus"
+          value={marketFocus}
+          onChange={(event) => {
+            onMarketFocusChange(event.target.value as Cs2CatalogMarketFocus);
+            onPageChange(1);
+          }}
+        >
+          <option value="all">All markets</option>
+          <option value="china">China focus</option>
+          <option value="global">Global focus</option>
+        </select>
+        <select
+          aria-label="Filter by market source"
+          value={source}
+          onChange={(event) => {
+            onSourceChange(event.target.value as Cs2CatalogSourceFilter);
+            onPageChange(1);
+          }}
+        >
+          <option value="all">All sources</option>
+          <option value="buff">BUFF163</option>
+          <option value="youpin">YouPin898</option>
+          <option value="c5game">C5Game</option>
+          <option value="csfloat">CSFloat</option>
+          <option value="skinport">Skinport</option>
+          <option value="steam">Steam</option>
+        </select>
+        <select
+          aria-label="Filter by market coverage"
+          value={coverage}
+          onChange={(event) => {
+            onCoverageChange(event.target.value as Cs2CatalogCoverageFilter);
+            onPageChange(1);
+          }}
+        >
+          <option value="all">All coverage</option>
+          <option value="with-history">With history</option>
+          <option value="missing-history">Missing history</option>
+          <option value="with-china">With China price</option>
+          <option value="missing-china">Missing China price</option>
+          <option value="spreadable">Spreadable</option>
+        </select>
         <select
           aria-label="Sort CS2 catalog"
           value={sort}

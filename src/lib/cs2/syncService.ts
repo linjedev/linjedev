@@ -1,4 +1,6 @@
 import { fetchCs2CapCandles, fetchCs2CapCatalogItems, fetchCs2CapLatestItems } from "@/lib/cs2/providers/cs2cap";
+import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
+import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
 import { fetchPricempireHistory, fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
@@ -18,7 +20,7 @@ import {
   getConfiguredPricempirePriceSources,
 } from "@/lib/cs2/marketSources";
 
-export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport";
+export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "c5game" | "cspriceapi";
 export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
 
@@ -126,6 +128,54 @@ export async function hydrateCs2ItemsFromConfiguredProviders(params: {
     }
   }
 
+  if (process.env.C5GAME_API_KEY) {
+    try {
+      const items = await fetchC5GameLatestItems({ marketHashNames });
+      const snapshotCount = await persistProviderItems(items);
+      summaries.push({
+        provider: "c5game",
+        status: "ok",
+        itemCount: items.length,
+        snapshotCount,
+        candleCount: 0,
+        message: null,
+      });
+    } catch (error) {
+      summaries.push({
+        provider: "c5game",
+        status: "error",
+        itemCount: 0,
+        snapshotCount: 0,
+        candleCount: 0,
+        message: error instanceof Error ? error.message : "C5Game hydration failed",
+      });
+    }
+  }
+
+  if (process.env.CSPRICEAPI_API_KEY) {
+    try {
+      const items = await fetchCsPriceApiLatestItems({ marketHashNames });
+      const snapshotCount = await persistProviderItems(items);
+      summaries.push({
+        provider: "cspriceapi",
+        status: "ok",
+        itemCount: items.length,
+        snapshotCount,
+        candleCount: 0,
+        message: null,
+      });
+    } catch (error) {
+      summaries.push({
+        provider: "cspriceapi",
+        status: "error",
+        itemCount: 0,
+        snapshotCount: 0,
+        candleCount: 0,
+        message: error instanceof Error ? error.message : "CSPriceAPI hydration failed",
+      });
+    }
+  }
+
   return summaries;
 }
 
@@ -145,6 +195,16 @@ export async function syncCs2LatestPrices(params: {
         providers: params.providers,
         limit: params.limit,
       })
+      : params.provider === "c5game"
+        ? await fetchC5GameLatestItems({
+          marketHashNames: params.marketHashNames,
+          limit: params.limit,
+        })
+      : params.provider === "cspriceapi"
+        ? await fetchCsPriceApiLatestItems({
+          marketHashNames: params.marketHashNames,
+          limit: params.limit,
+        })
       : params.provider === "pricempire"
         ? await fetchPricempireLatestItems({
           marketHashNames: params.marketHashNames,
@@ -418,6 +478,12 @@ export async function syncCs2MarketPipeline(params: {
   const runs: Cs2SyncSummary[] = [];
   const includeCatalog = params.includeCatalog ?? true;
   const includeLatest = params.includeLatest ?? true;
+  const exactItemNames = params.ownerKey
+    ? await getCs2WatchlistMarketHashNames({
+      ownerKey: params.ownerKey,
+      limit: Math.min(250, Math.max(1, params.watchlistLimit ?? 100)),
+    }).catch(() => [])
+    : [];
 
   if (includeCatalog && process.env.CS2CAP_API_KEY) {
     runs.push(await syncCs2Catalog({
@@ -453,6 +519,22 @@ export async function syncCs2MarketPipeline(params: {
       runs.push(await syncCs2LatestPrices({
         provider: "pricempire",
         providers: sources,
+        limit: params.latestLimit,
+      }));
+    }
+
+    if (process.env.C5GAME_API_KEY && exactItemNames.length > 0) {
+      runs.push(await syncCs2LatestPrices({
+        provider: "c5game",
+        marketHashNames: exactItemNames,
+        limit: params.latestLimit,
+      }));
+    }
+
+    if (process.env.CSPRICEAPI_API_KEY && exactItemNames.length > 0) {
+      runs.push(await syncCs2LatestPrices({
+        provider: "cspriceapi",
+        marketHashNames: exactItemNames,
         limit: params.latestLimit,
       }));
     }

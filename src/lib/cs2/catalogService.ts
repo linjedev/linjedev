@@ -13,15 +13,28 @@ import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
 import { inferCategory, inferItemType } from "@/lib/cs2/normalization";
 import type { ProviderCatalogItemInput, ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
 import { SAMPLE_CS2_ITEMS } from "@/lib/cs2/sampleData";
-import type { Cs2CatalogResponse, Cs2CatalogSort, Cs2ItemView } from "@/lib/cs2/types";
+import type { Cs2CatalogCoverageFilter, Cs2CatalogMarketFocus, Cs2CatalogResponse, Cs2CatalogSort, Cs2CatalogSourceFilter, Cs2ItemView } from "@/lib/cs2/types";
 
 type CatalogParams = {
   query?: string | null;
   itemType?: string | null;
+  coverage?: Cs2CatalogCoverageFilter;
+  marketFocus?: Cs2CatalogMarketFocus;
+  source?: Cs2CatalogSourceFilter;
   page?: number;
   limit?: number;
   sort?: Cs2CatalogSort;
 };
+
+function sourceFilterToMarketName(source: Cs2CatalogSourceFilter) {
+  if (source === "buff") return "BUFF163";
+  if (source === "youpin") return "YouPin898";
+  if (source === "c5game") return "C5Game";
+  if (source === "csfloat") return "CSFloat";
+  if (source === "skinport") return "Skinport";
+  if (source === "steam") return "Steam";
+  return null;
+}
 
 
 function normalizePage(value: number | undefined) {
@@ -33,10 +46,34 @@ function normalizeLimit(value: number | undefined) {
   return Math.min(100, Math.max(1, value));
 }
 
+function itemMatchesCoverage(item: Cs2ItemView, coverage: Cs2CatalogCoverageFilter) {
+  if (coverage === "with-history") return item.candles.length > 1;
+  if (coverage === "missing-history") return item.candles.length <= 1;
+  if (coverage === "with-china") return item.chineseAskCents !== null;
+  if (coverage === "missing-china") return item.chineseAskCents === null;
+  if (coverage === "spreadable") return item.spreadPercent !== null;
+  return true;
+}
+
+function itemMatchesMarketFocus(item: Cs2ItemView, marketFocus: Cs2CatalogMarketFocus) {
+  if (marketFocus === "china") return item.chineseAskCents !== null || item.snapshots.some((snapshot) => snapshot.marketRegion === "china");
+  if (marketFocus === "global") return item.globalAskCents !== null || item.snapshots.some((snapshot) => snapshot.marketRegion !== "china");
+  return true;
+}
+
+function itemMatchesSource(item: Cs2ItemView, source: Cs2CatalogSourceFilter) {
+  const marketName = sourceFilterToMarketName(source);
+  if (!marketName) return true;
+  return item.snapshots.some((snapshot) => snapshot.marketName === marketName);
+}
+
 function itemMatches(item: Cs2ItemView, params: CatalogParams) {
   const query = searchKey(params.query ?? "");
   const itemType = params.itemType?.trim().toLowerCase();
   if (itemType && item.itemType.toLowerCase() !== itemType) return false;
+  if (!itemMatchesCoverage(item, params.coverage ?? "all")) return false;
+  if (!itemMatchesMarketFocus(item, params.marketFocus ?? "all")) return false;
+  if (!itemMatchesSource(item, params.source ?? "all")) return false;
   if (!query) return true;
   const haystack = searchKey([
     item.marketHashName,
@@ -76,9 +113,14 @@ function buildFacets(items: Cs2ItemView[]) {
 
 function buildSearchWhere(params: CatalogParams) {
   const normalizedType = params.itemType?.trim().toLowerCase();
+  const coverage = params.coverage ?? "all";
+  const marketFocus = params.marketFocus ?? "all";
+  const source = params.source ?? "all";
+  const marketName = sourceFilterToMarketName(source);
   const queryTokens = buildSearchTokens(params.query);
-  const queryWhere = queryTokens.length > 0 ? {
-    AND: queryTokens.map((token) => ({
+  const andClauses: Record<string, unknown>[] = [];
+  if (queryTokens.length > 0) {
+    andClauses.push(...queryTokens.map((token) => ({
       OR: [
         { marketHashName: { contains: token, mode: "insensitive" as const } },
         { itemType: { contains: token, mode: "insensitive" as const } },
@@ -86,11 +128,20 @@ function buildSearchWhere(params: CatalogParams) {
         { rarity: { contains: token, mode: "insensitive" as const } },
         { collection: { contains: token, mode: "insensitive" as const } },
       ],
-    })),
-  } : {};
+    })));
+  }
+  if (coverage === "with-history") andClauses.push({ priceCandles: { some: {} } });
+  if (coverage === "missing-history") andClauses.push({ priceCandles: { none: {} } });
+  if (coverage === "with-china") andClauses.push({ marketSummary: { is: { chineseAskCents: { not: null } } } });
+  if (coverage === "missing-china") andClauses.push({ OR: [{ marketSummary: { is: null } }, { marketSummary: { is: { chineseAskCents: null } } }] });
+  if (coverage === "spreadable") andClauses.push({ marketSummary: { is: { spreadPercent: { not: null } } } });
+  if (marketFocus === "china") andClauses.push({ OR: [{ latestSnapshots: { some: { marketRegion: "china" } } }, { marketSnapshots: { some: { marketRegion: "china" } } }] });
+  if (marketFocus === "global") andClauses.push({ OR: [{ latestSnapshots: { some: { marketRegion: { not: "china" } } } }, { marketSnapshots: { some: { marketRegion: { not: "china" } } } }] });
+  if (marketName) andClauses.push({ OR: [{ latestSnapshots: { some: { marketName } } }, { marketSnapshots: { some: { marketName } } }] });
+
   return {
     ...(normalizedType ? { itemType: normalizedType } : {}),
-    ...queryWhere,
+    ...(andClauses.length > 0 ? { AND: andClauses } : {}),
   };
 }
 
@@ -140,6 +191,9 @@ function buildResponse(params: CatalogParams & {
     totalPages: Math.max(1, Math.ceil(params.totalItems / params.limit)),
     query: params.query?.trim() || null,
     itemType: params.itemType?.trim() || null,
+    coverage: params.coverage ?? "all",
+    marketFocus: params.marketFocus ?? "all",
+    source: params.source ?? "all",
     sort: params.sort ?? "updated",
     items: params.items,
     facets: buildFacets(params.facetItems),
@@ -555,7 +609,7 @@ export async function getCs2Catalog(params: CatalogParams): Promise<Cs2CatalogRe
         take: 5000,
       }),
     ]);
-    const mappedRows = rows.map(dbItemToCs2ItemView);
+    const mappedRows = rows.map(dbItemToCs2ItemView).filter((item) => itemMatches(item, params));
     const facetItems = facetRows.map((item) => ({
       id: item.id,
       marketHashName: item.marketHashName,
@@ -573,7 +627,8 @@ export async function getCs2Catalog(params: CatalogParams): Promise<Cs2CatalogRe
       spreadPercent: null,
       snapshots: [],
       candles: [],
-    }));
+    })).filter((item) => itemMatches(item, params));
+    const effectiveTotalItems = mappedRows.length < rows.length ? mappedRows.length : totalItems;
 
     if (hasQuery) {
       const liveCandidates = await getLiveSearchCandidates({
@@ -586,9 +641,9 @@ export async function getCs2Catalog(params: CatalogParams): Promise<Cs2CatalogRe
         const mergedRows = mergeCatalogRows(mappedRows, liveCandidates);
         const offset = (page - 1) * limit;
         const mergedSorted = sortCs2CatalogItems(mergedRows, sort);
-        const warning = totalItems === 0
+        const warning = effectiveTotalItems === 0
           ? "Database unavailable; showing live market search results."
-          : totalItems < page * limit
+          : effectiveTotalItems < page * limit
             ? "Partial database coverage for this query; merged with live market search results."
             : "Merged with live market search results for this query.";
         return buildResponse({
@@ -605,7 +660,7 @@ export async function getCs2Catalog(params: CatalogParams): Promise<Cs2CatalogRe
       }
     }
 
-    if (totalItems === 0 && !hasQuery) {
+    if (effectiveTotalItems === 0 && !hasQuery) {
       try {
         const metadataFallback = await getMetadataFallback({
           ...params,
@@ -662,7 +717,7 @@ export async function getCs2Catalog(params: CatalogParams): Promise<Cs2CatalogRe
       warning: null,
       page,
       limit,
-      totalItems,
+      totalItems: effectiveTotalItems,
       items: mappedRows,
       facetItems,
     });

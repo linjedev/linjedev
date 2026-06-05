@@ -1,0 +1,193 @@
+"use client";
+
+import { Database, History, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { Cs2SyncStatus } from "@/lib/cs2/types";
+import styles from "./Cs2MarketTracker.module.css";
+
+type Cs2SyncPanelProps = {
+  ownerKey: string;
+};
+
+type SyncAction = "pipeline" | "watchlist-history";
+
+const EMPTY_STATUS: Cs2SyncStatus = {
+  generatedAt: "",
+  status: "unavailable",
+  databaseAvailable: false,
+  message: "CS2 sync status unavailable.",
+  itemCount: 0,
+  latestSnapshotCount: 0,
+  marketSummaryCount: 0,
+  candleCount: 0,
+  latestObservation: null,
+  recentRuns: [],
+};
+
+export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
+  const [status, setStatus] = useState<Cs2SyncStatus>(EMPTY_STATUS);
+  const [loading, setLoading] = useState(true);
+  const [busyAction, setBusyAction] = useState<SyncAction | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [historyProvider, setHistoryProvider] = useState<"cs2.sh" | "cs2cap" | "pricempire">("cs2.sh");
+  const [lookback, setLookback] = useState<"7d" | "30d" | "90d">("30d");
+
+  function historySourcesFor(provider: "cs2.sh" | "cs2cap" | "pricempire") {
+    if (provider === "cs2.sh") return ["buff", "youpin", "c5game"];
+    if (provider === "pricempire") return ["buff163"];
+    return undefined;
+  }
+
+  async function loadStatus() {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/cs2/sync/status");
+      if (!response.ok) throw new Error(`Status request failed with ${response.status}`);
+      setStatus(await response.json() as Cs2SyncStatus);
+    } catch (error) {
+      setStatus({
+        ...EMPTY_STATUS,
+        generatedAt: new Date().toISOString(),
+        message: error instanceof Error ? error.message : EMPTY_STATUS.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function triggerSync(action: SyncAction) {
+    setBusyAction(action);
+    setMessage(null);
+    try {
+      const body = action === "pipeline"
+        ? {
+          mode: "pipeline",
+          includeCatalog: true,
+          includeLatest: true,
+          includeWatchlistHistory: true,
+          ownerKey,
+          historyProvider,
+          historySources: historySourcesFor(historyProvider),
+          historyLookback: lookback,
+          historyInterval: "1d",
+          watchlistLimit: 50,
+        }
+        : {
+          mode: "watchlist-history",
+          ownerKey,
+          provider: historyProvider,
+          sources: historySourcesFor(historyProvider),
+          lookback,
+          interval: "1d",
+        };
+      const response = await fetch("/api/cs2/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-linje-watch-owner": ownerKey,
+        },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json() as { message?: string; status?: string };
+      if (!response.ok) {
+        throw new Error(payload.message ?? `Sync request failed with ${response.status}`);
+      }
+      setMessage(action === "pipeline" ? "Pipeline sync started." : "Watchlist history sync started.");
+      await loadStatus();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Sync request failed.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  useEffect(() => {
+    void loadStatus();
+  }, []);
+
+  return (
+    <section className={styles.syncPanel} aria-label="CS2 sync controls">
+      <div className={styles.panelHeader}>
+        <Database size={16} />
+        <span>Data sync</span>
+      </div>
+
+      <div className={styles.syncStats}>
+        <div>
+          <strong>{loading ? "..." : status.itemCount}</strong>
+          <small>catalog items</small>
+        </div>
+        <div>
+          <strong>{loading ? "..." : status.latestSnapshotCount}</strong>
+          <small>latest snapshots</small>
+        </div>
+        <div>
+          <strong>{loading ? "..." : status.candleCount}</strong>
+          <small>history candles</small>
+        </div>
+      </div>
+
+      <div className={styles.syncActions}>
+        <div className={styles.syncControlRow}>
+          <label>
+            <span>History provider</span>
+            <select value={historyProvider} onChange={(event) => setHistoryProvider(event.target.value as "cs2.sh" | "cs2cap" | "pricempire")}>
+              <option value="cs2.sh">cs2.sh</option>
+              <option value="cs2cap">CS2Cap</option>
+              <option value="pricempire">Pricempire</option>
+            </select>
+          </label>
+          <label>
+            <span>Lookback</span>
+            <select value={lookback} onChange={(event) => setLookback(event.target.value as "7d" | "30d" | "90d")}>
+              <option value="7d">7d</option>
+              <option value="30d">30d</option>
+              <option value="90d">90d</option>
+            </select>
+          </label>
+        </div>
+        <button
+          className={styles.syncButton}
+          type="button"
+          onClick={() => void triggerSync("pipeline")}
+          disabled={busyAction !== null}
+        >
+          <RefreshCw size={14} />
+          Full sync
+        </button>
+        <button
+          className={styles.syncButton}
+          type="button"
+          onClick={() => void triggerSync("watchlist-history")}
+          disabled={busyAction !== null}
+        >
+          <History size={14} />
+          Watch history
+        </button>
+      </div>
+
+      <div className={styles.syncMeta}>
+        <small>
+          {status.latestObservation
+            ? `latest ${status.latestObservation.marketName} via ${status.latestObservation.provider}`
+            : status.message ?? "No sync data yet"}
+        </small>
+        <small>{historyProvider === "cs2.sh" ? "China-first history: BUFF / YouPin / C5Game" : historyProvider === "pricempire" ? "China-first history: BUFF163 daily" : "Composite history via CS2Cap"}</small>
+        {message ? <strong>{message}</strong> : null}
+      </div>
+
+      <div className={styles.syncRuns}>
+        {status.recentRuns.slice(0, 4).map((run) => (
+          <div className={styles.syncRun} key={run.id}>
+            <span>
+              <strong>{run.provider}</strong>
+              <small>{run.itemCount} items / {run.snapshotCount} snapshots</small>
+            </span>
+            <b data-state={run.status}>{run.status}</b>
+          </div>
+        ))}
+        {!loading && status.recentRuns.length === 0 ? <div className={styles.emptyState}>No sync runs yet</div> : null}
+      </div>
+    </section>
+  );
+}

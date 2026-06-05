@@ -16,7 +16,7 @@ import { Cs2ItemDetail } from "@/components/cs2/Cs2ItemDetail";
 import { Cs2MarketTable } from "@/components/cs2/Cs2MarketTable";
 import { Cs2Sidebar } from "@/components/cs2/Cs2Sidebar";
 import { formatPercent } from "@/lib/cs2/format";
-import type { Cs2CatalogResponse, Cs2CatalogSort, Cs2ItemView, Cs2TrackerOverview } from "@/lib/cs2/types";
+import type { Cs2CatalogCoverageFilter, Cs2CatalogMarketFocus, Cs2CatalogResponse, Cs2CatalogSort, Cs2CatalogSourceFilter, Cs2ItemView, Cs2TrackerOverview } from "@/lib/cs2/types";
 import styles from "./Cs2MarketTracker.module.css";
 
 const OWNER_KEY_STORAGE = "linje-cs2-watch-owner";
@@ -87,6 +87,9 @@ export function Cs2MarketTracker() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [itemType, setItemType] = useState<string | null>(null);
+  const [coverage, setCoverage] = useState<Cs2CatalogCoverageFilter>("all");
+  const [marketFocus, setMarketFocus] = useState<Cs2CatalogMarketFocus>("all");
+  const [source, setSource] = useState<Cs2CatalogSourceFilter>("all");
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogSort, setCatalogSort] = useState<Cs2CatalogSort>("updated");
   const [ownerKey] = useState(() => getOwnerKey());
@@ -132,6 +135,9 @@ export function Cs2MarketTracker() {
   async function loadCatalog(params: {
     nextQuery?: string;
     nextItemType?: string | null;
+    nextCoverage?: Cs2CatalogCoverageFilter;
+    nextMarketFocus?: Cs2CatalogMarketFocus;
+    nextSource?: Cs2CatalogSourceFilter;
     nextPage?: number;
     nextSort?: Cs2CatalogSort;
   } = {}) {
@@ -142,10 +148,16 @@ export function Cs2MarketTracker() {
       const searchParams = new URLSearchParams();
       const activeQuery = params.nextQuery ?? query;
       const activeItemType = params.nextItemType === undefined ? itemType : params.nextItemType;
+      const activeCoverage = params.nextCoverage ?? coverage;
+      const activeMarketFocus = params.nextMarketFocus ?? marketFocus;
+      const activeSource = params.nextSource ?? source;
       const activePage = params.nextPage ?? catalogPage;
       const activeSort = params.nextSort ?? catalogSort;
       if (activeQuery.trim()) searchParams.set("q", activeQuery.trim());
       if (activeItemType) searchParams.set("itemType", activeItemType);
+      if (activeCoverage !== "all") searchParams.set("coverage", activeCoverage);
+      if (activeMarketFocus !== "all") searchParams.set("marketFocus", activeMarketFocus);
+      if (activeSource !== "all") searchParams.set("source", activeSource);
       searchParams.set("page", String(activePage));
       searchParams.set("limit", "50");
       searchParams.set("sort", activeSort);
@@ -166,7 +178,15 @@ export function Cs2MarketTracker() {
     }
   }
 
-  function runSearch(nextQuery = query, nextItemType = itemType, nextPage = 1, nextSort = catalogSort) {
+  function runSearch(
+    nextQuery = query,
+    nextItemType = itemType,
+    nextCoverage = coverage,
+    nextMarketFocus = marketFocus,
+    nextSource = source,
+    nextPage = 1,
+    nextSort = catalogSort,
+  ) {
     const normalizedQuery = nextQuery.trim();
     setQuery(normalizedQuery);
     setCatalogPage(nextPage);
@@ -175,6 +195,15 @@ export function Cs2MarketTracker() {
     }
     if (nextSort !== catalogSort) {
       setCatalogSort(nextSort);
+    }
+    if (nextCoverage !== coverage) {
+      setCoverage(nextCoverage);
+    }
+    if (nextMarketFocus !== marketFocus) {
+      setMarketFocus(nextMarketFocus);
+    }
+    if (nextSource !== source) {
+      setSource(nextSource);
     }
     if (searchInput !== normalizedQuery) {
       setSearchInput(normalizedQuery);
@@ -213,6 +242,37 @@ export function Cs2MarketTracker() {
     }
   }
 
+  async function saveWatchlistItem(entry: { marketHashName: string; itemId: string }, updates: {
+    targetBuyCents: number | null;
+    targetSellCents: number | null;
+    notes: string | null;
+  }) {
+    setBusyItem(entry.itemId);
+    setError(null);
+    try {
+      const response = await fetch("/api/cs2/watchlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-linje-watch-owner": ownerKey,
+        },
+        body: JSON.stringify({
+          marketHashName: entry.marketHashName,
+          ...updates,
+        }),
+      });
+      if (!response.ok) {
+        const payload = await response.json() as { error?: string };
+        throw new Error(payload.error ?? `Watchlist save failed with ${response.status}`);
+      }
+      await Promise.all([loadOverview(), loadCatalog()]);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to save watchlist item");
+    } finally {
+      setBusyItem(null);
+    }
+  }
+
   async function removeFromWatchlist(itemId: string) {
     setBusyItem(itemId);
     setError(null);
@@ -241,10 +301,13 @@ export function Cs2MarketTracker() {
     void loadCatalog({
       nextQuery: query,
       nextItemType: itemType,
+      nextCoverage: coverage,
+      nextMarketFocus: marketFocus,
+      nextSource: source,
       nextPage: catalogPage,
       nextSort: catalogSort,
     });
-  }, [ownerKey, query, itemType, catalogPage, catalogSort, searchNonce]);
+  }, [ownerKey, query, itemType, coverage, marketFocus, source, catalogPage, catalogSort, searchNonce]);
 
   return (
     <main className={styles.shell}>
@@ -269,7 +332,7 @@ export function Cs2MarketTracker() {
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
-                runSearch(searchInput, itemType, 1, catalogSort);
+                runSearch(searchInput, itemType, coverage, marketFocus, source, 1, catalogSort);
               }
             }}
             placeholder="AK-47, sticker, operator, knife..."
@@ -278,7 +341,7 @@ export function Cs2MarketTracker() {
             className={styles.searchButton}
             type="button"
             aria-label="Run catalog search"
-            onClick={() => runSearch(searchInput, itemType, 1, catalogSort)}
+            onClick={() => runSearch(searchInput, itemType, coverage, marketFocus, source, 1, catalogSort)}
           >
             <Search size={14} />
           </button>
@@ -323,6 +386,8 @@ export function Cs2MarketTracker() {
         <Cs2Sidebar
           overview={overview}
           busyItem={busyItem}
+          ownerKey={ownerKey}
+          onSaveWatchlistItem={(entry, updates) => void saveWatchlistItem(entry, updates)}
           onRemoveWatchlistItem={(itemId) => void removeFromWatchlist(itemId)}
         />
 
@@ -331,9 +396,15 @@ export function Cs2MarketTracker() {
             <Cs2CatalogToolbar
               catalog={catalog}
               itemType={itemType}
+              coverage={coverage}
+              marketFocus={marketFocus}
+              source={source}
               page={catalogPage}
               sort={catalogSort}
               onItemTypeChange={setItemType}
+              onCoverageChange={setCoverage}
+              onMarketFocusChange={setMarketFocus}
+              onSourceChange={setSource}
               onPageChange={setCatalogPage}
               onSortChange={setCatalogSort}
             />

@@ -157,6 +157,16 @@ export type Cs2MarketAnalysis = {
 };
 
 export type Cs2CatalogSort = "updated" | "name" | "price-asc" | "price-desc" | "china-discount";
+export type Cs2CatalogCoverageFilter =
+  | "all"
+  | "with-history"
+  | "missing-history"
+  | "with-china"
+  | "missing-china"
+  | "spreadable";
+
+export type Cs2CatalogMarketFocus = "all" | "china" | "global";
+export type Cs2CatalogSourceFilter = "all" | "buff" | "youpin" | "c5game" | "csfloat" | "skinport" | "steam";
 
 export type Cs2CatalogResponse = {
   generatedAt: string;
@@ -168,6 +178,9 @@ export type Cs2CatalogResponse = {
   totalPages: number;
   query: string | null;
   itemType: string | null;
+  coverage: Cs2CatalogCoverageFilter;
+  marketFocus: Cs2CatalogMarketFocus;
+  source: Cs2CatalogSourceFilter;
   sort: Cs2CatalogSort;
   items: Cs2ItemView[];
   facets: {
@@ -227,6 +240,20 @@ export type Cs2TrackerOverview = {
   mode: "live" | "sample" | "mixed";
   warning: string | null;
   sources: Cs2MarketSource[];
+  sourceStatus: Array<{
+    id: string;
+    name: string;
+    homepageUrl: string;
+    region: Cs2MarketRegion;
+    role: "anchor" | "market" | "aggregator";
+    configured: boolean;
+    hasLiveCoverage: boolean;
+    integration: "direct" | "aggregated" | "unavailable";
+    officialApi: "official" | "indirect" | "unknown";
+    marketsSeen: number;
+    itemCount: number;
+    note: string;
+  }>;
   configuredProviders: string[];
   items: Cs2ItemView[];
   watchlist: Cs2WatchlistEntryView[];
@@ -238,4 +265,30 @@ export type Cs2TrackerOverview = {
     marketsRepresented: number;
     averageChinaDiscountPercent: number | null;
   };
+};
+
+export type Cs2SyncStatus = {
+  generatedAt: string;
+  status?: "unavailable";
+  databaseAvailable?: boolean;
+  message?: string;
+  itemCount: number;
+  latestSnapshotCount: number;
+  marketSummaryCount: number;
+  candleCount: number;
+  latestObservation: {
+    observedAt: string;
+    provider: string;
+    marketName: string;
+  } | null;
+  recentRuns: Array<{
+    id: string;
+    provider: string;
+    status: "running" | "ok" | "error";
+    itemCount: number;
+    snapshotCount: number;
+    message: string | null;
+    startedAt: string;
+    finishedAt: string | null;
+  }>;
 };
