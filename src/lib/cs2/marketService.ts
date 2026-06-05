@@ -63,7 +63,7 @@ async function fetchCs2ShLatest(marketHashNames: string[]): Promise<Map<string, 
 }
 
 function buildItemSearchWhere(query?: string | null) {
-  const tokens = buildSearchQueryTokens(query);
+  const tokens = buildSearchQueryTokens(query ?? null);
   if (tokens.length === 0) return undefined;
   return {
     AND: tokens.map((token) => ({
