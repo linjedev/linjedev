@@ -1,5 +1,33 @@
 import type { Cs2MarketSource } from "@/lib/cs2/types";
 
+const CS2CAP_FALLBACK_PRICE_SOURCES = ["buff163", "buff163_buy", "youpin", "youpin_buy", "csfloat", "steam", "dmarket", "bitskins"];
+const PRICEMPIRE_FALLBACK_PRICE_SOURCES = ["buff163", "buff163_buy", "youpin", "youpin_buy", "csfloat", "steam", "dmarket", "bitskins"];
+const CS2SH_FALLBACK_PRICE_SOURCES = ["buff", "youpin", "csfloat", "skinport", "c5game", "steam", "dmarket", "bitskins"];
+
+function parseCommaList(value: string | undefined, fallback: string[]) {
+  if (!value) return fallback;
+  const parsed = value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  if (parsed.length === 0) return fallback;
+  return parsed;
+}
+
+function normalizeMarketSourceToken(token: string) {
+  return token.toLowerCase().replace(/\s+/g, "").trim();
+}
+
+function uniqLower(values: string[]) {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const value of values) {
+    const normalized = normalizeMarketSourceToken(value);
+    if (!normalized) continue;
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    output.push(normalized);
+  }
+  return output;
+}
+
 export const CS2_MARKET_SOURCES: Cs2MarketSource[] = [
   {
     id: "buff",
@@ -104,13 +132,31 @@ export const CS2_MARKET_SOURCES: Cs2MarketSource[] = [
 ];
 
 export function getConfiguredMarketProviders() {
-  const configured = ["Skinport"];
-  if (process.env.CS2SH_API_KEY) configured.push("cs2.sh");
-  if (process.env.PRICEMPIRE_API_KEY) configured.push("Pricempire");
-  if (process.env.CS2CAP_API_KEY) configured.push("CS2Cap");
-  if (process.env.CSFLOAT_API_KEY) configured.push("CSFloat");
-  if (process.env.STEAM_WEB_API_KEY) configured.push("Steam");
-  if (process.env.DMARKET_API_KEY) configured.push("DMarket");
-  if (process.env.BITSKINS_API_KEY) configured.push("BitSkins");
-  return configured;
+  const configured = [
+    "skinport",
+    ...(process.env.CS2SH_API_KEY ? ["cs2.sh"] : []),
+    ...(process.env.CS2CAP_API_KEY ? ["cs2cap"] : []),
+    ...(process.env.PRICEMPIRE_API_KEY ? ["pricempire"] : []),
+    ...(process.env.CSFLOAT_API_KEY ? ["csfloat"] : []),
+    "steam",
+    ...(process.env.DMARKET_API_KEY ? ["dmarket"] : []),
+    ...(process.env.BITSKINS_API_KEY ? ["bitskins"] : []),
+  ];
+  return [...new Set(configured)];
+}
+
+export function getConfiguredCs2CapPriceSources() {
+  return uniqLower(parseCommaList(process.env.CS2CAP_PRICE_SOURCES, CS2CAP_FALLBACK_PRICE_SOURCES));
+}
+
+export function getConfiguredPricempirePriceSources() {
+  return uniqLower(parseCommaList(process.env.PRICEMPIRE_PRICE_SOURCES, PRICEMPIRE_FALLBACK_PRICE_SOURCES));
+}
+
+export function getConfiguredCs2ShSources() {
+  return uniqLower(parseCommaList(process.env.CS2SH_SOURCES, CS2SH_FALLBACK_PRICE_SOURCES));
+}
+
+export function listAllSellableMarketSourceNames() {
+  return CS2_MARKET_SOURCES.filter((source) => source.region).map((source) => source.name);
 }

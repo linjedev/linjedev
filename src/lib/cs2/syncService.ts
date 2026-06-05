@@ -12,15 +12,17 @@ import {
   persistProviderCatalogItems,
   persistProviderItems,
 } from "@/lib/cs2/syncRepository";
+import {
+  getConfiguredCs2CapPriceSources,
+  getConfiguredCs2ShSources,
+  getConfiguredPricempirePriceSources,
+} from "@/lib/cs2/marketSources";
 
 export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport";
 export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
 
 export { getCs2SyncStatus };
-
-const CS2CAP_PRIORITY_PROVIDERS = ["buff163", "youpin", "csfloat", "steam", "dmarket", "skinport"];
-const PRICEMPIRE_PRIORITY_SOURCES = ["buff163", "buff163_buy", "youpin", "youpin_buy", "csfloat", "skinport", "steam"];
 
 function isCs2CapCandleInterval(interval: "5m" | "30m" | "1h" | "1d"): interval is Cs2CapCandleInterval {
   return interval !== "30m";
@@ -68,10 +70,11 @@ export async function hydrateCs2ItemsFromConfiguredProviders(params: {
 
   if (process.env.CS2CAP_API_KEY) {
     try {
+      const providers = getConfiguredCs2CapPriceSources();
       const items = await fetchCs2CapLatestItems({
         marketHashNames,
-        providers: CS2CAP_PRIORITY_PROVIDERS,
-        limit: marketHashNames.length * CS2CAP_PRIORITY_PROVIDERS.length,
+        providers,
+        limit: marketHashNames.length * providers.length,
       });
       const snapshotCount = await persistProviderItems(items);
       summaries.push({
@@ -96,9 +99,10 @@ export async function hydrateCs2ItemsFromConfiguredProviders(params: {
 
   if (process.env.PRICEMPIRE_API_KEY) {
     try {
+      const sources = getConfiguredPricempirePriceSources();
       const items = await fetchPricempireLatestItems({
         marketHashNames,
-        sources: PRICEMPIRE_PRIORITY_SOURCES,
+        sources,
         limit: Math.max(1, marketHashNames.length),
       });
       const snapshotCount = await persistProviderItems(items);
@@ -276,9 +280,10 @@ export async function syncCs2History(params: {
         fill: params.fill,
       });
     } else if (params.provider === "pricempire") {
+      const providerSources = getConfiguredPricempirePriceSources();
       candles = await fetchPricempireHistory({
         marketHashNames: params.marketHashNames,
-        providerKey: params.sources?.[0] ?? "buff163",
+        providerKey: params.sources?.[0] ?? providerSources[0] ?? "buff163",
         start: params.start,
         end: params.end,
       });
@@ -288,7 +293,7 @@ export async function syncCs2History(params: {
       }
       candles = await fetchCs2ShHistory({
         marketHashNames: params.marketHashNames,
-        sources: params.sources ?? ["buff", "youpin", "csfloat"],
+        sources: params.sources ?? getConfiguredCs2ShSources(),
         start: params.start,
         end: params.end,
         interval: params.interval,
@@ -435,17 +440,19 @@ export async function syncCs2MarketPipeline(params: {
     }
 
     if (process.env.CS2CAP_API_KEY) {
+      const sources = getConfiguredCs2CapPriceSources();
       runs.push(await syncCs2LatestPrices({
         provider: "cs2cap",
-        providers: CS2CAP_PRIORITY_PROVIDERS,
+        providers: sources,
         limit: params.latestLimit,
       }));
     }
 
     if (process.env.PRICEMPIRE_API_KEY) {
+      const sources = getConfiguredPricempirePriceSources();
       runs.push(await syncCs2LatestPrices({
         provider: "pricempire",
-        providers: PRICEMPIRE_PRIORITY_SOURCES,
+        providers: sources,
         limit: params.latestLimit,
       }));
     }

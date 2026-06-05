@@ -2,6 +2,20 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { syncCs2Catalog, syncCs2History, syncCs2LatestPrices, syncCs2MarketPipeline, syncCs2WatchlistHistory } from "@/lib/cs2/syncService";
 
+const cs2HistorySourceEnum = z.enum([
+  "buff",
+  "buff163",
+  "buff163_buy",
+  "youpin",
+  "youpin_buy",
+  "csfloat",
+  "skinport",
+  "c5game",
+  "steam",
+  "dmarket",
+  "bitskins",
+]);
+
 const latestSchema = z.object({
   mode: z.literal("latest").default("latest"),
   provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "skinport"]).default("cs2.sh"),
@@ -22,17 +36,7 @@ const historySchema = z.object({
   mode: z.literal("history"),
   provider: z.enum(["cs2.sh", "cs2cap", "pricempire"]).default("cs2.sh"),
   marketHashNames: z.array(z.string().min(2)).min(1).max(100),
-  sources: z.array(z.enum([
-    "buff",
-    "buff163",
-    "buff163_buy",
-    "youpin",
-    "youpin_buy",
-    "csfloat",
-    "skinport",
-    "c5game",
-    "steam",
-  ])).min(1).optional(),
+  sources: z.array(cs2HistorySourceEnum).min(1).optional(),
   start: z.string().min(8).optional(),
   end: z.string().min(8).optional(),
   lookback: z.string().min(1).optional(),
@@ -66,17 +70,7 @@ const watchlistHistorySchema = z.object({
   mode: z.literal("watchlist-history"),
   provider: z.enum(["cs2.sh", "cs2cap", "pricempire"]).default("cs2.sh"),
   ownerKey: z.string().min(2).max(200).optional(),
-  sources: z.array(z.enum([
-    "buff",
-    "buff163",
-    "buff163_buy",
-    "youpin",
-    "youpin_buy",
-    "csfloat",
-    "skinport",
-    "c5game",
-    "steam",
-  ])).min(1).optional(),
+  sources: z.array(cs2HistorySourceEnum).min(1).optional(),
   start: z.string().min(8).optional(),
   end: z.string().min(8).optional(),
   lookback: z.string().min(1).optional(),
@@ -126,6 +120,8 @@ const pipelineSchema = z.object({
     "skinport",
     "c5game",
     "steam",
+    "dmarket",
+    "bitskins",
   ])).min(1).optional(),
   historyStart: z.string().min(8).optional(),
   historyEnd: z.string().min(8).optional(),
