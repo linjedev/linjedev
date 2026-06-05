@@ -221,6 +221,7 @@ describe("CS2 sync service hydration", () => {
   it("rejects exact-item latest providers without explicit item names", async () => {
     const c5Summary = await syncCs2LatestPrices({ provider: "c5game" });
     const csPriceSummary = await syncCs2LatestPrices({ provider: "cspriceapi" });
+    const csMarketApiSummary = await syncCs2LatestPrices({ provider: "csmarketapi" });
     const steamSummary = await syncCs2LatestPrices({ provider: "steam" });
     const csfloatSummary = await syncCs2LatestPrices({ provider: "csfloat" });
     const marketCsgoSummary = await syncCs2LatestPrices({ provider: "marketcsgo" });
@@ -228,6 +229,7 @@ describe("CS2 sync service hydration", () => {
 
     expect(fetchC5GameLatestItems).not.toHaveBeenCalled();
     expect(fetchCsPriceApiLatestItems).not.toHaveBeenCalled();
+    expect(fetchCsMarketApiLatestItems).not.toHaveBeenCalled();
     expect(fetchSteamLatestItems).not.toHaveBeenCalled();
     expect(fetchCsFloatLatestItems).not.toHaveBeenCalled();
     expect(fetchMarketCsgoLatestItems).not.toHaveBeenCalled();
@@ -241,6 +243,11 @@ describe("CS2 sync service hydration", () => {
       provider: "cspriceapi",
       status: "error",
       message: "cspriceapi latest sync requires explicit marketHashNames.",
+    }));
+    expect(csMarketApiSummary).toEqual(expect.objectContaining({
+      provider: "csmarketapi",
+      status: "error",
+      message: "csmarketapi latest sync requires explicit marketHashNames.",
     }));
     expect(steamSummary).toEqual(expect.objectContaining({
       provider: "steam",

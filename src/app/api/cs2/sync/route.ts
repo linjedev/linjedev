@@ -33,7 +33,7 @@ const latestSchema = z.object({
   limit: z.number().int().positive().max(100000).optional(),
   type: z.string().min(2).optional(),
 }).superRefine((payload, context) => {
-  if ((payload.provider === "c5game" || payload.provider === "cspriceapi" || payload.provider === "steam" || payload.provider === "csfloat" || payload.provider === "marketcsgo" || payload.provider === "waxpeer") && (payload.marketHashNames ?? []).length === 0) {
+  if ((payload.provider === "c5game" || payload.provider === "cspriceapi" || payload.provider === "csmarketapi" || payload.provider === "steam" || payload.provider === "csfloat" || payload.provider === "marketcsgo" || payload.provider === "waxpeer") && (payload.marketHashNames ?? []).length === 0) {
     context.addIssue({
       code: "custom",
       message: `${payload.provider} latest sync requires explicit marketHashNames`,

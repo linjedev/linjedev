@@ -320,7 +320,7 @@ export async function syncCs2LatestPrices(params: {
   const syncRun = await createCs2SyncRun(params.provider);
 
   try {
-    if ((params.provider === "c5game" || params.provider === "cspriceapi" || params.provider === "steam" || params.provider === "csfloat" || params.provider === "marketcsgo" || params.provider === "waxpeer") && (params.marketHashNames ?? []).length === 0) {
+    if ((params.provider === "c5game" || params.provider === "cspriceapi" || params.provider === "csmarketapi" || params.provider === "steam" || params.provider === "csfloat" || params.provider === "marketcsgo" || params.provider === "waxpeer") && (params.marketHashNames ?? []).length === 0) {
       throw new Error(`${params.provider} latest sync requires explicit marketHashNames.`);
     }
 
