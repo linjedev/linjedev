@@ -5,7 +5,7 @@ import {
   inferMarketRegion,
   normalizeMarketName,
 } from "@/lib/cs2/normalization";
-import type { ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
+import type { ProviderCandleInput, ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
 import type { Cs2FloatListingView, Cs2FloatSort } from "@/lib/cs2/types";
 
 const CSFLOAT_BASE_URL = "https://csfloat.com/api/v1";
@@ -17,6 +17,11 @@ function readString(value: unknown) {
 
 function readNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readCents(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.round(value);
 }
 
 function readBoolean(value: unknown) {
@@ -32,6 +37,12 @@ function steamImageUrl(path: unknown) {
 
 function readObject(value: unknown) {
   return typeof value === "object" && value !== null ? value as Record<string, unknown> : null;
+}
+
+function readDate(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function listingToView(row: Record<string, unknown>): Cs2FloatListingView | null {
@@ -132,6 +143,75 @@ export function csFloatListingsToProviderItems(listings: Cs2FloatListingView[], 
   });
 }
 
+function dayKey(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function dayStart(value: string) {
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
+function salePriceCents(row: Record<string, unknown>) {
+  return readCents(row.price)
+    ?? readCents(row.sale_price)
+    ?? readCents(row.sold_price)
+    ?? readCents(row.price_cents);
+}
+
+function saleTimestamp(row: Record<string, unknown>) {
+  return readDate(row.sold_at)
+    ?? readDate(row.created_at)
+    ?? readDate(row.updated_at)
+    ?? readDate(row.accepted_at)
+    ?? readDate(row.transacted_at);
+}
+
+function extractSalesRows(payload: unknown) {
+  if (Array.isArray(payload)) return payload;
+  const objectPayload = readObject(payload);
+  if (!objectPayload) return [];
+  if (Array.isArray(objectPayload.data)) return objectPayload.data;
+  if (Array.isArray(objectPayload.sales)) return objectPayload.sales;
+  if (Array.isArray(objectPayload.history)) return objectPayload.history;
+  return [];
+}
+
+export function csFloatSalesToCandles(params: {
+  marketHashName: string;
+  payload: unknown;
+}) {
+  const buckets = new Map<string, Array<{ priceCents: number; timestamp: Date }>>();
+  for (const rawRow of extractSalesRows(params.payload)) {
+    const row = readObject(rawRow);
+    if (!row) continue;
+    const priceCents = salePriceCents(row);
+    const timestamp = saleTimestamp(row);
+    if (priceCents === null || timestamp === null) continue;
+    const key = dayKey(timestamp);
+    buckets.set(key, [...(buckets.get(key) ?? []), { priceCents, timestamp }]);
+  }
+
+  const candles: ProviderCandleInput[] = [];
+  for (const [date, sales] of [...buckets.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+    const ordered = [...sales].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    const prices = ordered.map((sale) => sale.priceCents);
+    candles.push({
+      marketHashName: params.marketHashName,
+      provider: "csfloat",
+      marketName: normalizeMarketName("csfloat"),
+      interval: "1d",
+      openCents: ordered[0].priceCents,
+      highCents: Math.max(...prices),
+      lowCents: Math.min(...prices),
+      closeCents: ordered.at(-1)?.priceCents ?? ordered[0].priceCents,
+      volume: ordered.length,
+      startsAt: dayStart(date),
+    });
+  }
+
+  return candles;
+}
+
 export async function fetchCsFloatListings(params: {
   query?: string | null;
   marketHashName?: string | null;
@@ -180,4 +260,25 @@ export async function fetchCsFloatLatestItems(params: {
   })))).flat();
 
   return csFloatListingsToProviderItems(listings);
+}
+
+async function fetchCsFloatSalesPayload(marketHashName: string) {
+  const response = await fetch(`${CSFLOAT_BASE_URL}/history/${encodeURIComponent(marketHashName)}/sales`, {
+    headers: process.env.CSFLOAT_API_KEY ? { Authorization: process.env.CSFLOAT_API_KEY } : undefined,
+    next: { revalidate: 300 },
+  });
+  if (!response.ok) throw new Error(`CSFloat sales history returned ${response.status}`);
+  return await response.json() as unknown;
+}
+
+export async function fetchCsFloatSalesHistory(params: {
+  marketHashNames: string[];
+}) {
+  const marketHashNames = [...new Set(params.marketHashNames.map((name) => name.trim()).filter(Boolean))];
+  const candles = await Promise.all(marketHashNames.map(async (marketHashName) => csFloatSalesToCandles({
+    marketHashName,
+    payload: await fetchCsFloatSalesPayload(marketHashName),
+  })));
+
+  return candles.flat();
 }

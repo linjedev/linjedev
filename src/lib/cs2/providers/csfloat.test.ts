@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csFloatListingsToProviderItems, flattenCsFloatListings } from "@/lib/cs2/providers/csfloat";
+import { csFloatListingsToProviderItems, csFloatSalesToCandles, flattenCsFloatListings } from "@/lib/cs2/providers/csfloat";
 
 describe("CSFloat listing normalization", () => {
   it("maps listing asset float, paint, image, and sticker data", () => {
@@ -99,6 +99,40 @@ describe("CSFloat listing normalization", () => {
             sourceUrl: "https://csfloat.com/item/low",
           }),
         ],
+      }),
+    ]);
+  });
+
+  it("aggregates CSFloat sales rows into daily candles", () => {
+    const candles = csFloatSalesToCandles({
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      payload: {
+        data: [
+          { price: 2600, sold_at: "2026-06-04T03:00:00.000Z" },
+          { price: 2800, sold_at: "2026-06-04T18:00:00.000Z" },
+          { sale_price: 2700, created_at: "2026-06-05T12:00:00.000Z" },
+        ],
+      },
+    });
+
+    expect(candles).toEqual([
+      expect.objectContaining({
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+        provider: "csfloat",
+        marketName: "CSFloat",
+        interval: "1d",
+        openCents: 2600,
+        highCents: 2800,
+        lowCents: 2600,
+        closeCents: 2800,
+        volume: 2,
+        startsAt: new Date("2026-06-04T00:00:00.000Z"),
+      }),
+      expect.objectContaining({
+        openCents: 2700,
+        closeCents: 2700,
+        volume: 1,
+        startsAt: new Date("2026-06-05T00:00:00.000Z"),
       }),
     ]);
   });

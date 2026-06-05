@@ -3,7 +3,7 @@ import { fetchCs2CapCandles, fetchCs2CapCatalogItems, fetchCs2CapLatestItems } f
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
-import { fetchCsFloatLatestItems } from "@/lib/cs2/providers/csfloat";
+import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
 import { fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
 import { fetchSteamLatestItems } from "@/lib/cs2/providers/steam";
@@ -32,6 +32,7 @@ vi.mock("@/lib/cs2/providers/cs2sh", () => ({
 
 vi.mock("@/lib/cs2/providers/csfloat", () => ({
   fetchCsFloatLatestItems: vi.fn(),
+  fetchCsFloatSalesHistory: vi.fn(),
 }));
 
 vi.mock("@/lib/cs2/providers/pricempire", () => ({
@@ -225,6 +226,44 @@ describe("CS2 sync service hydration", () => {
       provider: "cs2.sh",
       status: "ok",
       itemCount: 2,
+      candleCount: 1,
+    }));
+  });
+
+  it("backfills CSFloat sales history for watched items", async () => {
+    vi.mocked(getCs2WatchlistMarketHashNames).mockResolvedValue([
+      "AK-47 | Redline (Field-Tested)",
+    ] as never);
+    vi.mocked(fetchCsFloatSalesHistory).mockResolvedValue([
+      {
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+        provider: "csfloat",
+        marketName: "CSFloat",
+        interval: "1d",
+        openCents: 2600,
+        highCents: 2800,
+        lowCents: 2600,
+        closeCents: 2800,
+        volume: 2,
+        startsAt: new Date("2026-06-04T00:00:00.000Z"),
+      },
+    ] as never);
+    vi.mocked(persistProviderCandles).mockResolvedValue(1 as never);
+
+    const summary = await syncCs2WatchlistHistory({
+      ownerKey: "owner-1",
+      provider: "csfloat",
+      interval: "1d",
+      limit: 50,
+    });
+
+    expect(fetchCsFloatSalesHistory).toHaveBeenCalledWith({
+      marketHashNames: ["AK-47 | Redline (Field-Tested)"],
+    });
+    expect(summary).toEqual(expect.objectContaining({
+      provider: "csfloat",
+      status: "ok",
+      itemCount: 1,
       candleCount: 1,
     }));
   });

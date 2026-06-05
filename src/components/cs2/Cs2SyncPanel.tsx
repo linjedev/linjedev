@@ -10,6 +10,7 @@ type Cs2SyncPanelProps = {
 };
 
 type SyncAction = "pipeline" | "watchlist-history" | "history-gaps" | "sweep-latest" | "sweep-history";
+type HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat";
 
 const EMPTY_STATUS: Cs2SyncStatus = {
   generatedAt: "",
@@ -40,11 +41,11 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<SyncAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [historyProvider, setHistoryProvider] = useState<"cs2.sh" | "cs2cap" | "pricempire">("cs2.sh");
+  const [historyProvider, setHistoryProvider] = useState<HistoryProvider>("cs2.sh");
   const [lookback, setLookback] = useState<"7d" | "30d" | "90d">("30d");
   const [sweepBatches, setSweepBatches] = useState<"2" | "5" | "10">("5");
 
-  function historySourcesFor(provider: "cs2.sh" | "cs2cap" | "pricempire") {
+  function historySourcesFor(provider: HistoryProvider) {
     if (provider === "cs2.sh") return ["buff", "youpin", "c5game"];
     if (provider === "pricempire") return ["buff163"];
     return undefined;
@@ -179,10 +180,11 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
         <div className={styles.syncControlRow}>
           <label>
             <span>History provider</span>
-            <select value={historyProvider} onChange={(event) => setHistoryProvider(event.target.value as "cs2.sh" | "cs2cap" | "pricempire")}>
+            <select value={historyProvider} onChange={(event) => setHistoryProvider(event.target.value as HistoryProvider)}>
               <option value="cs2.sh">cs2.sh</option>
               <option value="cs2cap">CS2Cap</option>
               <option value="pricempire">Pricempire</option>
+              <option value="csfloat">CSFloat</option>
             </select>
           </label>
           <label>
@@ -255,7 +257,7 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
             ? `latest ${status.latestObservation.marketName} via ${status.latestObservation.provider}`
             : status.message ?? "No sync data yet"}
         </small>
-        <small>{historyProvider === "cs2.sh" ? "China-first history: BUFF / YouPin / C5Game" : historyProvider === "pricempire" ? "China-first history: BUFF163 daily" : "Composite history via CS2Cap"}</small>
+        <small>{historyProvider === "cs2.sh" ? "China-first history: BUFF / YouPin / C5Game" : historyProvider === "pricempire" ? "China-first history: BUFF163 daily" : historyProvider === "csfloat" ? "CSFloat sales history candles" : "Composite history via CS2Cap"}</small>
         <small>{status.coverage.itemsWithChinesePrice} CN priced / {status.coverage.itemsWithHistory} with history / {status.coverage.itemsMissingLatestSnapshots} missing latest</small>
         {status.providerCoverage.length > 0 ? (
           <small>{status.providerCoverage.slice(0, 3).map((entry) => `${entry.provider}:${entry.itemCount}`).join(" / ")}</small>
