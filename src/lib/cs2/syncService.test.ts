@@ -4,7 +4,7 @@ import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
 import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
-import { fetchMarketCsgoLatestItems } from "@/lib/cs2/providers/marketcsgo";
+import { fetchMarketCsgoLatestItems, fetchMarketCsgoSalesHistory } from "@/lib/cs2/providers/marketcsgo";
 import { fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
 import { fetchSteamLatestItems, fetchSteamPriceHistory } from "@/lib/cs2/providers/steam";
@@ -38,6 +38,7 @@ vi.mock("@/lib/cs2/providers/csfloat", () => ({
 
 vi.mock("@/lib/cs2/providers/marketcsgo", () => ({
   fetchMarketCsgoLatestItems: vi.fn(),
+  fetchMarketCsgoSalesHistory: vi.fn(),
 }));
 
 vi.mock("@/lib/cs2/providers/pricempire", () => ({
@@ -322,6 +323,44 @@ describe("CS2 sync service hydration", () => {
     });
     expect(summary).toEqual(expect.objectContaining({
       provider: "steam",
+      status: "ok",
+      itemCount: 1,
+      candleCount: 1,
+    }));
+  });
+
+  it("backfills Market.CSGO sales history for watched items", async () => {
+    vi.mocked(getCs2WatchlistMarketHashNames).mockResolvedValue([
+      "AK-47 | Redline (Field-Tested)",
+    ] as never);
+    vi.mocked(fetchMarketCsgoSalesHistory).mockResolvedValue([
+      {
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+        provider: "marketcsgo",
+        marketName: "Market.CSGO",
+        interval: "1d",
+        openCents: 2950,
+        highCents: 3125,
+        lowCents: 2950,
+        closeCents: 3125,
+        volume: 2,
+        startsAt: new Date("2026-06-05T00:00:00.000Z"),
+      },
+    ] as never);
+    vi.mocked(persistProviderCandles).mockResolvedValue(1 as never);
+
+    const summary = await syncCs2WatchlistHistory({
+      ownerKey: "owner-1",
+      provider: "marketcsgo",
+      interval: "1d",
+      limit: 50,
+    });
+
+    expect(fetchMarketCsgoSalesHistory).toHaveBeenCalledWith({
+      marketHashNames: ["AK-47 | Redline (Field-Tested)"],
+    });
+    expect(summary).toEqual(expect.objectContaining({
+      provider: "marketcsgo",
       status: "ok",
       itemCount: 1,
       candleCount: 1,

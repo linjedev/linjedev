@@ -10,7 +10,7 @@ type Cs2SyncPanelProps = {
 };
 
 type SyncAction = "pipeline" | "watchlist-history" | "history-gaps" | "sweep-latest" | "sweep-history";
-type HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam";
+type HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam" | "marketcsgo";
 
 const EMPTY_STATUS: Cs2SyncStatus = {
   generatedAt: "",
@@ -186,6 +186,7 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
               <option value="pricempire">Pricempire</option>
               <option value="csfloat">CSFloat</option>
               <option value="steam">Steam</option>
+              <option value="marketcsgo">Market.CSGO</option>
             </select>
           </label>
           <label>
@@ -258,7 +259,7 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
             ? `latest ${status.latestObservation.marketName} via ${status.latestObservation.provider}`
             : status.message ?? "No sync data yet"}
         </small>
-        <small>{historyProvider === "cs2.sh" ? "China-first history: BUFF / YouPin / C5Game" : historyProvider === "pricempire" ? "China-first history: BUFF163 daily" : historyProvider === "csfloat" ? "CSFloat sales history candles" : historyProvider === "steam" ? "Steam market history candles" : "Composite history via CS2Cap"}</small>
+        <small>{historyProvider === "cs2.sh" ? "China-first history: BUFF / YouPin / C5Game" : historyProvider === "pricempire" ? "China-first history: BUFF163 daily" : historyProvider === "csfloat" ? "CSFloat sales history candles" : historyProvider === "steam" ? "Steam market history candles" : historyProvider === "marketcsgo" ? "Market.CSGO sales history candles" : "Composite history via CS2Cap"}</small>
         <small>{status.coverage.itemsWithChinesePrice} CN priced / {status.coverage.itemsWithHistory} with history / {status.coverage.itemsMissingLatestSnapshots} missing latest</small>
         {status.providerCoverage.length > 0 ? (
           <small>{status.providerCoverage.slice(0, 3).map((entry) => `${entry.provider}:${entry.itemCount}`).join(" / ")}</small>

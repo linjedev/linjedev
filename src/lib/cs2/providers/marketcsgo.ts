@@ -6,10 +6,11 @@ import {
   normalizeMarketHashName,
   normalizeMarketName,
 } from "@/lib/cs2/normalization";
-import type { ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
+import type { ProviderCandleInput, ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
 
 const MARKET_CSGO_BASE_URL = process.env.MARKET_CSGO_API_BASE ?? "https://market.csgo.com";
 const BATCH_LIMIT = 50;
+const DEFAULT_RUB_TO_USD_RATE = 0.0112;
 
 function getApiKey() {
   const apiKey = process.env.MARKET_CSGO_API_KEY;
@@ -36,12 +37,29 @@ function chunkValues(values: string[], size: number) {
   return chunks;
 }
 
+function dayKey(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function dayStart(value: string) {
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
 function marketCsgoPriceToUsdCents(value: unknown, currency: unknown) {
   const price = readNumber(value);
   if (price === null) return null;
   const normalizedCurrency = (readString(currency) ?? "USD").toUpperCase();
   if (normalizedCurrency !== "USD") return null;
   return Math.round(price / 10);
+}
+
+function marketCsgoHistoryPriceToUsdCents(value: unknown, currency: unknown, rubToUsdRate: number) {
+  const price = readNumber(value);
+  if (price === null) return null;
+  const normalizedCurrency = (readString(currency) ?? "USD").toUpperCase();
+  if (normalizedCurrency === "USD") return Math.round(price * 100);
+  if (normalizedCurrency === "RUB") return Math.round(price * rubToUsdRate * 100);
+  return null;
 }
 
 function normalizeMarketCsgoRows(value: unknown): Record<string, unknown>[] {
@@ -158,4 +176,110 @@ export async function fetchMarketCsgoLatestItems(params: {
   }
 
   return items;
+}
+
+function historyEntryToPoint(entry: unknown, currency: unknown, rubToUsdRate: number) {
+  if (!Array.isArray(entry)) return null;
+  const timestampSeconds = readNumber(entry[0]);
+  const priceCents = marketCsgoHistoryPriceToUsdCents(entry[1], currency, rubToUsdRate);
+  if (timestampSeconds === null || priceCents === null) return null;
+  const timestamp = new Date(timestampSeconds * 1000);
+  if (Number.isNaN(timestamp.getTime())) return null;
+  return { timestamp, priceCents };
+}
+
+export function marketCsgoHistoryToCandles(params: {
+  marketHashName: string;
+  payload: Record<string, unknown>;
+  rubToUsdRate?: number;
+}) {
+  if (params.payload.success === false) return [];
+  const currency = params.payload.currency ?? "USD";
+  const rubToUsdRate = params.rubToUsdRate ?? DEFAULT_RUB_TO_USD_RATE;
+  const data = typeof params.payload.data === "object" && params.payload.data !== null
+    ? params.payload.data as Record<string, unknown>
+    : {};
+  const row = typeof data[params.marketHashName] === "object" && data[params.marketHashName] !== null
+    ? data[params.marketHashName] as Record<string, unknown>
+    : null;
+  const history = Array.isArray(row?.history) ? row.history : [];
+  const buckets = new Map<string, Array<{ timestamp: Date; priceCents: number }>>();
+
+  for (const entry of history) {
+    const point = historyEntryToPoint(entry, currency, rubToUsdRate);
+    if (!point) continue;
+    const key = dayKey(point.timestamp);
+    buckets.set(key, [...(buckets.get(key) ?? []), point]);
+  }
+
+  const marketName = normalizeMarketName("marketcsgo");
+  return [...buckets.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([date, points]): ProviderCandleInput => {
+    const ordered = [...points].sort((left, right) => left.timestamp.getTime() - right.timestamp.getTime());
+    const prices = ordered.map((point) => point.priceCents);
+    return {
+      marketHashName: params.marketHashName,
+      provider: "marketcsgo",
+      marketName,
+      interval: "1d",
+      openCents: ordered[0].priceCents,
+      highCents: Math.max(...prices),
+      lowCents: Math.min(...prices),
+      closeCents: ordered.at(-1)?.priceCents ?? ordered[0].priceCents,
+      volume: ordered.length,
+      startsAt: dayStart(date),
+    };
+  });
+}
+
+async function readRubToUsdRate() {
+  const envRate = Number(process.env.MARKET_CSGO_RUB_TO_USD_RATE ?? "");
+  if (Number.isFinite(envRate) && envRate > 0) return envRate;
+  try {
+    const response = await fetch("https://api.frankfurter.app/latest?from=RUB&to=USD", {
+      next: { revalidate: 3600 },
+    });
+    if (!response.ok) throw new Error(`FX rate returned ${response.status}`);
+    const payload = await response.json() as { rates?: Record<string, unknown> };
+    const rate = readNumber(payload.rates?.USD);
+    if (rate && rate > 0) return rate;
+  } catch {
+    // Keep history ingestion working when the FX feed is unavailable.
+  }
+  return DEFAULT_RUB_TO_USD_RATE;
+}
+
+async function fetchMarketCsgoHistoryBatch(marketHashNames: string[]) {
+  const url = new URL("/api/v2/get-list-items-info", MARKET_CSGO_BASE_URL);
+  url.searchParams.set("key", getApiKey());
+  for (const marketHashName of marketHashNames) {
+    url.searchParams.append("list_hash_name[]", marketHashName);
+  }
+
+  const response = await fetch(url, {
+    next: { revalidate: 300 },
+  });
+  if (!response.ok) throw new Error(`Market.CSGO item history returned ${response.status}`);
+  const payload = await response.json() as unknown;
+  return typeof payload === "object" && payload !== null ? payload as Record<string, unknown> : {};
+}
+
+export async function fetchMarketCsgoSalesHistory(params: {
+  marketHashNames: string[];
+}) {
+  const marketHashNames = [...new Set(params.marketHashNames.map((name) => normalizeMarketHashName(name).trim()).filter(Boolean))];
+  const rubToUsdRate = await readRubToUsdRate();
+  const candles: ProviderCandleInput[] = [];
+
+  for (const chunk of chunkValues(marketHashNames, BATCH_LIMIT)) {
+    const payload = await fetchMarketCsgoHistoryBatch(chunk);
+    for (const marketHashName of chunk) {
+      candles.push(...marketCsgoHistoryToCandles({
+        marketHashName,
+        payload,
+        rubToUsdRate,
+      }));
+    }
+  }
+
+  return candles;
 }

@@ -42,7 +42,7 @@ const catalogSchema = z.object({
 
 const historySchema = z.object({
   mode: z.literal("history"),
-  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam"]).default("cs2.sh"),
+  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam", "marketcsgo"]).default("cs2.sh"),
   marketHashNames: z.array(z.string().min(2)).min(1).max(100),
   sources: z.array(cs2HistorySourceEnum).min(1).optional(),
   start: z.string().min(8).optional(),
@@ -86,11 +86,18 @@ const historySchema = z.object({
       path: ["interval"],
     });
   }
+  if (payload.provider === "marketcsgo" && payload.interval !== "1d") {
+    context.addIssue({
+      code: "custom",
+      message: "Market.CSGO sales history sync currently supports daily candles",
+      path: ["interval"],
+    });
+  }
 });
 
 const watchlistHistorySchema = z.object({
   mode: z.literal("watchlist-history"),
-  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam"]).default("cs2.sh"),
+  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam", "marketcsgo"]).default("cs2.sh"),
   ownerKey: z.string().min(2).max(200).optional(),
   sources: z.array(cs2HistorySourceEnum).min(1).optional(),
   start: z.string().min(8).optional(),
@@ -136,11 +143,18 @@ const watchlistHistorySchema = z.object({
       path: ["interval"],
     });
   }
+  if (payload.provider === "marketcsgo" && payload.interval !== "1d") {
+    context.addIssue({
+      code: "custom",
+      message: "Market.CSGO sales history sync currently supports daily candles",
+      path: ["interval"],
+    });
+  }
 });
 
 const historyGapsSchema = z.object({
   mode: z.literal("history-gaps"),
-  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam"]).default("cs2cap"),
+  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam", "marketcsgo"]).default("cs2cap"),
   sources: z.array(cs2HistorySourceEnum).min(1).optional(),
   start: z.string().min(8).optional(),
   end: z.string().min(8).optional(),
@@ -185,6 +199,13 @@ const historyGapsSchema = z.object({
       path: ["interval"],
     });
   }
+  if (payload.provider === "marketcsgo" && payload.interval !== "1d") {
+    context.addIssue({
+      code: "custom",
+      message: "Market.CSGO sales history sync currently supports daily candles",
+      path: ["interval"],
+    });
+  }
 });
 
 const pipelineSchema = z.object({
@@ -195,7 +216,7 @@ const pipelineSchema = z.object({
   latestLimit: z.number().int().positive().max(100000).optional(),
   catalogLimit: z.number().int().positive().max(100000).optional(),
   ownerKey: z.string().min(2).max(200).optional(),
-  historyProvider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam"]).optional(),
+  historyProvider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam", "marketcsgo"]).optional(),
   historySources: z.array(z.enum([
     "buff",
     "buff163",
@@ -252,6 +273,13 @@ const pipelineSchema = z.object({
       path: ["historyInterval"],
     });
   }
+  if (payload.includeWatchlistHistory && payload.historyProvider === "marketcsgo" && payload.historyInterval !== "1d") {
+    context.addIssue({
+      code: "custom",
+      message: "Market.CSGO sales history sync currently supports daily candles",
+      path: ["historyInterval"],
+    });
+  }
 });
 
 const sweepSchema = z.object({
@@ -260,7 +288,7 @@ const sweepSchema = z.object({
   maxBatches: z.number().int().positive().max(20).optional(),
   startAfterMarketHashName: z.string().min(2).optional(),
   latestLimit: z.number().int().positive().max(250).optional(),
-  historyProvider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam"]).optional(),
+  historyProvider: z.enum(["cs2.sh", "cs2cap", "pricempire", "csfloat", "steam", "marketcsgo"]).optional(),
   historySources: z.array(cs2HistorySourceEnum).min(1).optional(),
   historyStart: z.string().min(8).optional(),
   historyEnd: z.string().min(8).optional(),
@@ -302,6 +330,13 @@ const sweepSchema = z.object({
     context.addIssue({
       code: "custom",
       message: "Steam market history sync currently supports daily candles",
+      path: ["historyInterval"],
+    });
+  }
+  if (payload.target === "history-gaps" && payload.historyProvider === "marketcsgo" && payload.historyInterval !== "1d") {
+    context.addIssue({
+      code: "custom",
+      message: "Market.CSGO sales history sync currently supports daily candles",
       path: ["historyInterval"],
     });
   }
