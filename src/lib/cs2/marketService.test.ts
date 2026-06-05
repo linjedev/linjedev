@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
+import { fetchCsFloatLatestItems } from "@/lib/cs2/providers/csfloat";
 import { fetchMarketCsgoLatestItems } from "@/lib/cs2/providers/marketcsgo";
+import { fetchSteamLatestItems } from "@/lib/cs2/providers/steam";
 import { fetchWaxpeerLatestItems } from "@/lib/cs2/providers/waxpeer";
 import { getCs2ItemMetadataByMarketHashName } from "@/lib/cs2/itemMetadataService";
 import { hydrateCs2ItemsFromConfiguredProviders } from "@/lib/cs2/syncService";
@@ -38,8 +40,16 @@ vi.mock("@/lib/cs2/providers/cspriceapi", () => ({
   fetchCsPriceApiLatestItems: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock("@/lib/cs2/providers/csfloat", () => ({
+  fetchCsFloatLatestItems: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/cs2/providers/marketcsgo", () => ({
   fetchMarketCsgoLatestItems: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/cs2/providers/steam", () => ({
+  fetchSteamLatestItems: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/cs2/providers/waxpeer", () => ({
@@ -64,8 +74,16 @@ describe("CS2 market service source status", () => {
     delete process.env.PRICEMPIRE_API_KEY;
     delete process.env.C5GAME_API_KEY;
     delete process.env.CSPRICEAPI_API_KEY;
+    delete process.env.CSFLOAT_API_KEY;
     delete process.env.MARKET_CSGO_API_KEY;
     delete process.env.WAXPEER_API_KEY;
+    vi.mocked(fetchCs2ShLatestItems).mockResolvedValue([] as never);
+    vi.mocked(fetchC5GameLatestItems).mockResolvedValue([] as never);
+    vi.mocked(fetchCsPriceApiLatestItems).mockResolvedValue([] as never);
+    vi.mocked(fetchCsFloatLatestItems).mockResolvedValue([] as never);
+    vi.mocked(fetchMarketCsgoLatestItems).mockResolvedValue([] as never);
+    vi.mocked(fetchSteamLatestItems).mockResolvedValue([] as never);
+    vi.mocked(fetchWaxpeerLatestItems).mockResolvedValue([] as never);
     vi.mocked(getCs2ItemMetadataByMarketHashName).mockResolvedValue(new Map() as never);
     vi.mocked(hydrateCs2ItemsFromConfiguredProviders).mockResolvedValue([] as never);
   });
@@ -348,6 +366,104 @@ describe("CS2 market service source status", () => {
       officialApi: "official",
     }));
     expect(overview.sourceStatus.find((source) => source.id === "waxpeer")).toEqual(expect.objectContaining({
+      hasLiveCoverage: true,
+      integration: "direct",
+      officialApi: "official",
+    }));
+  });
+
+  it("merges direct Steam and CSFloat snapshots into the overview refresh path", async () => {
+    process.env.CSFLOAT_API_KEY = "csfloat-key";
+    vi.mocked(prisma.cs2Item.findMany).mockResolvedValue([{
+      id: "ak-redline",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: "Classified",
+      exterior: "Field-Tested",
+      collection: "The Phoenix Collection",
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: null,
+        bestBidCents: null,
+        chineseAskCents: null,
+        globalAskCents: null,
+        spreadPercent: null,
+      },
+    }] as never);
+    vi.mocked(prisma.cs2WatchlistItem.findMany).mockResolvedValue([] as never);
+    vi.mocked(fetchSteamLatestItems).mockResolvedValue([{
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: null,
+      exterior: "Field-Tested",
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      snapshots: [{
+        provider: "steam",
+        marketName: "Steam",
+        marketRegion: "global",
+        askCents: 3200,
+        bidCents: null,
+        medianCents: 3300,
+        askVolume: 50,
+        bidVolume: null,
+        salesVolume24h: null,
+        liquidityScore: null,
+        observedAt: new Date("2026-06-05T12:00:00.000Z"),
+      }],
+    }] as never);
+    vi.mocked(fetchCsFloatLatestItems).mockResolvedValue([{
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: null,
+      exterior: "Field-Tested",
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      snapshots: [{
+        provider: "csfloat",
+        marketName: "CSFloat",
+        marketRegion: "global",
+        askCents: 3050,
+        bidCents: null,
+        medianCents: null,
+        askVolume: 7,
+        bidVolume: null,
+        salesVolume24h: null,
+        liquidityScore: null,
+        observedAt: new Date("2026-06-05T12:00:00.000Z"),
+      }],
+    }] as never);
+
+    const overview = await getCs2TrackerOverview({
+      ownerKey: "owner-steam-csfloat",
+      query: null,
+    });
+
+    expect(fetchSteamLatestItems).toHaveBeenCalledWith({
+      marketHashNames: ["AK-47 | Redline (Field-Tested)"],
+    });
+    expect(fetchCsFloatLatestItems).toHaveBeenCalledWith({
+      marketHashNames: ["AK-47 | Redline (Field-Tested)"],
+    });
+    expect(overview.items[0]).toEqual(expect.objectContaining({
+      globalAskCents: 3050,
+      bestAskCents: 3050,
+    }));
+    expect(overview.sourceStatus.find((source) => source.id === "steam")).toEqual(expect.objectContaining({
+      hasLiveCoverage: true,
+      integration: "direct",
+      officialApi: "official",
+    }));
+    expect(overview.sourceStatus.find((source) => source.id === "csfloat")).toEqual(expect.objectContaining({
       hasLiveCoverage: true,
       integration: "direct",
       officialApi: "official",

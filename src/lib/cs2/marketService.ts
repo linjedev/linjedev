@@ -5,7 +5,9 @@ import { calculateCs2DerivedPrices, dbItemToCs2ItemView } from "@/lib/cs2/itemVi
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
+import { fetchCsFloatLatestItems } from "@/lib/cs2/providers/csfloat";
 import { fetchMarketCsgoLatestItems } from "@/lib/cs2/providers/marketcsgo";
+import { fetchSteamLatestItems } from "@/lib/cs2/providers/steam";
 import { fetchWaxpeerLatestItems } from "@/lib/cs2/providers/waxpeer";
 import { getCs2ItemMetadataByMarketHashName } from "@/lib/cs2/itemMetadataService";
 import { hydrateCs2ItemsFromConfiguredProviders } from "@/lib/cs2/syncService";
@@ -116,6 +118,16 @@ async function fetchConfiguredLatestSnapshots(marketHashNames: string[]): Promis
     process.env.CSPRICEAPI_API_KEY
       ? fetchCsPriceApiLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
         console.warn("[cs2] CSPriceAPI overview refresh failed.", error);
+        return new Map<string, Cs2MarketSnapshotView[]>();
+      })
+      : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
+    fetchSteamLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
+      console.warn("[cs2] Steam overview refresh failed.", error);
+      return new Map<string, Cs2MarketSnapshotView[]>();
+    }),
+    process.env.CSFLOAT_API_KEY
+      ? fetchCsFloatLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
+        console.warn("[cs2] CSFloat overview refresh failed.", error);
         return new Map<string, Cs2MarketSnapshotView[]>();
       })
       : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
@@ -350,7 +362,7 @@ export async function getCs2TrackerOverview(params: {
   }
 
   const configuredProviders = getConfiguredMarketProviders();
-  if (configuredProviders.some((provider) => ["cs2.sh", "c5game", "cspriceapi", "marketcsgo", "waxpeer"].includes(provider))) {
+  if (configuredProviders.some((provider) => ["cs2.sh", "c5game", "cspriceapi", "marketcsgo", "waxpeer", "steam", "csfloat"].includes(provider))) {
     try {
       const liveSnapshots = await fetchConfiguredLatestSnapshots(items.slice(0, 40).map((item) => item.marketHashName));
       if (liveSnapshots.size > 0) {
