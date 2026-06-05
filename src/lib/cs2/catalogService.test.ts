@@ -460,7 +460,7 @@ describe("CS2 catalog service", () => {
       sort: "name",
     });
     expect(catalog.mode).toBe("sample");
-    expect(catalog.warning).toContain("showing metadata market catalog.");
+    expect(catalog.warning).toContain("metadata catalog fallback");
     expect(catalog.items).toEqual(expect.arrayContaining([
       expect.objectContaining({
         marketHashName: metadataItem.marketHashName,

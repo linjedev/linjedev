@@ -605,9 +605,14 @@ export async function getCs2Catalog(params: CatalogParams): Promise<Cs2CatalogRe
       }
     }
 
-    if (totalItems === 0) {
+    if (totalItems === 0 && !hasQuery) {
       try {
-        const metadataFallback = await getMetadataFallback(params, "Database unavailable; showing metadata market catalog.");
+        const metadataFallback = await getMetadataFallback({
+          ...params,
+          page,
+          limit,
+          sort,
+        }, "Database unavailable; showing metadata market catalog.");
         if (metadataFallback) return metadataFallback;
       } catch (metadataError) {
         console.warn("[cs2] Metadata catalog fallback unavailable.", metadataError);
@@ -663,49 +668,52 @@ export async function getCs2Catalog(params: CatalogParams): Promise<Cs2CatalogRe
     });
   } catch (error) {
     console.warn("[cs2] Catalog database unavailable; showing sample catalog.", error);
-    try {
-      const metadataFallback = await getMetadataFallback({
-        ...params,
-        page,
-        limit,
-        sort,
-      }, "Database unavailable or CS2 schema pending; showing metadata market catalog.");
-      if (metadataFallback) return metadataFallback;
-    } catch (metadataError) {
-      console.warn("[cs2] Metadata catalog fallback unavailable.", metadataError);
-    }
-    try {
-      const liveFallback = await getCs2CapSearchFallback({
-        ...params,
-        page,
-        limit,
-        sort,
-      });
-      if (liveFallback && liveFallback.items.length > 0) return liveFallback;
-    } catch (cs2capError) {
-      console.warn("[cs2] CS2Cap catalog search fallback unavailable; showing sample catalog.", cs2capError);
-    }
-    try {
-      const liveFallback = await getSkinportSearchFallback({
-        ...params,
-        page,
-        limit,
-        sort,
-      });
-      if (liveFallback && liveFallback.items.length > 0) return liveFallback;
-    } catch (skinportError) {
-      console.warn("[cs2] Skinport catalog search unavailable; showing sample catalog.", skinportError);
-    }
-    try {
-      const metadataFallback = await getMetadataSearchFallback({
-        ...params,
-        page,
-        limit,
-        sort,
-      });
-      if (metadataFallback) return metadataFallback;
-    } catch (metadataError) {
-      console.warn("[cs2] Metadata catalog search fallback unavailable.", metadataError);
+    if (params.query) {
+      try {
+        const liveFallback = await getCs2CapSearchFallback({
+          ...params,
+          page,
+          limit,
+          sort,
+        });
+        if (liveFallback && liveFallback.items.length > 0) return liveFallback;
+      } catch (cs2capError) {
+        console.warn("[cs2] CS2Cap catalog search fallback unavailable; showing sample catalog.", cs2capError);
+      }
+      try {
+        const liveFallback = await getSkinportSearchFallback({
+          ...params,
+          page,
+          limit,
+          sort,
+        });
+        if (liveFallback && liveFallback.items.length > 0) return liveFallback;
+      } catch (skinportError) {
+        console.warn("[cs2] Skinport catalog search unavailable; showing sample catalog.", skinportError);
+      }
+      try {
+        const metadataFallback = await getMetadataSearchFallback({
+          ...params,
+          page,
+          limit,
+          sort,
+        });
+        if (metadataFallback) return metadataFallback;
+      } catch (metadataError) {
+        console.warn("[cs2] Metadata catalog search fallback unavailable.", metadataError);
+      }
+    } else {
+      try {
+        const metadataFallback = await getMetadataFallback({
+          ...params,
+          page,
+          limit,
+          sort,
+        }, "Database unavailable or CS2 schema pending; showing metadata market catalog.");
+        if (metadataFallback) return metadataFallback;
+      } catch (metadataError) {
+        console.warn("[cs2] Metadata catalog fallback unavailable.", metadataError);
+      }
     }
     const filtered = SAMPLE_CS2_ITEMS.filter((item) => itemMatches(item, params));
     const sorted = sortCs2CatalogItems(filtered, sort);
