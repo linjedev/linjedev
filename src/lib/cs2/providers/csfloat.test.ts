@@ -46,6 +46,8 @@ describe("CSFloat listing normalization", () => {
     const items = csFloatListingsToProviderItems([
       {
         id: "high",
+        provider: "csfloat",
+        marketName: "CSFloat",
         marketHashName: "M4A4 | Poseidon (Factory New)",
         itemName: "M4A4 | Poseidon",
         wearName: "Factory New",
@@ -65,6 +67,8 @@ describe("CSFloat listing normalization", () => {
       },
       {
         id: "low",
+        provider: "csfloat",
+        marketName: "CSFloat",
         marketHashName: "M4A4 | Poseidon (Factory New)",
         itemName: "M4A4 | Poseidon",
         wearName: "Factory New",

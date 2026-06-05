@@ -15,6 +15,8 @@ type FloatSearchParams = {
 const SAMPLE_FLOAT_LISTINGS: Cs2FloatListingView[] = [
   {
     id: "sample-float-ak-redline",
+    provider: "sample",
+    marketName: "Sample",
     marketHashName: "AK-47 | Redline (Field-Tested)",
     itemName: "AK-47 | Redline",
     wearName: "Field-Tested",
@@ -37,6 +39,8 @@ const SAMPLE_FLOAT_LISTINGS: Cs2FloatListingView[] = [
   },
   {
     id: "sample-float-m4a4-poseidon",
+    provider: "sample",
+    marketName: "Sample",
     marketHashName: "M4A4 | Poseidon (Factory New)",
     itemName: "M4A4 | Poseidon",
     wearName: "Factory New",

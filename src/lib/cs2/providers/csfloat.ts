@@ -54,6 +54,8 @@ function listingToView(row: Record<string, unknown>): Cs2FloatListingView | null
 
   return {
     id: listingId,
+    provider: "csfloat",
+    marketName: "CSFloat",
     marketHashName,
     itemName: readString(item?.item_name),
     wearName: readString(item?.wear_name),

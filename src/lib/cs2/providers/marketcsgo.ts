@@ -103,6 +103,8 @@ function marketCsgoRowToFloatListing(params: {
 
   const listing: Cs2FloatListingView = {
     id: `marketcsgo-${listingId}`,
+    provider: "marketcsgo",
+    marketName: "Market.CSGO",
     marketHashName: readString(params.row.market_hash_name) ?? params.marketHashName,
     itemName: null,
     wearName: inferExterior(params.marketHashName),

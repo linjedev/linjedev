@@ -73,6 +73,8 @@ describe("CS2 float search service", () => {
     vi.mocked(fetchCsFloatListings).mockResolvedValueOnce([
       {
         id: "ft-redline",
+        provider: "csfloat",
+        marketName: "CSFloat",
         marketHashName: "AK-47 | Redline (Field-Tested)",
         itemName: "AK-47 | Redline",
         wearName: "Field-Tested",
@@ -112,6 +114,8 @@ describe("CS2 float search service", () => {
     vi.mocked(fetchMarketCsgoFloatListings).mockResolvedValueOnce([
       {
         id: "marketcsgo-1",
+        provider: "marketcsgo",
+        marketName: "Market.CSGO",
         marketHashName: "AK-47 | Redline (Field-Tested)",
         itemName: null,
         wearName: "Field-Tested",

@@ -132,7 +132,7 @@ export function Cs2FloatSearchPanel({
             <ListingImage listing={listing} />
             <span>
               <strong>{listing.marketHashName}</strong>
-              <small>float {formatFloat(listing.floatValue)} / seed {listing.paintSeed ?? "n/a"} / paint {listing.paintIndex ?? "n/a"}</small>
+              <small>{listing.marketName} / float {formatFloat(listing.floatValue)} / seed {listing.paintSeed ?? "n/a"} / paint {listing.paintIndex ?? "n/a"}</small>
             </span>
             <b>{formatMoney(listing.priceCents)}</b>
             <ExternalLink size={14} />

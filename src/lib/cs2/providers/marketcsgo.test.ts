@@ -148,6 +148,8 @@ describe("Market.CSGO provider normalization", () => {
     expect(listings).toEqual([
       expect.objectContaining({
         id: "marketcsgo-521320033",
+        provider: "marketcsgo",
+        marketName: "Market.CSGO",
         marketHashName: "AWP | Worm God (Factory New)",
         priceCents: 357,
         floatValue: 0.061443410813808,

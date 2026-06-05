@@ -219,6 +219,8 @@ export type Cs2FloatSort =
 
 export type Cs2FloatListingView = {
   id: string;
+  provider: string;
+  marketName: string;
   marketHashName: string;
   itemName: string | null;
   wearName: string | null;
