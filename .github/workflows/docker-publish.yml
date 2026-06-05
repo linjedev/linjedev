@@ -52,7 +52,12 @@ jobs:
           #!/usr/bin/env bash
           exec "/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe" "$@"
           EOF
+          cat > "$HOME/bin/docker-credential-desktop" <<'EOF'
+          #!/usr/bin/env bash
+          exec "/mnt/c/Program Files/Docker/Docker/resources/bin/docker-credential-desktop.exe" "$@"
+          EOF
           chmod +x "$HOME/bin/docker"
+          chmod +x "$HOME/bin/docker-credential-desktop"
           echo "$HOME/bin" >> "$GITHUB_PATH"
 
       - name: Set up Docker Buildx
