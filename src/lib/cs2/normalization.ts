@@ -1,15 +1,42 @@
 import type { Cs2MarketRegion } from "@/lib/cs2/types";
 
-const CHINESE_MARKETS = new Set(["buff", "buff163", "BUFF163", "youpin", "YouPin898", "youpin898", "C5Game", "c5"]);
+const CHINESE_MARKETS = new Set([
+  "buff",
+  "buff163",
+  "BUFF163",
+  "youpin",
+  "YouPin898",
+  "youpin898",
+  "C5Game",
+  "c5",
+]);
 
-function isDecoratedKnifeOrGlove(marketHashName: string) {
-  const startsWithStar = marketHashName.startsWith("★")
-    || marketHashName.startsWith("â˜…")
-    || marketHashName.startsWith("&#9733;");
-  if (!startsWithStar) return false;
-  return marketHashName.toLowerCase().includes("gloves")
-    ? "gloves"
-    : "knife";
+const KNIFE_OR_GLOVE_KEYWORDS = ["knife", "knives", "glove", "gloves"];
+const STAR_PREFIX = "\u2605";
+
+function startsWithStarPrefix(value: string) {
+  const trimmed = value.trim();
+  return trimmed.startsWith(STAR_PREFIX)
+    || trimmed.startsWith("&#9733;")
+    || trimmed.startsWith("Â·")
+    || trimmed.startsWith("â");
+}
+
+function normalizeMarketHashName(value: string) {
+  return value
+    .normalize("NFKC")
+    .trim()
+    .replace(/^\s*&#9733;\s*/u, `${STAR_PREFIX} `)
+    .replace(/^\s*Â·\s*/u, `${STAR_PREFIX} `)
+    .replace(/^\s*â\s*/u, `${STAR_PREFIX} `)
+    .replace(/^\s*\u2605\s*/u, `${STAR_PREFIX} `);
+}
+
+function cleanCategoryToken(value: string) {
+  return value
+    .trim()
+    .replace(/^\u2605\s*/u, "")
+    .trim();
 }
 
 export function toCents(value: unknown) {
@@ -30,6 +57,7 @@ export function normalizeMarketName(marketName: string) {
   if (lower === "buff" || lower === "buff163") return "BUFF163";
   if (lower === "youpin" || lower === "youpin898") return "YouPin898";
   if (lower === "csfloat") return "CSFloat";
+  if (lower === "cs2.sh") return "CS2.sh";
   if (lower === "steam") return "Steam";
   if (lower === "c5" || lower === "c5game") return "C5Game";
   if (lower === "buffmarket") return "BUFF.Market";
@@ -37,7 +65,24 @@ export function normalizeMarketName(marketName: string) {
   if (lower === "skinport") return "Skinport";
   if (lower === "waxpeer") return "WAXPEER";
   if (lower === "whitemarket") return "white.market";
+  if (lower === "bitskins") return "BitSkins";
   return marketName;
+}
+
+function categoryPrefixToType(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized.includes("sticker")) return "sticker";
+  if (normalized.includes("patch")) return "patch";
+  if (normalized.includes("graffiti")) return "graffiti";
+  if (normalized.includes("music kit")) return "music-kit";
+  if (normalized.includes("charm")) return "charm";
+  if (KNIFE_OR_GLOVE_KEYWORDS.some((keyword) => normalized.includes(keyword))) {
+    return normalized.includes("glove") ? "gloves" : "knife";
+  }
+  if (normalized.includes("operator") || normalized.includes("agent")) return "operator";
+  if (normalized.includes("case")) return "case";
+  if (normalized.includes("capsule")) return "capsule";
+  return null;
 }
 
 function hasSkinExterior(marketHashName: string) {
@@ -55,30 +100,34 @@ export function inferItemType(marketHashName: string) {
   if (marketHashName.startsWith("Patch |")) return "patch";
   if (marketHashName.startsWith("Graffiti |")) return "graffiti";
   if (marketHashName.startsWith("Music Kit |")) return "music-kit";
+  if (marketHashName.startsWith("agent ")) return "operator";
 
-  const decorated = isDecoratedKnifeOrGlove(marketHashName);
-  if (decorated) return decorated;
+  const normalizedName = normalizeMarketHashName(marketHashName);
+  const leftSide = normalizedName.split(" | ")[0];
+  const rightSide = normalizedName.split(" | ")[1];
 
-  if (marketHashName.includes(" | ")) {
-    const right = marketHashName.split(" | ")[1];
-    if (right && hasSkinExterior(right)) return "skin";
-    return "operator";
+  if (startsWithStarPrefix(marketHashName)) {
+    const lower = normalizedName.toLowerCase();
+    return lower.includes("glove") || lower.includes("gloves") ? "gloves" : "knife";
   }
-  if (marketHashName.toLowerCase().includes("case")) return "case";
-  if (marketHashName.toLowerCase().includes("capsule")) return "capsule";
+
+  const leftType = leftSide ? categoryPrefixToType(leftSide) : null;
+  if (leftType) return leftType;
+
+  const rightType = rightSide ? categoryPrefixToType(rightSide) : null;
+  if (rightType) return rightType;
+
+  if (hasSkinExterior(marketHashName)) return "skin";
+  if (normalizedName.toLowerCase().includes("knife")) return "knife";
+  if (normalizedName.toLowerCase().includes("glove")) return "gloves";
+  if (normalizedName.toLowerCase().includes("sticker")) return "sticker";
+
   return "sellable";
 }
 
 export function inferCategory(marketHashName: string) {
   if (!marketHashName.includes(" | ")) return inferItemType(marketHashName);
-  return (
-    marketHashName.split(" | ")[0]
-      ?.replace("★", "")
-      .replace("â˜…", "")
-      .replace("&#9733;", "")
-      .trim()
-    || null
-  );
+  return cleanCategoryToken(normalizeMarketHashName(marketHashName).split(" | ")[0]) || null;
 }
 
 export function normalizeVariantName(baseName: string, variantName: string) {
