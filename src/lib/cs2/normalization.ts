@@ -13,23 +13,67 @@ const CHINESE_MARKETS = new Set([
 
 const KNIFE_OR_GLOVE_KEYWORDS = ["knife", "knives", "glove", "gloves"];
 const STAR_PREFIX = "\u2605";
+const KNOWN_WEAPON_HINTS = [
+  "ak-",
+  "m4a1",
+  "m4a1-s",
+  "m4a4",
+  "awp",
+  "glock",
+  "desert eagle",
+  "p250",
+  "usp",
+  "usp-s",
+  "fiveseven",
+  "five-seven",
+  "p2000",
+  "p90",
+  "mp7",
+  "mp9",
+  "mp5",
+  "mag-7",
+  "nova",
+  "negev",
+  "deagle",
+  "aug",
+  "sg 553",
+  "scar20",
+  "galil",
+  "g3sg1",
+  "xm1014",
+  "cz75",
+  "r8",
+  "tec-9",
+  "dual",
+  "cz75-a",
+  "famas",
+  "sawed-off",
+  "ssg 08",
+  "bizon",
+  "mac-10",
+  "usps",
+];
 
 function startsWithStarPrefix(value: string) {
   const trimmed = value.trim();
   return trimmed.startsWith(STAR_PREFIX)
     || trimmed.startsWith("&#9733;")
-    || trimmed.startsWith("Â·")
-    || trimmed.startsWith("â");
+    || trimmed.startsWith("Ã‚Â·")
+    || trimmed.startsWith("Ã¢");
 }
 
-function normalizeMarketHashName(value: string) {
+export function normalizeMarketHashName(value: string) {
   return value
     .normalize("NFKC")
     .trim()
     .replace(/^\s*&#9733;\s*/u, `${STAR_PREFIX} `)
-    .replace(/^\s*Â·\s*/u, `${STAR_PREFIX} `)
-    .replace(/^\s*â\s*/u, `${STAR_PREFIX} `)
+    .replace(/^\s*Ã‚Â·\s*/u, `${STAR_PREFIX} `)
+    .replace(/^\s*Ã¢\s*/u, `${STAR_PREFIX} `)
     .replace(/^\s*\u2605\s*/u, `${STAR_PREFIX} `);
+}
+
+function normalizeForWeaponHeuristic(value: string) {
+  return normalizeMarketHashName(value).toLowerCase();
 }
 
 function cleanCategoryToken(value: string) {
@@ -94,6 +138,26 @@ export function inferExterior(marketHashName: string) {
   return match?.[1] ?? null;
 }
 
+function containsWeaponHint(value: string) {
+  return KNOWN_WEAPON_HINTS.some((keyword) => value.includes(` ${keyword} `) || value.includes(`${keyword} `) || value.includes(` ${keyword}`));
+}
+
+function isLikelyOperatorPair(leftSide: string, rightSide: string) {
+  if (!leftSide || !rightSide) return false;
+  const left = normalizeForWeaponHeuristic(leftSide);
+  const right = normalizeForWeaponHeuristic(rightSide);
+  if (/\(.*\)/u.test(right)) return false;
+  if (containsWeaponHint(left) || containsWeaponHint(right)) return false;
+  if (left.includes("case") || right.includes("case")) return false;
+  if (left.includes("capsule") || right.includes("capsule")) return false;
+  if (left.includes("sticker") || right.includes("sticker")) return false;
+  if (left.includes("patch") || right.includes("patch")) return false;
+  if (left.includes("charm") || right.includes("charm")) return false;
+  if (left.includes("graffiti") || right.includes("graffiti")) return false;
+  if (left.includes("music") || right.includes("music")) return false;
+  return left.length > 2 && right.length > 2;
+}
+
 export function inferItemType(marketHashName: string) {
   if (marketHashName.startsWith("Sticker |")) return "sticker";
   if (marketHashName.startsWith("Charm |")) return "charm";
@@ -118,6 +182,7 @@ export function inferItemType(marketHashName: string) {
   if (rightType) return rightType;
 
   if (hasSkinExterior(marketHashName)) return "skin";
+  if (isLikelyOperatorPair(leftSide ?? "", rightSide ?? "")) return "operator";
   if (normalizedName.toLowerCase().includes("knife")) return "knife";
   if (normalizedName.toLowerCase().includes("glove")) return "gloves";
   if (normalizedName.toLowerCase().includes("sticker")) return "sticker";

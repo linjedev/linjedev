@@ -14,8 +14,10 @@ describe("CS2 normalization", () => {
     expect(inferItemType("AK-47 | Redline (Field-Tested)")).toBe("skin");
     expect(inferItemType("Sticker | Crown (Foil)")).toBe("sticker");
     expect(inferItemType("Sir Bloody Miami Darryl | The Professionals")).toBe("operator");
+    expect(inferItemType("M4A4 | Gold Arabesque (Field-Tested)")).toBe("skin");
+    expect(inferItemType("Phoenix Connexion | Asterion")).toBe("operator");
     expect(inferItemType("Revolution Case")).toBe("case");
-    expect(inferItemType("★ Butterfly Knife | Doppler (Factory New)")).toBe("knife");
+    expect(inferItemType("â˜… Butterfly Knife | Doppler (Factory New)")).toBe("knife");
     expect(inferCategory("AK-47 | Redline (Field-Tested)")).toBe("AK-47");
     expect(inferExterior("AK-47 | Redline (Field-Tested)")).toBe("Field-Tested");
   });
