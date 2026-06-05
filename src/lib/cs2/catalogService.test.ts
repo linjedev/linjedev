@@ -459,6 +459,7 @@ describe("CS2 catalog service", () => {
       limit: 10,
       sort: "name",
     });
+    expect(vi.mocked(getCs2ItemMetadataCatalogWithTotal)).toHaveBeenCalled();
     expect(catalog.mode).toBe("sample");
     expect(catalog.warning).toContain("metadata catalog fallback");
     expect(catalog.items).toEqual(expect.arrayContaining([
