@@ -2,6 +2,16 @@ import type { Cs2MarketRegion } from "@/lib/cs2/types";
 
 const CHINESE_MARKETS = new Set(["buff", "buff163", "BUFF163", "youpin", "YouPin898", "youpin898", "C5Game", "c5"]);
 
+function isDecoratedKnifeOrGlove(marketHashName: string) {
+  const startsWithStar = marketHashName.startsWith("★")
+    || marketHashName.startsWith("â˜…")
+    || marketHashName.startsWith("&#9733;");
+  if (!startsWithStar) return false;
+  return marketHashName.toLowerCase().includes("gloves")
+    ? "gloves"
+    : "knife";
+}
+
 export function toCents(value: unknown) {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return Math.round(value * 100);
@@ -45,8 +55,10 @@ export function inferItemType(marketHashName: string) {
   if (marketHashName.startsWith("Patch |")) return "patch";
   if (marketHashName.startsWith("Graffiti |")) return "graffiti";
   if (marketHashName.startsWith("Music Kit |")) return "music-kit";
-  if (marketHashName.startsWith("★") && marketHashName.toLowerCase().includes("gloves")) return "gloves";
-  if (marketHashName.startsWith("★")) return "knife";
+
+  const decorated = isDecoratedKnifeOrGlove(marketHashName);
+  if (decorated) return decorated;
+
   if (marketHashName.includes(" | ")) {
     const right = marketHashName.split(" | ")[1];
     if (right && hasSkinExterior(right)) return "skin";
@@ -59,7 +71,14 @@ export function inferItemType(marketHashName: string) {
 
 export function inferCategory(marketHashName: string) {
   if (!marketHashName.includes(" | ")) return inferItemType(marketHashName);
-  return marketHashName.split(" | ")[0]?.replace("★", "").trim() || null;
+  return (
+    marketHashName.split(" | ")[0]
+      ?.replace("★", "")
+      .replace("â˜…", "")
+      .replace("&#9733;", "")
+      .trim()
+    || null
+  );
 }
 
 export function normalizeVariantName(baseName: string, variantName: string) {
