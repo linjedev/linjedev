@@ -68,6 +68,7 @@ export function flattenCsFloatListings(rows: Record<string, unknown>[]) {
 
 export async function fetchCsFloatListings(params: {
   query?: string | null;
+  marketHashName?: string | null;
   minFloat?: number | null;
   maxFloat?: number | null;
   paintSeed?: number | null;
@@ -78,7 +79,8 @@ export async function fetchCsFloatListings(params: {
   const url = new URL(`${CSFLOAT_BASE_URL}/listings`);
   url.searchParams.set("limit", String(Math.min(50, Math.max(1, params.limit ?? 20))));
   url.searchParams.set("sort_by", params.sort ?? "best_deal");
-  if (params.query?.trim()) url.searchParams.set("market_hash_name", params.query.trim());
+  const marketHashName = params.marketHashName?.trim() || params.query?.trim();
+  if (marketHashName) url.searchParams.set("market_hash_name", marketHashName);
   if (params.minFloat !== null && params.minFloat !== undefined) url.searchParams.set("min_float", String(params.minFloat));
   if (params.maxFloat !== null && params.maxFloat !== undefined) url.searchParams.set("max_float", String(params.maxFloat));
   if (params.paintSeed !== null && params.paintSeed !== undefined) url.searchParams.set("paint_seed", String(params.paintSeed));

@@ -213,6 +213,7 @@ export type Cs2FloatSearchResponse = {
   mode: "live" | "sample";
   warning: string | null;
   query: string | null;
+  resolvedMarketHashNames: string[];
   minFloat: number | null;
   maxFloat: number | null;
   paintSeed: number | null;

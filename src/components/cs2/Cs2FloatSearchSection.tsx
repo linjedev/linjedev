@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Cs2FloatSearchPanel } from "@/components/cs2/Cs2FloatSearchPanel";
-import type { Cs2FloatSearchResponse, Cs2FloatSort } from "@/lib/cs2/types";
+import type { Cs2CatalogResponse, Cs2FloatSearchResponse, Cs2FloatSort } from "@/lib/cs2/types";
 
 export function Cs2FloatSearchSection() {
   const [response, setResponse] = useState<Cs2FloatSearchResponse | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("AK-47 | Redline (Field-Tested)");
   const [minFloat, setMinFloat] = useState("");
@@ -36,9 +37,39 @@ export function Cs2FloatSearchSection() {
     void loadFloatSearch();
   }, []);
 
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+    if (normalizedQuery.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const apiResponse = await fetch(`/api/cs2/items?q=${encodeURIComponent(normalizedQuery)}&limit=6&sort=name`, {
+          signal: controller.signal,
+        });
+        if (!apiResponse.ok) return;
+        const payload = await apiResponse.json() as Cs2CatalogResponse;
+        setSuggestions(payload.items.map((item) => item.marketHashName));
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setSuggestions([]);
+        }
+      }
+    }, 180);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [query]);
+
   return (
     <Cs2FloatSearchPanel
       response={response}
+      suggestions={suggestions}
       loading={loading}
       query={query}
       minFloat={minFloat}

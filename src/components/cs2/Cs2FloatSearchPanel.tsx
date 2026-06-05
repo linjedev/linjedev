@@ -8,6 +8,7 @@ import styles from "./Cs2MarketTracker.module.css";
 
 type Cs2FloatSearchPanelProps = {
   response: Cs2FloatSearchResponse | null;
+  suggestions: string[];
   loading: boolean;
   query: string;
   minFloat: string;
@@ -37,6 +38,7 @@ function ListingImage({ listing }: { listing: Cs2FloatListingView }) {
 
 export function Cs2FloatSearchPanel({
   response,
+  suggestions,
   loading,
   query,
   minFloat,
@@ -69,7 +71,18 @@ export function Cs2FloatSearchPanel({
       <div className={styles.floatSearchControls}>
         <label>
           <span>Item</span>
-          <input value={query} onChange={(event) => onQueryChange(event.target.value)} onKeyDown={handleKeyDown} placeholder="M4A4 | Poseidon (Factory New)" />
+          <input
+            list="cs2-float-search-suggestions"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="M4A4 | Poseidon (Factory New)"
+          />
+          <datalist id="cs2-float-search-suggestions">
+            {suggestions.map((suggestion) => (
+              <option value={suggestion} key={suggestion} />
+            ))}
+          </datalist>
         </label>
         <label>
           <span>Min float</span>
@@ -103,6 +116,14 @@ export function Cs2FloatSearchPanel({
           <Search size={15} />
         </button>
       </div>
+
+      {!!response?.resolvedMarketHashNames.length && (
+        <div className={styles.floatResolvedMatches} aria-label="Resolved CS2 items">
+          {response.resolvedMarketHashNames.map((marketHashName) => (
+            <span key={marketHashName}>{marketHashName}</span>
+          ))}
+        </div>
+      )}
 
       <div className={styles.floatListings}>
         {loading && <div className={styles.emptyState}>Searching listed assets...</div>}

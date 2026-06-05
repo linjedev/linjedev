@@ -1,4 +1,5 @@
 import { fetchCsFloatListings } from "@/lib/cs2/providers/csfloat";
+import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
 import type { Cs2FloatListingView, Cs2FloatSearchResponse, Cs2FloatSort } from "@/lib/cs2/types";
 
 type FloatSearchParams = {
@@ -74,9 +75,37 @@ function sortListings(listings: Cs2FloatListingView[], sort: Cs2FloatSort) {
   });
 }
 
+async function resolveMarketHashNames(query?: string | null) {
+  const normalizedQuery = query?.trim();
+  if (!normalizedQuery) return [];
+
+  const matches = await getCs2ItemMetadataCatalog({
+    query: normalizedQuery,
+    limit: 6,
+    offset: 0,
+  });
+
+  const exactKey = normalizedQuery.toLowerCase();
+  const exactMatches = matches.filter((match) => match.marketHashName.toLowerCase() === exactKey);
+  const resolved = exactMatches.length > 0 ? exactMatches : matches;
+
+  return resolved.map((match) => match.marketHashName);
+}
+
+function dedupeListings(listings: Cs2FloatListingView[]) {
+  const merged = new Map<string, Cs2FloatListingView>();
+  for (const listing of listings) {
+    if (!merged.has(listing.id)) {
+      merged.set(listing.id, listing);
+    }
+  }
+  return [...merged.values()];
+}
+
 function buildResponse(params: FloatSearchParams & {
   mode: "live" | "sample";
   warning: string | null;
+  resolvedMarketHashNames: string[];
   listings: Cs2FloatListingView[];
 }): Cs2FloatSearchResponse {
   return {
@@ -84,6 +113,7 @@ function buildResponse(params: FloatSearchParams & {
     mode: params.mode,
     warning: params.warning,
     query: params.query?.trim() || null,
+    resolvedMarketHashNames: params.resolvedMarketHashNames,
     minFloat: params.minFloat ?? null,
     maxFloat: params.maxFloat ?? null,
     paintSeed: params.paintSeed ?? null,
@@ -95,14 +125,29 @@ function buildResponse(params: FloatSearchParams & {
 
 export async function searchCs2FloatListings(params: FloatSearchParams): Promise<Cs2FloatSearchResponse> {
   const sort = params.sort ?? "best_deal";
+  const resolvedMarketHashNames = await resolveMarketHashNames(params.query);
+  const candidateNames = resolvedMarketHashNames.length > 0
+    ? resolvedMarketHashNames.slice(0, 4)
+    : (params.query?.trim() ? [params.query.trim()] : []);
+
   try {
-    const listings = await fetchCsFloatListings({ ...params, sort, limit: 20 });
+    const listings = candidateNames.length === 0
+      ? await fetchCsFloatListings({ ...params, sort, limit: 20 })
+      : dedupeListings((await Promise.all(candidateNames.map((marketHashName) => fetchCsFloatListings({
+        ...params,
+        query: undefined,
+        marketHashName,
+        sort,
+        limit: candidateNames.length > 1 ? 8 : 20,
+      })))).flat());
+
     return buildResponse({
       ...params,
       sort,
       mode: "live",
       warning: null,
-      listings,
+      resolvedMarketHashNames: candidateNames,
+      listings: sortListings(listings, sort),
     });
   } catch (error) {
     console.warn("[cs2] CSFloat search unavailable; showing sample float listings.", error);
@@ -111,6 +156,7 @@ export async function searchCs2FloatListings(params: FloatSearchParams): Promise
       sort,
       mode: "sample",
       warning: "CSFloat listings unavailable; showing sample float search results.",
+      resolvedMarketHashNames: candidateNames,
       listings: sortListings(SAMPLE_FLOAT_LISTINGS.filter((listing) => matches(listing, params)), sort),
     });
   }

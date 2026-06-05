@@ -202,6 +202,24 @@
   color: rgba(245, 245, 247, 0.5);
 }
 
+.floatResolvedMatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.floatResolvedMatches span {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(69, 212, 131, 0.12);
+  border: 1px solid rgba(69, 212, 131, 0.24);
+  color: rgba(245, 245, 247, 0.82);
+  font-size: 11px;
+}
+
 .floatSearchControls {
   display: grid;
   grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(88px, 0.6fr)) minmax(128px, 0.7fr) 38px;
