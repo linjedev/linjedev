@@ -5,6 +5,8 @@ import { calculateCs2DerivedPrices, dbItemToCs2ItemView } from "@/lib/cs2/itemVi
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
+import { fetchMarketCsgoLatestItems } from "@/lib/cs2/providers/marketcsgo";
+import { fetchWaxpeerLatestItems } from "@/lib/cs2/providers/waxpeer";
 import { getCs2ItemMetadataByMarketHashName } from "@/lib/cs2/itemMetadataService";
 import { hydrateCs2ItemsFromConfiguredProviders } from "@/lib/cs2/syncService";
 import { inferCategory, inferExterior, inferItemType } from "@/lib/cs2/normalization";
@@ -114,6 +116,18 @@ async function fetchConfiguredLatestSnapshots(marketHashNames: string[]): Promis
     process.env.CSPRICEAPI_API_KEY
       ? fetchCsPriceApiLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
         console.warn("[cs2] CSPriceAPI overview refresh failed.", error);
+        return new Map<string, Cs2MarketSnapshotView[]>();
+      })
+      : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
+    process.env.MARKET_CSGO_API_KEY
+      ? fetchMarketCsgoLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
+        console.warn("[cs2] Market.CSGO overview refresh failed.", error);
+        return new Map<string, Cs2MarketSnapshotView[]>();
+      })
+      : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
+    process.env.WAXPEER_API_KEY
+      ? fetchWaxpeerLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
+        console.warn("[cs2] WAXPEER overview refresh failed.", error);
         return new Map<string, Cs2MarketSnapshotView[]>();
       })
       : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
@@ -271,7 +285,8 @@ function buildSourceStatus(params: {
     };
     const hasLiveCoverage = coverage.itemIds.size > 0;
     const configuredDirect = configured.has(source.id.toLowerCase());
-    const officialApi: "official" | "indirect" | "unknown" = source.id === "c5game"
+    const officialDirectSources = new Set(["c5game", "marketcsgo", "waxpeer", "csfloat", "steam", "skinport", "dmarket", "bitskins"]);
+    const officialApi: "official" | "indirect" | "unknown" = officialDirectSources.has(source.id)
       ? "official"
       : source.role === "aggregator"
         ? "official"
@@ -335,7 +350,7 @@ export async function getCs2TrackerOverview(params: {
   }
 
   const configuredProviders = getConfiguredMarketProviders();
-  if (configuredProviders.includes("cs2.sh") || configuredProviders.includes("c5game") || configuredProviders.includes("cspriceapi")) {
+  if (configuredProviders.some((provider) => ["cs2.sh", "c5game", "cspriceapi", "marketcsgo", "waxpeer"].includes(provider))) {
     try {
       const liveSnapshots = await fetchConfiguredLatestSnapshots(items.slice(0, 40).map((item) => item.marketHashName));
       if (liveSnapshots.size > 0) {

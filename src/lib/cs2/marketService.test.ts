@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
+import { fetchMarketCsgoLatestItems } from "@/lib/cs2/providers/marketcsgo";
+import { fetchWaxpeerLatestItems } from "@/lib/cs2/providers/waxpeer";
 import { getCs2ItemMetadataByMarketHashName } from "@/lib/cs2/itemMetadataService";
 import { hydrateCs2ItemsFromConfiguredProviders } from "@/lib/cs2/syncService";
 import { prisma } from "@/lib/db";
@@ -36,6 +38,14 @@ vi.mock("@/lib/cs2/providers/cspriceapi", () => ({
   fetchCsPriceApiLatestItems: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock("@/lib/cs2/providers/marketcsgo", () => ({
+  fetchMarketCsgoLatestItems: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/cs2/providers/waxpeer", () => ({
+  fetchWaxpeerLatestItems: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/cs2/itemMetadataService", () => ({
   getCs2ItemMetadataByMarketHashName: vi.fn(),
 }));
@@ -54,8 +64,26 @@ describe("CS2 market service source status", () => {
     delete process.env.PRICEMPIRE_API_KEY;
     delete process.env.C5GAME_API_KEY;
     delete process.env.CSPRICEAPI_API_KEY;
+    delete process.env.MARKET_CSGO_API_KEY;
+    delete process.env.WAXPEER_API_KEY;
     vi.mocked(getCs2ItemMetadataByMarketHashName).mockResolvedValue(new Map() as never);
     vi.mocked(hydrateCs2ItemsFromConfiguredProviders).mockResolvedValue([] as never);
+  });
+
+  it("reports configured WAXPEER as a direct official source", async () => {
+    process.env.WAXPEER_API_KEY = "waxpeer-key";
+
+    const overview = await getCs2TrackerOverview({
+      ownerKey: "owner-1",
+      query: null,
+    });
+
+    expect(overview.sourceStatus.find((source) => source.id === "waxpeer")).toEqual(expect.objectContaining({
+      configured: true,
+      integration: "direct",
+      officialApi: "official",
+      note: "Direct API configured.",
+    }));
   });
 
   it("reports direct configured China sources separately from aggregator-fed anchors", async () => {
@@ -230,6 +258,99 @@ describe("CS2 market service source status", () => {
     expect(overview.sourceStatus.find((source) => source.id === "youpin")).toEqual(expect.objectContaining({
       hasLiveCoverage: true,
       itemCount: 1,
+    }));
+  });
+
+  it("merges direct Market.CSGO and WAXPEER snapshots into the overview refresh path", async () => {
+    process.env.MARKET_CSGO_API_KEY = "market-key";
+    process.env.WAXPEER_API_KEY = "waxpeer-key";
+    vi.mocked(prisma.cs2Item.findMany).mockResolvedValue([{
+      id: "ak-redline",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: "Classified",
+      exterior: "Field-Tested",
+      collection: "The Phoenix Collection",
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: null,
+        bestBidCents: null,
+        chineseAskCents: null,
+        globalAskCents: null,
+        spreadPercent: null,
+      },
+    }] as never);
+    vi.mocked(prisma.cs2WatchlistItem.findMany).mockResolvedValue([] as never);
+    vi.mocked(fetchMarketCsgoLatestItems).mockResolvedValue([{
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: null,
+      exterior: "Field-Tested",
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      snapshots: [{
+        provider: "marketcsgo",
+        marketName: "Market.CSGO",
+        marketRegion: "global",
+        askCents: 3000,
+        bidCents: null,
+        medianCents: null,
+        askVolume: 8,
+        bidVolume: null,
+        salesVolume24h: null,
+        liquidityScore: 8,
+        observedAt: new Date("2026-06-05T12:00:00.000Z"),
+      }],
+    }] as never);
+    vi.mocked(fetchWaxpeerLatestItems).mockResolvedValue([{
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: null,
+      exterior: "Field-Tested",
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      snapshots: [{
+        provider: "waxpeer",
+        marketName: "WAXPEER",
+        marketRegion: "global",
+        askCents: 2950,
+        bidCents: 2850,
+        medianCents: null,
+        askVolume: 5,
+        bidVolume: null,
+        salesVolume24h: null,
+        liquidityScore: 5,
+        observedAt: new Date("2026-06-05T12:00:00.000Z"),
+      }],
+    }] as never);
+
+    const overview = await getCs2TrackerOverview({
+      ownerKey: "owner-direct-markets",
+      query: null,
+    });
+
+    expect(overview.items[0]).toEqual(expect.objectContaining({
+      globalAskCents: 2950,
+      bestBidCents: 2850,
+    }));
+    expect(overview.sourceStatus.find((source) => source.id === "marketcsgo")).toEqual(expect.objectContaining({
+      hasLiveCoverage: true,
+      integration: "direct",
+      officialApi: "official",
+    }));
+    expect(overview.sourceStatus.find((source) => source.id === "waxpeer")).toEqual(expect.objectContaining({
+      hasLiveCoverage: true,
+      integration: "direct",
+      officialApi: "official",
     }));
   });
 

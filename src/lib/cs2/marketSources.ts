@@ -168,7 +168,7 @@ export const CS2_MARKET_SOURCES: Cs2MarketSource[] = [
     homepageUrl: "https://market.csgo.com",
     requiresApiKey: true,
     priority: 43,
-    coverage: "Market.CSGO active listing and historical sales coverage through aggregator feeds.",
+    coverage: "Direct Market.CSGO active listings, float-specific listings, and historical sales coverage.",
   },
   {
     id: "waxpeer",
@@ -178,7 +178,7 @@ export const CS2_MARKET_SOURCES: Cs2MarketSource[] = [
     homepageUrl: "https://waxpeer.com",
     requiresApiKey: true,
     priority: 42,
-    coverage: "Western marketplace listing prices available through aggregator feeds.",
+    coverage: "Direct WAXPEER latest listing prices and offer metadata by market hash name.",
   },
   {
     id: "whitemarket",
