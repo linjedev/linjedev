@@ -686,6 +686,39 @@ describe("CS2 catalog service", () => {
         spreadPercent: null,
       },
     }, {
+      id: "db-marketcsgo-gloves",
+      marketHashName: "\u2605 Sport Gloves | Pandora's Box (Field-Tested)",
+      itemType: "gloves",
+      category: "Sport Gloves",
+      rarity: "Extraordinary",
+      exterior: "Field-Tested",
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [{
+        provider: "cs2cap",
+        marketName: "Market.CSGO",
+        marketRegion: "global",
+        askCents: 630000,
+        bidCents: null,
+        medianCents: null,
+        askVolume: 1,
+        bidVolume: null,
+        salesVolume24h: null,
+        liquidityScore: 2,
+        observedAt: new Date("2026-06-05T12:00:00.000Z"),
+        sourceUrl: null,
+      }],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: {
+        bestAskCents: 630000,
+        bestBidCents: null,
+        chineseAskCents: null,
+        globalAskCents: 630000,
+        spreadPercent: null,
+      },
+    }, {
       id: "db-bitskins-sticker",
       marketHashName: "Sticker | Crown (Foil)",
       itemType: "sticker",
@@ -730,6 +763,17 @@ describe("CS2 catalog service", () => {
     expect(catalog.source).toBe("dmarket");
     expect(catalog.items).toHaveLength(1);
     expect(catalog.items[0].marketHashName).toBe("\u2605 Karambit | Doppler (Factory New)");
+
+    const marketCsgoCatalog = await getCs2Catalog({
+      source: "marketcsgo",
+      page: 1,
+      limit: 50,
+      sort: "name",
+    });
+
+    expect(marketCsgoCatalog.source).toBe("marketcsgo");
+    expect(marketCsgoCatalog.items).toHaveLength(1);
+    expect(marketCsgoCatalog.items[0].marketHashName).toBe("\u2605 Sport Gloves | Pandora's Box (Field-Tested)");
   });
 
   it("falls back to metadata search results when Skinport is unavailable", async () => {

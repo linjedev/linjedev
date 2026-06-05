@@ -1,7 +1,8 @@
 import type { Cs2MarketSource } from "@/lib/cs2/types";
 
-const CS2CAP_FALLBACK_PRICE_SOURCES = ["buff163", "buff163_buy", "youpin", "youpin_buy", "csfloat", "steam", "dmarket", "bitskins"];
-const PRICEMPIRE_FALLBACK_PRICE_SOURCES = ["buff163", "buff163_buy", "youpin", "youpin_buy", "csfloat", "steam", "dmarket", "bitskins"];
+const EXTENDED_AGGREGATOR_MARKETS = ["buffmarket", "marketcsgo", "waxpeer", "whitemarket"];
+const CS2CAP_FALLBACK_PRICE_SOURCES = ["buff163", "buff163_buy", "youpin", "youpin_buy", "csfloat", "steam", "dmarket", "bitskins", ...EXTENDED_AGGREGATOR_MARKETS];
+const PRICEMPIRE_FALLBACK_PRICE_SOURCES = ["buff163", "buff163_buy", "youpin", "youpin_buy", "csfloat", "steam", "dmarket", "bitskins", ...EXTENDED_AGGREGATOR_MARKETS];
 const CS2SH_FALLBACK_PRICE_SOURCES = ["buff", "youpin", "csfloat", "skinport", "c5game", "steam", "dmarket", "bitskins"];
 
 function parseCommaList(value: string | undefined, fallback: string[]) {
@@ -149,6 +150,46 @@ export const CS2_MARKET_SOURCES: Cs2MarketSource[] = [
     priority: 45,
     coverage: "Direct marketplace API for pricing summaries, market items, and item history.",
   },
+  {
+    id: "buffmarket",
+    name: "BUFF.Market",
+    region: "global",
+    role: "market",
+    homepageUrl: "https://buff.market",
+    requiresApiKey: true,
+    priority: 44,
+    coverage: "Non-China BUFF marketplace pricing through aggregator feeds.",
+  },
+  {
+    id: "marketcsgo",
+    name: "Market.CSGO",
+    region: "global",
+    role: "market",
+    homepageUrl: "https://market.csgo.com",
+    requiresApiKey: true,
+    priority: 43,
+    coverage: "Market.CSGO active listing and historical sales coverage through aggregator feeds.",
+  },
+  {
+    id: "waxpeer",
+    name: "WAXPEER",
+    region: "global",
+    role: "market",
+    homepageUrl: "https://waxpeer.com",
+    requiresApiKey: true,
+    priority: 42,
+    coverage: "Western marketplace listing prices available through aggregator feeds.",
+  },
+  {
+    id: "whitemarket",
+    name: "white.market",
+    region: "global",
+    role: "market",
+    homepageUrl: "https://white.market",
+    requiresApiKey: true,
+    priority: 41,
+    coverage: "white.market listing prices available through aggregator feeds.",
+  },
 ];
 
 export function getConfiguredMarketProviders() {
@@ -163,6 +204,7 @@ export function getConfiguredMarketProviders() {
     "steam",
     ...(process.env.DMARKET_API_KEY ? ["dmarket"] : []),
     ...(process.env.BITSKINS_API_KEY ? ["bitskins"] : []),
+    ...(process.env.CS2CAP_API_KEY || process.env.PRICEMPIRE_API_KEY ? EXTENDED_AGGREGATOR_MARKETS : []),
   ];
   return [...new Set(configured)];
 }

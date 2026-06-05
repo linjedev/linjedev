@@ -184,6 +184,7 @@ export type Cs2CatalogSourceFilter =
   | "dmarket"
   | "bitskins"
   | "buffmarket"
+  | "marketcsgo"
   | "waxpeer"
   | "whitemarket";
 

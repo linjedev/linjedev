@@ -106,6 +106,7 @@ export function normalizeMarketName(marketName: string) {
   if (lower === "c5" || lower === "c5game") return "C5Game";
   if (lower === "buffmarket") return "BUFF.Market";
   if (lower === "dmarket") return "DMarket";
+  if (lower === "marketcsgo") return "Market.CSGO";
   if (lower === "skinport") return "Skinport";
   if (lower === "waxpeer") return "WAXPEER";
   if (lower === "whitemarket") return "white.market";

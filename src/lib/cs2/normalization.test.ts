@@ -25,6 +25,7 @@ describe("CS2 normalization", () => {
   it("normalizes market names and Chinese market regions", () => {
     expect(normalizeMarketName("buff")).toBe("BUFF163");
     expect(normalizeMarketName("youpin")).toBe("YouPin898");
+    expect(normalizeMarketName("marketcsgo")).toBe("Market.CSGO");
     expect(inferMarketRegion("BUFF163")).toBe("china");
     expect(inferMarketRegion("CSFloat")).toBe("global");
   });
