@@ -7,6 +7,7 @@ import {
   normalizeMarketName,
 } from "@/lib/cs2/normalization";
 import type { ProviderCandleInput, ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
+import type { Cs2FloatListingView } from "@/lib/cs2/types";
 
 const MARKET_CSGO_BASE_URL = process.env.MARKET_CSGO_API_BASE ?? "https://market.csgo.com";
 const BATCH_LIMIT = 50;
@@ -27,6 +28,11 @@ function readNumber(value: unknown) {
   if (typeof value !== "string") return null;
   const parsed = Number(value.replace(/,/g, "").trim());
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readIdentifier(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return readString(value);
 }
 
 function chunkValues(values: string[], size: number) {
@@ -79,6 +85,81 @@ function chooseBestAsk(rows: Record<string, unknown>[], currency: unknown) {
     .map((row) => ({ row, askCents: rowAskCents(row, currency) }))
     .filter((entry): entry is { row: Record<string, unknown>; askCents: number } => entry.askCents !== null)
     .sort((left, right) => left.askCents - right.askCents)[0] ?? null;
+}
+
+function readObject(value: unknown) {
+  return typeof value === "object" && value !== null ? value as Record<string, unknown> : null;
+}
+
+function marketCsgoRowToFloatListing(params: {
+  row: Record<string, unknown>;
+  marketHashName: string;
+  currency: unknown;
+}) {
+  const extra = readObject(params.row.extra);
+  const listingId = readIdentifier(params.row.id) ?? `${params.marketHashName}-${readIdentifier(params.row.class) ?? "listing"}`;
+  const floatValue = readNumber(extra?.float);
+  const stickerIds = readString(extra?.stickers)?.split("|").map((value) => value.trim()).filter(Boolean) ?? [];
+
+  const listing: Cs2FloatListingView = {
+    id: `marketcsgo-${listingId}`,
+    marketHashName: readString(params.row.market_hash_name) ?? params.marketHashName,
+    itemName: null,
+    wearName: inferExterior(params.marketHashName),
+    priceCents: marketCsgoPriceToUsdCents(params.row.price, params.currency),
+    referencePriceCents: null,
+    floatValue,
+    paintSeed: null,
+    paintIndex: null,
+    floatRank: null,
+    rarity: null,
+    imageUrl: null,
+    screenshotUrl: null,
+    inspectUrl: null,
+    listingUrl: `${MARKET_CSGO_BASE_URL}/en/item/${encodeURIComponent(String(listingId))}`,
+    hasScreenshot: false,
+    stickers: stickerIds.map((id, slot) => ({
+      name: `Sticker ${id}`,
+      slot,
+      imageUrl: null,
+    })),
+  };
+
+  return listing;
+}
+
+function matchesFloatFilters(listing: Cs2FloatListingView, params: {
+  minFloat?: number | null;
+  maxFloat?: number | null;
+  paintSeed?: number | null;
+  paintIndex?: number | null;
+}) {
+  if (params.minFloat !== null && params.minFloat !== undefined && (listing.floatValue ?? 1) < params.minFloat) return false;
+  if (params.maxFloat !== null && params.maxFloat !== undefined && (listing.floatValue ?? 1) > params.maxFloat) return false;
+  if (params.paintSeed !== null && params.paintSeed !== undefined && listing.paintSeed !== params.paintSeed) return false;
+  if (params.paintIndex !== null && params.paintIndex !== undefined && listing.paintIndex !== params.paintIndex) return false;
+  return true;
+}
+
+export function marketCsgoRowsToFloatListings(params: {
+  marketHashName: string;
+  payload: Record<string, unknown>;
+  minFloat?: number | null;
+  maxFloat?: number | null;
+  paintSeed?: number | null;
+  paintIndex?: number | null;
+  limit?: number;
+}) {
+  if (params.payload.success === false) return [];
+  const currency = params.payload.currency ?? "USD";
+  return normalizeMarketCsgoRows(params.payload.data)
+    .map((row) => marketCsgoRowToFloatListing({
+      row,
+      marketHashName: params.marketHashName,
+      currency,
+    }))
+    .filter((listing) => matchesFloatFilters(listing, params))
+    .slice(0, params.limit);
 }
 
 export function flattenMarketCsgoItems(params: {
@@ -176,6 +257,30 @@ export async function fetchMarketCsgoLatestItems(params: {
   }
 
   return items;
+}
+
+export async function fetchMarketCsgoFloatListings(params: {
+  marketHashName: string;
+  minFloat?: number | null;
+  maxFloat?: number | null;
+  paintSeed?: number | null;
+  paintIndex?: number | null;
+  limit?: number;
+}) {
+  const url = new URL("/api/v2/search-item-by-hash-name-specific", MARKET_CSGO_BASE_URL);
+  url.searchParams.set("key", getApiKey());
+  url.searchParams.set("hash_name", normalizeMarketHashName(params.marketHashName));
+  url.searchParams.set("lang", "en");
+
+  const response = await fetch(url, {
+    next: { revalidate: 60 },
+  });
+  if (!response.ok) throw new Error(`Market.CSGO specific item search returned ${response.status}`);
+  const payload = await response.json() as unknown;
+  return marketCsgoRowsToFloatListings({
+    ...params,
+    payload: typeof payload === "object" && payload !== null ? payload as Record<string, unknown> : {},
+  });
 }
 
 function historyEntryToPoint(entry: unknown, currency: unknown, rubToUsdRate: number) {

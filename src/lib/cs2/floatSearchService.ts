@@ -1,4 +1,5 @@
 import { fetchCsFloatListings } from "@/lib/cs2/providers/csfloat";
+import { fetchMarketCsgoFloatListings } from "@/lib/cs2/providers/marketcsgo";
 import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
 import type { Cs2FloatListingView, Cs2FloatSearchResponse, Cs2FloatSort } from "@/lib/cs2/types";
 
@@ -123,6 +124,54 @@ function buildResponse(params: FloatSearchParams & {
   };
 }
 
+async function fetchLiveListings(params: FloatSearchParams & {
+  sort: Cs2FloatSort;
+  candidateNames: string[];
+}) {
+  const tasks: Array<Promise<Cs2FloatListingView[]>> = [];
+  const providerNames: string[] = [];
+  if (params.candidateNames.length === 0) {
+    tasks.push(fetchCsFloatListings({ ...params, sort: params.sort, limit: 20 }));
+    providerNames.push("CSFloat");
+  } else {
+    for (const marketHashName of params.candidateNames) {
+      tasks.push(fetchCsFloatListings({
+        ...params,
+        query: undefined,
+        marketHashName,
+        sort: params.sort,
+        limit: params.candidateNames.length > 1 ? 8 : 20,
+      }));
+      providerNames.push("CSFloat");
+
+      if (process.env.MARKET_CSGO_API_KEY) {
+        tasks.push(fetchMarketCsgoFloatListings({
+          marketHashName,
+          minFloat: params.minFloat,
+          maxFloat: params.maxFloat,
+          paintSeed: params.paintSeed,
+          paintIndex: params.paintIndex,
+          limit: params.candidateNames.length > 1 ? 8 : 20,
+        }));
+        providerNames.push("Market.CSGO");
+      }
+    }
+  }
+
+  const results = await Promise.allSettled(tasks);
+  const listings = dedupeListings(results
+    .filter((result): result is PromiseFulfilledResult<Cs2FloatListingView[]> => result.status === "fulfilled")
+    .flatMap((result) => result.value));
+  const failedProviders = [...new Set(results
+    .map((result, index) => result.status === "rejected" ? providerNames[index] : null)
+    .filter((provider): provider is string => provider !== null))];
+
+  return {
+    listings,
+    failedProviders,
+  };
+}
+
 export async function searchCs2FloatListings(params: FloatSearchParams): Promise<Cs2FloatSearchResponse> {
   const sort = params.sort ?? "best_deal";
   const resolvedMarketHashNames = await resolveMarketHashNames(params.query);
@@ -130,34 +179,33 @@ export async function searchCs2FloatListings(params: FloatSearchParams): Promise
     ? resolvedMarketHashNames.slice(0, 4)
     : (params.query?.trim() ? [params.query.trim()] : []);
 
-  try {
-    const listings = candidateNames.length === 0
-      ? await fetchCsFloatListings({ ...params, sort, limit: 20 })
-      : dedupeListings((await Promise.all(candidateNames.map((marketHashName) => fetchCsFloatListings({
-        ...params,
-        query: undefined,
-        marketHashName,
-        sort,
-        limit: candidateNames.length > 1 ? 8 : 20,
-      })))).flat());
+  const live = await fetchLiveListings({
+    ...params,
+    sort,
+    candidateNames,
+  });
 
+  if (live.listings.length > 0) {
     return buildResponse({
       ...params,
       sort,
       mode: "live",
-      warning: null,
+      warning: live.failedProviders.length > 0
+        ? `${live.failedProviders.join(" / ")} float listings unavailable; showing remaining live results.`
+        : null,
       resolvedMarketHashNames: candidateNames,
-      listings: sortListings(listings, sort),
-    });
-  } catch (error) {
-    console.warn("[cs2] CSFloat search unavailable; showing sample float listings.", error);
-    return buildResponse({
-      ...params,
-      sort,
-      mode: "sample",
-      warning: "CSFloat listings unavailable; showing sample float search results.",
-      resolvedMarketHashNames: candidateNames,
-      listings: sortListings(SAMPLE_FLOAT_LISTINGS.filter((listing) => matches(listing, params)), sort),
+      listings: sortListings(live.listings, sort),
     });
   }
+
+  return buildResponse({
+    ...params,
+    sort,
+    mode: "sample",
+    warning: live.failedProviders.length > 0
+      ? `${live.failedProviders.join(" / ")} float listings unavailable; showing sample float search results.`
+      : "No live float listings found; showing sample float search results.",
+    resolvedMarketHashNames: candidateNames,
+    listings: sortListings(SAMPLE_FLOAT_LISTINGS.filter((listing) => matches(listing, params)), sort),
+  });
 }
