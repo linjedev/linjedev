@@ -19,6 +19,13 @@ export type Cs2ItemMetadata = {
   exterior: string | null;
 };
 
+export type Cs2ItemMetadataCatalogResponse = {
+  items: Cs2ItemMetadata[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
 const CSGO_API_ALL_ITEMS_URL = process.env.CSGO_API_ALL_ITEMS_URL
   ?? "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/all.json";
 
@@ -96,13 +103,15 @@ function matchesMetadata(metadata: Cs2ItemMetadata, query?: string | null) {
     .every((token) => haystack.includes(token));
 }
 
-export async function getCs2ItemMetadataCatalog(params: {
-  query?: string | null;
-  itemType?: string | null;
-  limit?: number;
-  offset?: number;
-}) {
-  const index = await getCs2ItemMetadataIndex();
+function filterAndPageMetadataIndex(
+  index: Map<string, Cs2ItemMetadata>,
+  params: {
+    query?: string | null;
+    itemType?: string | null;
+    limit?: number;
+    offset?: number;
+  },
+) {
   const query = params.query;
   const itemType = params.itemType?.trim().toLowerCase() || null;
   const allItems = Array.from(index.values());
@@ -110,8 +119,36 @@ export async function getCs2ItemMetadataCatalog(params: {
     if (itemType && metadata.itemType !== itemType) return false;
     return matchesMetadata(metadata, query);
   });
+
   const sorted = filtered.sort((a, b) => a.marketHashName.localeCompare(b.marketHashName));
+  const total = sorted.length;
   const offset = params.offset ?? 0;
   const limit = params.limit ?? sorted.length;
-  return sorted.slice(offset, offset + limit);
+  const cappedOffset = Math.max(0, Math.min(offset, total));
+  return {
+    items: sorted.slice(cappedOffset, cappedOffset + Math.max(0, limit)),
+    total,
+    offset: cappedOffset,
+    limit: Math.max(0, Math.min(limit, sorted.length)),
+  };
+}
+
+export async function getCs2ItemMetadataCatalog(params: {
+  query?: string | null;
+  itemType?: string | null;
+  limit?: number;
+  offset?: number;
+}): Promise<Cs2ItemMetadata[]> {
+  const response = await getCs2ItemMetadataCatalogWithTotal(params);
+  return response.items;
+}
+
+export async function getCs2ItemMetadataCatalogWithTotal(params: {
+  query?: string | null;
+  itemType?: string | null;
+  limit?: number;
+  offset?: number;
+}): Promise<Cs2ItemMetadataCatalogResponse> {
+  const index = await getCs2ItemMetadataIndex();
+  return filterAndPageMetadataIndex(index, params);
 }

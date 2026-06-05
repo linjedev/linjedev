@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getCs2ItemMetadataByMarketHashName,
   getCs2ItemMetadataCatalog,
+  getCs2ItemMetadataCatalogWithTotal,
 } from "@/lib/cs2/itemMetadataService";
 import {
   fetchCs2CapCatalogItems,
@@ -22,6 +23,7 @@ vi.mock("@/lib/cs2/providers/skinport", () => ({
 vi.mock("@/lib/cs2/itemMetadataService", () => ({
   getCs2ItemMetadataByMarketHashName: vi.fn(),
   getCs2ItemMetadataCatalog: vi.fn(),
+  getCs2ItemMetadataCatalogWithTotal: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -61,11 +63,17 @@ describe("CS2 catalog service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(prisma.cs2Item.count).mockRejectedValue(new Error("offline") as never);
-    vi.mocked(fetchSkinportLatestItems).mockRejectedValue(new Error("skinport unavailable") as never);
-    vi.mocked(fetchCs2CapCatalogItems).mockResolvedValue([] as never);
-    vi.mocked(fetchCs2CapLatestItems).mockResolvedValue([] as never);
-    vi.mocked(getCs2ItemMetadataByMarketHashName).mockResolvedValue(new Map() as never);
-    vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([] as never);
+  vi.mocked(fetchSkinportLatestItems).mockRejectedValue(new Error("skinport unavailable") as never);
+  vi.mocked(fetchCs2CapCatalogItems).mockResolvedValue([] as never);
+  vi.mocked(fetchCs2CapLatestItems).mockResolvedValue([] as never);
+  vi.mocked(getCs2ItemMetadataByMarketHashName).mockResolvedValue(new Map() as never);
+  vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([] as never);
+  vi.mocked(getCs2ItemMetadataCatalogWithTotal).mockResolvedValue({
+    items: [],
+    total: 0,
+    offset: 0,
+    limit: 0,
+  } as never);
   });
 
   it("falls back to a paginated sample catalog when the database is unavailable", async () => {
@@ -85,6 +93,50 @@ describe("CS2 catalog service", () => {
     expect(catalog.items.every((catalogItem) => catalogItem.itemType === "sticker")).toBe(true);
     expect(catalog.facets.itemTypes.some((facet) => facet.value === "sticker")).toBe(true);
     warnSpy.mockRestore();
+  });
+
+  it("falls back to paginated metadata catalog when the database is unavailable and no query is provided", async () => {
+    const metadataRows = [
+      {
+        marketHashName: "AK-47 | Frontside Misty (Field-Tested)",
+        imageUrl: "https://community.akamai.steamstatic.com/economy/image/frontside-misty",
+        rarity: "Classified",
+        collection: "Dust 2 Collection",
+        category: "AK-47",
+        itemType: "skin",
+        exterior: "Field-Tested",
+      },
+      {
+        marketHashName: "Sticker | Gamma 2",
+        imageUrl: "https://community.akamai.steamstatic.com/economy/image/sticker-gamma2",
+        rarity: null,
+        collection: null,
+        category: "Stickers",
+        itemType: "sticker",
+        exterior: null,
+      },
+    ];
+
+    vi.mocked(getCs2ItemMetadataCatalogWithTotal).mockResolvedValue({
+      items: [metadataRows[0]] as never,
+      total: metadataRows.length,
+      offset: 0,
+      limit: 1,
+    } as never);
+
+    const catalog = await getCs2Catalog({
+      query: null,
+      page: 1,
+      limit: 1,
+      sort: "name",
+    });
+
+    expect(catalog.mode).toBe("sample");
+    expect(catalog.totalItems).toBe(2);
+    expect(catalog.warning).toContain("showing metadata market catalog");
+    expect(catalog.items.length).toBe(1);
+    expect(catalog.items[0].marketHashName).toBe("AK-47 | Frontside Misty (Field-Tested)");
+    expect(catalog.totalPages).toBe(2);
   });
 
   it("merges live provider results when DB search coverage is partial", async () => {
@@ -395,6 +447,12 @@ describe("CS2 catalog service", () => {
       exterior: "Factory New",
     };
     vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([metadataItem] as never);
+    vi.mocked(getCs2ItemMetadataCatalogWithTotal).mockResolvedValue({
+      items: [metadataItem] as never,
+      total: 1,
+      offset: 0,
+      limit: 10,
+    } as never);
     const catalog = await getCs2Catalog({
       query: "autotronic",
       page: 1,
@@ -402,7 +460,7 @@ describe("CS2 catalog service", () => {
       sort: "name",
     });
     expect(catalog.mode).toBe("sample");
-    expect(catalog.warning).toContain("metadata catalog fallback");
+    expect(catalog.warning).toContain("showing metadata market catalog.");
     expect(catalog.items).toEqual(expect.arrayContaining([
       expect.objectContaining({
         marketHashName: metadataItem.marketHashName,

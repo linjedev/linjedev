@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import {
   getCs2ItemMetadataByMarketHashName,
   getCs2ItemMetadataCatalog,
+  getCs2ItemMetadataCatalogWithTotal,
 } from "@/lib/cs2/itemMetadataService";
 import { dbItemToCs2ItemView } from "@/lib/cs2/itemView";
 import {
@@ -21,6 +22,7 @@ type CatalogParams = {
   limit?: number;
   sort?: Cs2CatalogSort;
 };
+
 
 function normalizePage(value: number | undefined) {
   return Number.isInteger(value) && value && value > 0 ? value : 1;
@@ -409,19 +411,24 @@ async function getMetadataSearchCandidates(params: CatalogParams & {
   sort: Cs2CatalogSort;
 }) {
   const query = params.query?.trim();
-  if (!query || query.length < 2) return [];
+  if (!query || query.length < 2) return { candidates: [], total: 0 };
 
-  const fetchLimit = Math.min(500, Math.max(params.page * params.limit, params.limit));
-  const metadataRows = await getCs2ItemMetadataCatalog({
+  const metadataRows = await getCs2ItemMetadataCatalogWithTotal({
     query,
     itemType: params.itemType,
-    limit: fetchLimit,
-    offset: 0,
+    limit: params.limit,
+    offset: (params.page - 1) * params.limit,
   });
-  return sortCs2CatalogItems(
-    metadataRows.map(metadataToCatalogItem).filter((item) => itemMatches(item, params)),
-    params.sort,
-  );
+
+  return {
+    candidates: sortCs2CatalogItems(
+      metadataRows.items
+        .map(metadataToCatalogItem)
+        .filter((item) => itemMatches(item, params)),
+      params.sort,
+    ),
+    total: metadataRows.total,
+  };
 }
 
 async function getMetadataSearchFallback(params: CatalogParams & {
@@ -429,14 +436,58 @@ async function getMetadataSearchFallback(params: CatalogParams & {
   limit: number;
   sort: Cs2CatalogSort;
 }) {
-  const candidates = await getMetadataSearchCandidates(params);
+  const response = await getMetadataSearchCandidates(params);
+  const candidates = response.candidates;
   if (candidates.length === 0) return null;
-  return catalogCandidatesToResponse(
-    params,
-    candidates,
-    "Database unavailable; using metadata catalog fallback for search results.",
-    "sample",
-  );
+  return buildResponse({
+    ...params,
+    mode: "sample",
+    warning: "Database unavailable; using metadata catalog fallback for search results.",
+    page,
+    limit,
+    sort: params.sort,
+    totalItems: response.total,
+    items: candidates,
+    facetItems: candidates,
+  });
+}
+
+async function getMetadataFallbackByOffset(params: CatalogParams & {
+  page: number;
+  limit: number;
+  sort: Cs2CatalogSort;
+}) {
+  const metadataRows = await getCs2ItemMetadataCatalogWithTotal({
+    query: params.query?.trim(),
+    itemType: params.itemType,
+    limit: params.limit,
+    offset: (params.page - 1) * params.limit,
+  });
+
+  return {
+    candidates: sortCs2CatalogItems(metadataRows.items.map(metadataToCatalogItem), params.sort),
+    total: metadataRows.total,
+  };
+}
+
+async function getMetadataFallback(
+  params: CatalogParams & { page: number; limit: number; sort: Cs2CatalogSort },
+  warning: string,
+) {
+  const { candidates, total } = await getMetadataFallbackByOffset(params);
+  if (total === 0) return null;
+
+  return buildResponse({
+    ...params,
+    mode: "sample",
+    warning,
+    sort: params.sort,
+    totalItems: total,
+    page: params.page,
+    limit: params.limit,
+    items: candidates,
+    facetItems: candidates,
+  });
 }
 
 async function getLiveSearchCandidates(params: CatalogParams & {
@@ -466,7 +517,8 @@ async function getLiveSearchCandidates(params: CatalogParams & {
 
   if (candidates.length === 0) {
     try {
-      appendCandidates(await getMetadataSearchCandidates(params));
+      const metadataCandidates = await getMetadataSearchCandidates(params);
+      appendCandidates(metadataCandidates.candidates);
     } catch (error) {
       console.warn("[cs2] Metadata catalog search fallback unavailable.", error);
     }
@@ -553,6 +605,15 @@ export async function getCs2Catalog(params: CatalogParams): Promise<Cs2CatalogRe
       }
     }
 
+    if (totalItems === 0) {
+      try {
+        const metadataFallback = await getMetadataFallback(params, "Database unavailable; showing metadata market catalog.");
+        if (metadataFallback) return metadataFallback;
+      } catch (metadataError) {
+        console.warn("[cs2] Metadata catalog fallback unavailable.", metadataError);
+      }
+    }
+
     if (totalItems === 0 && hasQuery) {
       try {
         const cs2CapFallback = await getCs2CapSearchFallback({
@@ -602,6 +663,17 @@ export async function getCs2Catalog(params: CatalogParams): Promise<Cs2CatalogRe
     });
   } catch (error) {
     console.warn("[cs2] Catalog database unavailable; showing sample catalog.", error);
+    try {
+      const metadataFallback = await getMetadataFallback({
+        ...params,
+        page,
+        limit,
+        sort,
+      }, "Database unavailable or CS2 schema pending; showing metadata market catalog.");
+      if (metadataFallback) return metadataFallback;
+    } catch (metadataError) {
+      console.warn("[cs2] Metadata catalog fallback unavailable.", metadataError);
+    }
     try {
       const liveFallback = await getCs2CapSearchFallback({
         ...params,
