@@ -50,6 +50,9 @@ jobs:
           mkdir -p "$HOME/bin"
           cat > "$HOME/bin/docker" <<'EOF'
           #!/usr/bin/env bash
+          if [ -n "${DOCKER_CONFIG:-}" ]; then
+            export DOCKER_CONFIG="$(wslpath -w "$DOCKER_CONFIG")"
+          fi
           exec "/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe" "$@"
           EOF
           cat > "$HOME/bin/docker-credential-desktop" <<'EOF'
