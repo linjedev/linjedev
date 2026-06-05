@@ -3,28 +3,20 @@ import path from "path";
 
 let dbUrl = process.env.DATABASE_URL;
 
+function readDatabaseUrl(fileName: string) {
+    const envPath = path.resolve(process.cwd(), fileName);
+    if (!fs.existsSync(envPath)) return null;
+    const envContent = fs.readFileSync(envPath, "utf8");
+    const match = envContent.match(/^DATABASE_URL=["']?(.*?)["']?$/m);
+    return match?.[1]?.trim() ?? null;
+}
+
 if (!dbUrl) {
     try {
-        const envLocalPath = path.resolve(process.cwd(), ".env");
-        if (fs.existsSync(envLocalPath)) {
-            const envContent = fs.readFileSync(envLocalPath, "utf8");
-            const match = envContent.match(/^DATABASE_URL=["']?(.*?)["']?$/m);
-            if (match) {
-                dbUrl = match[1].trim();
-            }
-        }
-        if (!dbUrl) {
-            const envPath = path.resolve(process.cwd(), ".env");
-            if (fs.existsSync(envPath)) {
-                const envContent = fs.readFileSync(envPath, "utf8");
-                const match = envContent.match(/^DATABASE_URL=["']?(.*?)["']?$/m);
-                if (match) {
-                    dbUrl = match[1].trim();
-                }
-            }
-        }
-    } catch (e) {
-        // Ignore
+        dbUrl = readDatabaseUrl(".env") ?? undefined;
+        dbUrl = readDatabaseUrl(".env.local") ?? dbUrl;
+    } catch {
+        // Ignore; Prisma will report a missing datasource URL.
     }
 }
 

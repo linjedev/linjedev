@@ -1,6 +1,6 @@
 {
   "name": "worldwideview",
-  "version": "2.31.9",
+  "version": "2.32.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.15.4",
@@ -23,6 +23,11 @@
     "lint": "eslint .",
     "db:reset": "npx prisma migrate reset --force",
     "db:prune": "node scripts/db-prune.mjs",
+    "cs2:sync:catalog": "node scripts/cs2-sync.mjs --mode=catalog",
+    "cs2:sync:latest": "node scripts/cs2-sync.mjs --mode=latest",
+    "cs2:sync:history": "node scripts/cs2-sync.mjs --mode=history",
+    "cs2:sync:watchlist-history": "node scripts/cs2-sync.mjs --mode=watchlist-history",
+    "cs2:sync:pipeline": "node scripts/cs2-sync.mjs --mode=pipeline",
     "edge:hash-password": "node scripts/hash-edge-password.mjs",
     "generate": "prisma generate"
   },

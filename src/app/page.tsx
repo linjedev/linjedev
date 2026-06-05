@@ -1,5 +1,5 @@
-import { LinjeSplash } from "@/components/splash/LinjeSplash";
+import { Cs2MarketTracker } from "@/components/cs2/Cs2MarketTracker";
 
 export default function Home() {
-  return <LinjeSplash />;
+  return <Cs2MarketTracker />;
 }

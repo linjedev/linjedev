@@ -22,9 +22,162 @@ model User {
   favorites      Favorite[]
   memberships    WorkspaceMember[]
   apiKeys        UserApiKey[]
+  cs2Watchlist   Cs2WatchlistItem[]
 
   @@unique([tenantId, email])
   @@map("users")
+}
+
+model Cs2Item {
+  id             String              @id @default(uuid())
+  marketHashName String              @unique
+  itemType       String
+  category       String?
+  rarity         String?
+  exterior       String?
+  collection     String?
+  imageUrl       String?
+  tradable       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  marketSnapshots Cs2MarketSnapshot[]
+  latestSnapshots Cs2MarketLatestSnapshot[]
+  priceCandles   Cs2PriceCandle[]
+  watchlistItems Cs2WatchlistItem[]
+  marketSummary  Cs2ItemMarketSummary?
+
+  @@index([itemType])
+  @@index([category])
+  @@index([updatedAt])
+  @@map("cs2_items")
+}
+
+model Cs2ItemMarketSummary {
+  id                  String   @id @default(uuid())
+  itemId              String   @unique
+  bestAskCents        Int?
+  bestBidCents        Int?
+  chineseAskCents     Int?
+  globalAskCents      Int?
+  spreadPercent       Float?
+  askVolumeTotal      Int      @default(0)
+  bidVolumeTotal      Int      @default(0)
+  salesVolume24hTotal Int      @default(0)
+  liquidityScore      Float?
+  latestObservedAt    DateTime?
+  updatedAt           DateTime @updatedAt
+  item                Cs2Item  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([bestAskCents])
+  @@index([bestBidCents])
+  @@index([chineseAskCents])
+  @@index([globalAskCents])
+  @@index([spreadPercent])
+  @@index([latestObservedAt])
+  @@map("cs2_item_market_summaries")
+}
+
+model Cs2MarketSnapshot {
+  id             String   @id @default(uuid())
+  itemId         String
+  provider       String
+  marketName     String
+  marketRegion   String
+  currency       String   @default("USD")
+  askCents       Int?
+  bidCents       Int?
+  medianCents    Int?
+  askVolume      Int?
+  bidVolume      Int?
+  salesVolume24h Int?
+  liquidityScore Float?
+  observedAt     DateTime
+  sourceUrl      String?
+  raw            Json?
+  item           Cs2Item  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([provider, marketName, observedAt])
+  @@index([itemId, observedAt])
+  @@map("cs2_market_snapshots")
+}
+
+model Cs2MarketLatestSnapshot {
+  id             String   @id @default(uuid())
+  itemId         String
+  provider       String
+  marketName     String
+  marketRegion   String
+  currency       String   @default("USD")
+  askCents       Int?
+  bidCents       Int?
+  medianCents    Int?
+  askVolume      Int?
+  bidVolume      Int?
+  salesVolume24h Int?
+  liquidityScore Float?
+  observedAt     DateTime
+  sourceUrl      String?
+  raw            Json?
+  updatedAt      DateTime @updatedAt
+  item           Cs2Item  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, provider, marketName])
+  @@index([provider, marketName])
+  @@index([marketRegion, askCents])
+  @@index([observedAt])
+  @@map("cs2_market_latest_snapshots")
+}
+
+model Cs2PriceCandle {
+  id          String   @id @default(uuid())
+  itemId      String
+  provider    String
+  marketName  String
+  interval    String
+  currency    String   @default("USD")
+  openCents   Int
+  highCents   Int
+  lowCents    Int
+  closeCents  Int
+  volume      Int?
+  startsAt    DateTime
+  item        Cs2Item  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, provider, marketName, interval, startsAt])
+  @@index([marketName, interval, startsAt])
+  @@map("cs2_price_candles")
+}
+
+model Cs2WatchlistItem {
+  id              String   @id @default(uuid())
+  ownerKey        String
+  userId          String?
+  itemId          String
+  targetBuyCents  Int?
+  targetSellCents Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  item            Cs2Item  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerKey, itemId])
+  @@index([userId])
+  @@map("cs2_watchlist_items")
+}
+
+model Cs2MarketSyncRun {
+  id             String   @id @default(uuid())
+  provider       String
+  status         String
+  itemCount      Int      @default(0)
+  snapshotCount  Int      @default(0)
+  message        String?
+  startedAt      DateTime @default(now())
+  finishedAt     DateTime?
+
+  @@index([provider, startedAt])
+  @@map("cs2_market_sync_runs")
 }
 
 model Favorite {
