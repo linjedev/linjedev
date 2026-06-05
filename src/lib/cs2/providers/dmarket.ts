@@ -95,11 +95,13 @@ export function flattenDMarketItems(payload: unknown, params: {
   limit?: number;
   observedAt?: Date;
 } = {}) {
-  const rows = typeof payload === "object" && payload !== null && Array.isArray((payload as Record<string, unknown>).objects)
-    ? (payload as Record<string, unknown>).objects
-    : Array.isArray(payload)
-      ? payload
-      : [];
+  const rows: unknown[] = (() => {
+    if (typeof payload === "object" && payload !== null) {
+      const objects = (payload as Record<string, unknown>).objects;
+      if (Array.isArray(objects)) return objects;
+    }
+    return Array.isArray(payload) ? payload : [];
+  })();
   const requested = new Set(params.marketHashNames?.map((name) => name.trim()).filter(Boolean) ?? []);
   const grouped = new Map<string, { row: Record<string, unknown>; askVolume: number; observedAt: Date; askCents: number | null }>();
   const fallbackObservedAt = params.observedAt ?? new Date();

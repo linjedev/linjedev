@@ -4,6 +4,7 @@ import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
 import { fetchCsFloatLatestItems } from "@/lib/cs2/providers/csfloat";
+import { fetchDMarketLatestItems } from "@/lib/cs2/providers/dmarket";
 import { fetchMarketCsgoLatestItems } from "@/lib/cs2/providers/marketcsgo";
 import { fetchSteamLatestItems } from "@/lib/cs2/providers/steam";
 import { fetchWaxpeerLatestItems } from "@/lib/cs2/providers/waxpeer";
@@ -49,6 +50,10 @@ vi.mock("@/lib/cs2/providers/csfloat", () => ({
   fetchCsFloatLatestItems: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock("@/lib/cs2/providers/dmarket", () => ({
+  fetchDMarketLatestItems: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/cs2/providers/marketcsgo", () => ({
   fetchMarketCsgoLatestItems: vi.fn().mockResolvedValue([]),
 }));
@@ -87,6 +92,7 @@ describe("CS2 market service source status", () => {
     vi.mocked(fetchC5GameLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchCsPriceApiLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchCsFloatLatestItems).mockResolvedValue([] as never);
+    vi.mocked(fetchDMarketLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchMarketCsgoLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchSteamLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchWaxpeerLatestItems).mockResolvedValue([] as never);
