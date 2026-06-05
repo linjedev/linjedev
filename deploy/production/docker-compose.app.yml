@@ -1,6 +1,6 @@
 services:
   wwv:
-    image: ghcr.io/silvertakana/worldwideview:latest
+    image: ghcr.io/linjedev/linjedev:latest
     pull_policy: always
     ports:
       - "3100:3000"

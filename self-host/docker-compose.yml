@@ -1,6 +1,6 @@
 services:
   wwv:
-    image: ghcr.io/silvertakana/worldwideview:latest
+    image: ghcr.io/linjedev/linjedev:latest
     ports:
       - "3000:3000"
     volumes:
