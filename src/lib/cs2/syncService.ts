@@ -3,6 +3,7 @@ import { fetchBitSkinsLatestItems } from "@/lib/cs2/providers/bitskins";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
+import { fetchCsMarketApiHistory, fetchCsMarketApiLatestItems } from "@/lib/cs2/providers/csmarketapi";
 import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
 import { fetchDMarketLatestItems } from "@/lib/cs2/providers/dmarket";
 import { fetchMarketCsgoLatestItems, fetchMarketCsgoSalesHistory } from "@/lib/cs2/providers/marketcsgo";
@@ -25,12 +26,13 @@ import {
 } from "@/lib/cs2/syncRepository";
 import {
   getConfiguredCs2CapPriceSources,
+  getConfiguredCsMarketApiMarkets,
   getConfiguredCs2ShSources,
   getConfiguredPricempirePriceSources,
 } from "@/lib/cs2/marketSources";
 
-export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "marketcsgo" | "waxpeer" | "bitskins" | "dmarket";
-export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam" | "marketcsgo";
+export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "csmarketapi" | "marketcsgo" | "waxpeer" | "bitskins" | "dmarket";
+export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam" | "marketcsgo" | "csmarketapi";
 export type Cs2CatalogProvider = "metadata" | "cs2cap";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
 
@@ -186,6 +188,33 @@ export async function hydrateCs2ItemsFromConfiguredProviders(params: {
     }
   }
 
+  if (process.env.CSMARKETAPI_API_KEY) {
+    try {
+      const items = await fetchCsMarketApiLatestItems({
+        marketHashNames,
+        markets: getConfiguredCsMarketApiMarkets(),
+      });
+      const snapshotCount = await persistProviderItems(items);
+      summaries.push({
+        provider: "csmarketapi",
+        status: "ok",
+        itemCount: items.length,
+        snapshotCount,
+        candleCount: 0,
+        message: null,
+      });
+    } catch (error) {
+      summaries.push({
+        provider: "csmarketapi",
+        status: "error",
+        itemCount: 0,
+        snapshotCount: 0,
+        candleCount: 0,
+        message: error instanceof Error ? error.message : "CSMarketAPI hydration failed",
+      });
+    }
+  }
+
   if (process.env.MARKET_CSGO_API_KEY) {
     try {
       const items = await fetchMarketCsgoLatestItems({ marketHashNames });
@@ -309,6 +338,12 @@ export async function syncCs2LatestPrices(params: {
       : params.provider === "cspriceapi"
         ? await fetchCsPriceApiLatestItems({
           marketHashNames: params.marketHashNames,
+          limit: params.limit,
+        })
+      : params.provider === "csmarketapi"
+        ? await fetchCsMarketApiLatestItems({
+          marketHashNames: params.marketHashNames ?? [],
+          markets: params.providers,
           limit: params.limit,
         })
       : params.provider === "steam"
@@ -484,6 +519,9 @@ export async function syncCs2History(params: {
     if (params.provider === "marketcsgo" && params.interval !== "1d") {
       throw new Error("Market.CSGO sales history sync currently supports daily candles.");
     }
+    if (params.provider === "csmarketapi" && params.interval !== "1d") {
+      throw new Error("CSMarketAPI sales history sync currently supports daily candles.");
+    }
 
     let candles: ProviderCandleInput[];
     if (params.provider === "cs2cap") {
@@ -509,6 +547,13 @@ export async function syncCs2History(params: {
     } else if (params.provider === "marketcsgo") {
       candles = await fetchMarketCsgoSalesHistory({
         marketHashNames: params.marketHashNames,
+      });
+    } else if (params.provider === "csmarketapi") {
+      candles = await fetchCsMarketApiHistory({
+        marketHashNames: params.marketHashNames,
+        markets: params.sources,
+        start: params.start,
+        end: params.end,
       });
     } else if (params.provider === "pricempire") {
       const providerSources = getConfiguredPricempirePriceSources();
@@ -778,6 +823,15 @@ export async function syncCs2MarketPipeline(params: {
       runs.push(await syncCs2LatestPrices({
         provider: "pricempire",
         providers: sources,
+        limit: params.latestLimit,
+      }));
+    }
+
+    if (process.env.CSMARKETAPI_API_KEY && exactItemNames.length > 0) {
+      runs.push(await syncCs2LatestPrices({
+        provider: "csmarketapi",
+        marketHashNames: exactItemNames,
+        providers: getConfiguredCsMarketApiMarkets(),
         limit: params.latestLimit,
       }));
     }

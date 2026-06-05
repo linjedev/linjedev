@@ -4,6 +4,7 @@ const EXTENDED_AGGREGATOR_MARKETS = ["buffmarket", "marketcsgo", "waxpeer", "whi
 const CS2CAP_FALLBACK_PRICE_SOURCES = ["buff163", "buff163_buy", "youpin", "youpin_buy", "csfloat", "steam", "dmarket", "bitskins", ...EXTENDED_AGGREGATOR_MARKETS];
 const PRICEMPIRE_FALLBACK_PRICE_SOURCES = ["buff163", "buff163_buy", "youpin", "youpin_buy", "csfloat", "steam", "dmarket", "bitskins", ...EXTENDED_AGGREGATOR_MARKETS];
 const CS2SH_FALLBACK_PRICE_SOURCES = ["buff", "youpin", "csfloat", "skinport", "c5game", "steam", "dmarket", "bitskins"];
+const CSMARKETAPI_FALLBACK_MARKETS = ["STEAMCOMMUNITY", "BUFFMARKET", "SKINPORT", "MARKETCSGO", "DMARKET", "CSFLOAT", "WHITEMARKET"];
 
 function parseCommaList(value: string | undefined, fallback: string[]) {
   if (!value) return fallback;
@@ -99,6 +100,16 @@ export const CS2_MARKET_SOURCES: Cs2MarketSource[] = [
     requiresApiKey: true,
     priority: 88,
     coverage: "Unified API across 40+ marketplaces including BUFF163, YouPin, Steam, CSFloat, DMarket, and Skinport.",
+  },
+  {
+    id: "csmarketapi",
+    name: "CSMarketAPI",
+    region: "global",
+    role: "aggregator",
+    homepageUrl: "https://api.csmarketapi.com/docs",
+    requiresApiKey: true,
+    priority: 86,
+    coverage: "Real-time aggregate listings and daily historical sales across Steam, BUFF.Market, Skinport, CSFloat, DMarket, white.market, and other supported markets.",
   },
   {
     id: "csfloat",
@@ -197,6 +208,7 @@ export function getConfiguredMarketProviders() {
     "skinport",
     ...(process.env.CS2SH_API_KEY ? ["cs2.sh"] : []),
     ...(process.env.CS2CAP_API_KEY ? ["cs2cap"] : []),
+    ...(process.env.CSMARKETAPI_API_KEY ? ["csmarketapi"] : []),
     ...(process.env.PRICEMPIRE_API_KEY ? ["pricempire"] : []),
     ...(process.env.CSPRICEAPI_API_KEY ? ["cspriceapi"] : []),
     ...(process.env.C5GAME_API_KEY ? ["c5game"] : []),
@@ -217,6 +229,12 @@ export function getConfiguredCs2CapPriceSources() {
 
 export function getConfiguredPricempirePriceSources() {
   return uniqLower(parseCommaList(process.env.PRICEMPIRE_PRICE_SOURCES, PRICEMPIRE_FALLBACK_PRICE_SOURCES));
+}
+
+export function getConfiguredCsMarketApiMarkets() {
+  return parseCommaList(process.env.CSMARKETAPI_MARKETS, CSMARKETAPI_FALLBACK_MARKETS)
+    .map((entry) => entry.trim().toUpperCase())
+    .filter(Boolean);
 }
 
 export function getConfiguredCs2ShSources() {

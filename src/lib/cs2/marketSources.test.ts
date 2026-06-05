@@ -50,6 +50,21 @@ describe("CS2 market source configuration", () => {
     }
   });
 
+  it("surfaces CSMarketAPI when the aggregator API key is configured", () => {
+    const previous = process.env.CSMARKETAPI_API_KEY;
+    process.env.CSMARKETAPI_API_KEY = "csmarketapi-key";
+
+    expect(getConfiguredMarketProviders()).toEqual(expect.arrayContaining([
+      "csmarketapi",
+    ]));
+
+    if (previous === undefined) {
+      delete process.env.CSMARKETAPI_API_KEY;
+    } else {
+      process.env.CSMARKETAPI_API_KEY = previous;
+    }
+  });
+
   it("surfaces WAXPEER when the direct API key is configured", () => {
     const previous = process.env.WAXPEER_API_KEY;
     process.env.WAXPEER_API_KEY = "waxpeer-key";

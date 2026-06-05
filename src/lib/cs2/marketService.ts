@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/db";
 import { buildCs2MarketAnalysis } from "@/lib/cs2/analysisService";
-import { CS2_MARKET_SOURCES, getConfiguredMarketProviders } from "@/lib/cs2/marketSources";
+import { CS2_MARKET_SOURCES, getConfiguredCsMarketApiMarkets, getConfiguredMarketProviders } from "@/lib/cs2/marketSources";
 import { calculateCs2DerivedPrices, dbItemToCs2ItemView } from "@/lib/cs2/itemView";
 import { fetchBitSkinsLatestItems } from "@/lib/cs2/providers/bitskins";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
+import { fetchCsMarketApiLatestItems } from "@/lib/cs2/providers/csmarketapi";
 import { fetchCsFloatLatestItems } from "@/lib/cs2/providers/csfloat";
 import { fetchDMarketLatestItems } from "@/lib/cs2/providers/dmarket";
 import { fetchMarketCsgoLatestItems } from "@/lib/cs2/providers/marketcsgo";
@@ -120,6 +121,12 @@ async function fetchConfiguredLatestSnapshots(marketHashNames: string[]): Promis
     process.env.CSPRICEAPI_API_KEY
       ? fetchCsPriceApiLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
         console.warn("[cs2] CSPriceAPI overview refresh failed.", error);
+        return new Map<string, Cs2MarketSnapshotView[]>();
+      })
+      : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
+    process.env.CSMARKETAPI_API_KEY
+      ? fetchCsMarketApiLatestItems({ marketHashNames, markets: getConfiguredCsMarketApiMarkets() }).then(providerItemsToSnapshotMap).catch((error) => {
+        console.warn("[cs2] CSMarketAPI overview refresh failed.", error);
         return new Map<string, Cs2MarketSnapshotView[]>();
       })
       : Promise.resolve(new Map<string, Cs2MarketSnapshotView[]>()),
@@ -372,7 +379,7 @@ export async function getCs2TrackerOverview(params: {
   }
 
   const configuredProviders = getConfiguredMarketProviders();
-  if (configuredProviders.some((provider) => ["cs2.sh", "c5game", "cspriceapi", "marketcsgo", "waxpeer", "steam", "csfloat", "bitskins", "dmarket"].includes(provider))) {
+  if (configuredProviders.some((provider) => ["cs2.sh", "c5game", "cspriceapi", "csmarketapi", "marketcsgo", "waxpeer", "steam", "csfloat", "bitskins", "dmarket"].includes(provider))) {
     try {
       const liveSnapshots = await fetchConfiguredLatestSnapshots(items.slice(0, 40).map((item) => item.marketHashName));
       if (liveSnapshots.size > 0) {

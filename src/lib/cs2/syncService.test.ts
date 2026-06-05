@@ -4,6 +4,7 @@ import { fetchCs2CapCandles, fetchCs2CapCatalogItems, fetchCs2CapLatestItems } f
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
+import { fetchCsMarketApiHistory, fetchCsMarketApiLatestItems } from "@/lib/cs2/providers/csmarketapi";
 import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
 import { fetchDMarketLatestItems } from "@/lib/cs2/providers/dmarket";
 import { fetchMarketCsgoLatestItems, fetchMarketCsgoSalesHistory } from "@/lib/cs2/providers/marketcsgo";
@@ -36,6 +37,11 @@ vi.mock("@/lib/cs2/providers/cspriceapi", () => ({
 vi.mock("@/lib/cs2/providers/cs2sh", () => ({
   fetchCs2ShHistory: vi.fn(),
   fetchCs2ShLatestItems: vi.fn(),
+}));
+
+vi.mock("@/lib/cs2/providers/csmarketapi", () => ({
+  fetchCsMarketApiHistory: vi.fn(),
+  fetchCsMarketApiLatestItems: vi.fn(),
 }));
 
 vi.mock("@/lib/cs2/providers/csfloat", () => ({
@@ -94,9 +100,12 @@ describe("CS2 sync service hydration", () => {
     delete process.env.PRICEMPIRE_API_KEY;
     delete process.env.C5GAME_API_KEY;
     delete process.env.CSPRICEAPI_API_KEY;
+    delete process.env.CSMARKETAPI_API_KEY;
     delete process.env.MARKET_CSGO_API_KEY;
     delete process.env.WAXPEER_API_KEY;
     vi.mocked(fetchBitSkinsLatestItems).mockResolvedValue([] as never);
+    vi.mocked(fetchCsMarketApiHistory).mockResolvedValue([] as never);
+    vi.mocked(fetchCsMarketApiLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchDMarketLatestItems).mockResolvedValue([] as never);
     vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([] as never);
     vi.mocked(getCs2MissingChinesePriceMarketHashNames).mockResolvedValue([] as never);
