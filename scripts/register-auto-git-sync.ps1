@@ -8,6 +8,8 @@ $ErrorActionPreference = "Stop"
 
 $syncScript = Join-Path $RepositoryPath "scripts/auto-git-sync.ps1"
 $startTime = (Get-Date).AddMinutes(1)
+$taskCommand = if (Get-Command "pwsh.exe" -ErrorAction SilentlyContinue) { "pwsh.exe" } else { "powershell.exe" }
+
 $trigger = New-ScheduledTaskTrigger `
   -Once `
   -At $startTime `
@@ -15,7 +17,7 @@ $trigger = New-ScheduledTaskTrigger `
   -RepetitionDuration (New-TimeSpan -Days 3650)
 
 $action = New-ScheduledTaskAction `
-  -Execute "pwsh.exe" `
+  -Execute $taskCommand `
   -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$syncScript`""
 
 $principal = New-ScheduledTaskPrincipal `
@@ -30,9 +32,11 @@ try {
     -Action $action `
     -Principal $principal `
     -Description "Auto commit and push repository changes every $IntervalMinutes minutes." `
+    -ErrorAction Stop `
     -Force | Out-Null
 
   Write-Output "Task '$TaskName' registered for this user at interval $IntervalMinutes minutes."
+  Write-Output "Action: $($syncScript)"
   return
 }
 catch {
