@@ -197,27 +197,33 @@ describe("CS2 sync repository", () => {
     }]);
   });
 
-  it("selects catalog items missing or stale Chinese prices for exact-provider backfill", async () => {
+  it("selects catalog items missing or stale Chinese prices for cursor backfill", async () => {
     vi.mocked(prisma.cs2Item.findMany).mockResolvedValue([
       { marketHashName: "AK-47 | Redline (Field-Tested)" },
       { marketHashName: "Sticker | Crown (Foil)" },
     ] as never);
 
-    const names = await getCs2MissingChinesePriceMarketHashNames({ limit: 25, staleAfterHours: 24 });
+    const names = await getCs2MissingChinesePriceMarketHashNames({
+      limit: 25,
+      staleAfterHours: 24,
+      afterMarketHashName: "AK-47 | Asiimov (Field-Tested)",
+    });
 
     expect(prisma.cs2Item.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
-        OR: [
-          { marketSummary: { is: null } },
-          { marketSummary: { is: { chineseAskCents: null } } },
-          { marketSummary: { is: { latestObservedAt: { lt: expect.any(Date) } } } },
+        AND: [
+          { marketHashName: { gt: "AK-47 | Asiimov (Field-Tested)" } },
+          {
+            OR: [
+              { marketSummary: { is: null } },
+              { marketSummary: { is: { chineseAskCents: null } } },
+              { marketSummary: { is: { latestObservedAt: { lt: expect.any(Date) } } } },
+            ],
+          },
         ],
       },
       select: { marketHashName: true },
-      orderBy: [
-        { marketSummary: { latestObservedAt: "asc" } },
-        { updatedAt: "asc" },
-      ],
+      orderBy: { marketHashName: "asc" },
       take: 25,
     }));
     expect(names).toEqual([
@@ -226,22 +232,31 @@ describe("CS2 sync repository", () => {
     ]);
   });
 
-  it("selects catalog items missing or stale history candles for backfill", async () => {
+  it("selects catalog items missing or stale history candles for cursor backfill", async () => {
     vi.mocked(prisma.cs2Item.findMany).mockResolvedValue([
       { marketHashName: "M4A4 | Poseidon (Factory New)" },
     ] as never);
 
-    const names = await getCs2MissingHistoryMarketHashNames({ limit: 40, staleAfterDays: 14 });
+    const names = await getCs2MissingHistoryMarketHashNames({
+      limit: 40,
+      staleAfterDays: 14,
+      afterMarketHashName: "M4A1-S | Hot Rod (Factory New)",
+    });
 
     expect(prisma.cs2Item.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
-        OR: [
-          { priceCandles: { none: {} } },
-          { priceCandles: { every: { startsAt: { lt: expect.any(Date) } } } },
+        AND: [
+          { marketHashName: { gt: "M4A1-S | Hot Rod (Factory New)" } },
+          {
+            OR: [
+              { priceCandles: { none: {} } },
+              { priceCandles: { every: { startsAt: { lt: expect.any(Date) } } } },
+            ],
+          },
         ],
       },
       select: { marketHashName: true },
-      orderBy: { updatedAt: "asc" },
+      orderBy: { marketHashName: "asc" },
       take: 40,
     }));
     expect(names).toEqual(["M4A4 | Poseidon (Factory New)"]);

@@ -58,6 +58,13 @@ export type Cs2ItemView = {
   candles: Cs2PriceCandleView[];
 };
 
+export type Cs2ItemHistoryResponse = {
+  generatedAt: string;
+  mode: "live" | "sample";
+  warning: string | null;
+  item: Cs2ItemView | null;
+};
+
 export type Cs2WatchlistEntryView = {
   id: string;
   itemId: string;
@@ -303,6 +310,7 @@ export type Cs2SyncStatus = {
     status: "running" | "ok" | "error";
     itemCount: number;
     snapshotCount: number;
+    candleCount: number;
     message: string | null;
     startedAt: string;
     finishedAt: string | null;

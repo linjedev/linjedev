@@ -173,3 +173,91 @@ export async function getCs2DatabaseMarketAnalysis(ownerKey: string): Promise<Cs
     return buildCs2MarketAnalysis(SAMPLE_CS2_ITEMS, sampleWatchlist(ownerKey));
   }
 }
+
+export function buildCs2AnalysisExportRows(analysis: Cs2MarketAnalysis) {
+  return [
+    ...analysis.opportunities.map((opportunity) => ({
+      rowType: "opportunity",
+      marketHashName: opportunity.marketHashName,
+      itemType: opportunity.itemType,
+      signal: "china-spread",
+      severity: opportunity.spreadPercent <= -10 ? "critical" : "info",
+      provider: "",
+      marketName: `${opportunity.bestChineseMarket} -> ${opportunity.bestGlobalMarket}`,
+      chineseAskCents: opportunity.chineseAskCents,
+      globalAskCents: opportunity.globalAskCents,
+      spreadPercent: opportunity.spreadPercent,
+      analysisScore: opportunity.analysisScore,
+      changePercent: null,
+      volatilityPercent: null,
+      liquidityScore: opportunity.liquidityScore,
+      volume: opportunity.askVolume,
+    })),
+    ...analysis.trendSignals.map((signal) => ({
+      rowType: "trend",
+      marketHashName: signal.marketHashName,
+      itemType: "",
+      signal: signal.signal,
+      severity: signal.severity,
+      provider: signal.provider,
+      marketName: signal.marketName,
+      chineseAskCents: null,
+      globalAskCents: null,
+      spreadPercent: null,
+      analysisScore: null,
+      changePercent: signal.changePercent,
+      volatilityPercent: signal.volatilityPercent,
+      liquidityScore: null,
+      volume: signal.totalVolume,
+    })),
+    ...analysis.watchlistSignals.map((signal) => ({
+      rowType: "watchlist",
+      marketHashName: signal.marketHashName,
+      itemType: "",
+      signal: signal.signal,
+      severity: signal.severity,
+      provider: "",
+      marketName: "",
+      chineseAskCents: null,
+      globalAskCents: null,
+      spreadPercent: null,
+      analysisScore: null,
+      changePercent: null,
+      volatilityPercent: null,
+      liquidityScore: null,
+      volume: null,
+    })),
+  ];
+}
+
+function csvEscape(value: unknown) {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll("\"", "\"\"")}"` : text;
+}
+
+export function buildCs2AnalysisCsv(analysis: Cs2MarketAnalysis) {
+  const rows = buildCs2AnalysisExportRows(analysis);
+  const headers = [
+    "rowType",
+    "marketHashName",
+    "itemType",
+    "signal",
+    "severity",
+    "provider",
+    "marketName",
+    "chineseAskCents",
+    "globalAskCents",
+    "spreadPercent",
+    "analysisScore",
+    "changePercent",
+    "volatilityPercent",
+    "liquidityScore",
+    "volume",
+  ] as const;
+
+  return [
+    headers.join(","),
+    ...rows.map((row) => headers.map((header) => csvEscape(row[header])).join(",")),
+  ].join("\n");
+}

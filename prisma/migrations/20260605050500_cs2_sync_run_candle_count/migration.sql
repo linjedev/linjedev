@@ -1,0 +1,2 @@
+ALTER TABLE "cs2_market_sync_runs"
+  ADD COLUMN IF NOT EXISTS "candleCount" INTEGER NOT NULL DEFAULT 0;

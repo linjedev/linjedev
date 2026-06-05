@@ -16,7 +16,7 @@ import { Cs2ItemDetail } from "@/components/cs2/Cs2ItemDetail";
 import { Cs2MarketTable } from "@/components/cs2/Cs2MarketTable";
 import { Cs2Sidebar } from "@/components/cs2/Cs2Sidebar";
 import { formatPercent } from "@/lib/cs2/format";
-import type { Cs2CatalogCoverageFilter, Cs2CatalogMarketFocus, Cs2CatalogResponse, Cs2CatalogSort, Cs2CatalogSourceFilter, Cs2ItemView, Cs2TrackerOverview, Cs2WatchlistEntryView } from "@/lib/cs2/types";
+import type { Cs2CatalogCoverageFilter, Cs2CatalogMarketFocus, Cs2CatalogResponse, Cs2CatalogSort, Cs2CatalogSourceFilter, Cs2ItemHistoryResponse, Cs2ItemView, Cs2TrackerOverview, Cs2WatchlistEntryView } from "@/lib/cs2/types";
 import styles from "./Cs2MarketTracker.module.css";
 
 const OWNER_KEY_STORAGE = "linje-cs2-watch-owner";
@@ -123,16 +123,21 @@ export function Cs2MarketTracker() {
   const [ownerKey] = useState(() => getOwnerKey());
   const [loading, setLoading] = useState(true);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [historyItem, setHistoryItem] = useState<Cs2ItemView | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyWarning, setHistoryWarning] = useState<string | null>(null);
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchNonce, setSearchNonce] = useState(0);
   const overviewRequestId = useRef(0);
   const catalogRequestId = useRef(0);
+  const historyRequestId = useRef(0);
   const catalogItems = catalog?.items ?? overview?.items ?? [];
 
   const selectedItem = useMemo(() => {
     return catalogItems.find((item) => item.id === selectedItemId) ?? catalogItems[0] ?? null;
   }, [catalogItems, selectedItemId]);
+  const detailItem = historyItem?.marketHashName === selectedItem?.marketHashName ? historyItem : selectedItem;
 
   async function loadOverview(nextQuery = query) {
     const requestId = ++overviewRequestId.current;
@@ -350,6 +355,34 @@ export function Cs2MarketTracker() {
     }
   }
 
+  async function loadSelectedItemHistory(item: Cs2ItemView) {
+    const requestId = ++historyRequestId.current;
+    setHistoryLoading(true);
+    setHistoryWarning(null);
+    try {
+      const params = new URLSearchParams({
+        marketHashName: item.marketHashName,
+        snapshotLimit: "500",
+        candleLimit: "1000",
+      });
+      const response = await fetch(`/api/cs2/history?${params.toString()}`);
+      if (!response.ok) throw new Error(`History request failed with ${response.status}`);
+      const payload = await response.json() as Cs2ItemHistoryResponse;
+      if (requestId !== historyRequestId.current) return;
+      setHistoryItem(payload.item);
+      setHistoryWarning(payload.warning);
+    } catch (requestError) {
+      if (requestId === historyRequestId.current) {
+        setHistoryItem(null);
+        setHistoryWarning(requestError instanceof Error ? requestError.message : "Unable to load item history");
+      }
+    } finally {
+      if (requestId === historyRequestId.current) {
+        setHistoryLoading(false);
+      }
+    }
+  }
+
   useEffect(() => {
     if (!ownerKey) return;
     void loadOverview(query);
@@ -363,6 +396,15 @@ export function Cs2MarketTracker() {
       nextSort: catalogSort,
     });
   }, [ownerKey, query, itemType, coverage, marketFocus, source, catalogPage, catalogSort, searchNonce]);
+
+  useEffect(() => {
+    if (!selectedItem) {
+      setHistoryItem(null);
+      setHistoryWarning(null);
+      return;
+    }
+    void loadSelectedItemHistory(selectedItem);
+  }, [selectedItem?.marketHashName]);
 
   return (
     <main className={styles.shell}>
@@ -474,7 +516,7 @@ export function Cs2MarketTracker() {
         />
 
         <aside className={styles.detailPane} aria-label="Selected market detail">
-          <Cs2ItemDetail item={selectedItem} />
+          <Cs2ItemDetail item={detailItem} historyLoading={historyLoading} historyWarning={historyWarning} />
         </aside>
       </section>
 

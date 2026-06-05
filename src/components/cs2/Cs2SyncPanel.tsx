@@ -9,7 +9,7 @@ type Cs2SyncPanelProps = {
   ownerKey: string;
 };
 
-type SyncAction = "pipeline" | "watchlist-history" | "history-gaps";
+type SyncAction = "pipeline" | "watchlist-history" | "history-gaps" | "sweep-latest" | "sweep-history";
 
 const EMPTY_STATUS: Cs2SyncStatus = {
   generatedAt: "",
@@ -42,6 +42,7 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [historyProvider, setHistoryProvider] = useState<"cs2.sh" | "cs2cap" | "pricempire">("cs2.sh");
   const [lookback, setLookback] = useState<"7d" | "30d" | "90d">("30d");
+  const [sweepBatches, setSweepBatches] = useState<"2" | "5" | "10">("5");
 
   function historySourcesFor(provider: "cs2.sh" | "cs2cap" | "pricempire") {
     if (provider === "cs2.sh") return ["buff", "youpin", "c5game"];
@@ -83,6 +84,24 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
           historyInterval: "1d",
           watchlistLimit: 50,
         }
+        : action === "sweep-latest"
+          ? {
+            mode: "sweep",
+            target: "latest-china",
+            maxBatches: Number(sweepBatches),
+            latestLimit: 50,
+          }
+          : action === "sweep-history"
+            ? {
+              mode: "sweep",
+              target: "history-gaps",
+              maxBatches: Number(sweepBatches),
+              historyProvider,
+              historySources: historySourcesFor(historyProvider),
+              historyLookback: lookback,
+              historyInterval: "1d",
+              historyLimit: 50,
+            }
         : action === "history-gaps"
           ? {
             mode: "history-gaps",
@@ -108,11 +127,20 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
         },
         body: JSON.stringify(body),
       });
-      const payload = await response.json() as { message?: string; status?: string };
+      const payload = await response.json() as { message?: string; status?: string; nextCursor?: string | null; itemCount?: number; snapshotCount?: number; candleCount?: number };
       if (!response.ok) {
         throw new Error(payload.message ?? `Sync request failed with ${response.status}`);
       }
-      setMessage(action === "pipeline" ? "Pipeline sync started." : action === "history-gaps" ? "History gap sync started." : "Watchlist history sync started.");
+      const baseMessage = action === "pipeline"
+        ? "Pipeline sync finished."
+        : action === "history-gaps"
+          ? "History gap sync finished."
+          : action === "sweep-latest"
+            ? `China sweep finished: ${payload.itemCount ?? 0} items.`
+            : action === "sweep-history"
+              ? `History sweep finished: ${payload.candleCount ?? 0} candles.`
+              : "Watchlist history sync finished.";
+      setMessage(payload.nextCursor ? `${baseMessage} Next cursor: ${payload.nextCursor}` : baseMessage);
       await loadStatus();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Sync request failed.");
@@ -165,6 +193,14 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
               <option value="90d">90d</option>
             </select>
           </label>
+          <label>
+            <span>Sweep batches</span>
+            <select value={sweepBatches} onChange={(event) => setSweepBatches(event.target.value as "2" | "5" | "10")}>
+              <option value="2">2</option>
+              <option value="5">5</option>
+              <option value="10">10</option>
+            </select>
+          </label>
         </div>
         <button
           className={styles.syncButton}
@@ -193,6 +229,24 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
           <History size={14} />
           Gap history
         </button>
+        <button
+          className={styles.syncButton}
+          type="button"
+          onClick={() => void triggerSync("sweep-latest")}
+          disabled={busyAction !== null}
+        >
+          <RefreshCw size={14} />
+          Sweep CN
+        </button>
+        <button
+          className={styles.syncButton}
+          type="button"
+          onClick={() => void triggerSync("sweep-history")}
+          disabled={busyAction !== null}
+        >
+          <History size={14} />
+          Sweep history
+        </button>
       </div>
 
       <div className={styles.syncMeta}>
@@ -214,7 +268,7 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
           <div className={styles.syncRun} key={run.id}>
             <span>
               <strong>{run.provider}</strong>
-              <small>{run.itemCount} items / {run.snapshotCount} snapshots</small>
+              <small>{run.itemCount} items / {run.snapshotCount} snapshots / {run.candleCount} candles</small>
             </span>
             <b data-state={run.status}>{run.status}</b>
           </div>

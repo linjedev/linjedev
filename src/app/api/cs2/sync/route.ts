@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { syncCs2Catalog, syncCs2History, syncCs2LatestPrices, syncCs2MarketPipeline, syncCs2MissingHistory, syncCs2WatchlistHistory } from "@/lib/cs2/syncService";
+import { syncCs2Catalog, syncCs2GapSweep, syncCs2History, syncCs2LatestPrices, syncCs2MarketPipeline, syncCs2MissingHistory, syncCs2WatchlistHistory } from "@/lib/cs2/syncService";
 
 const cs2HistorySourceEnum = z.enum([
   "buff",
@@ -120,6 +120,7 @@ const historyGapsSchema = z.object({
   interval: z.enum(["5m", "30m", "1h", "1d"]).default("1d"),
   fill: z.boolean().optional(),
   limit: z.number().int().positive().max(250).optional(),
+  afterMarketHashName: z.string().min(2).optional(),
 }).superRefine((payload, context) => {
   if (payload.provider === "cs2.sh" && (!payload.start || !payload.end)) {
     context.addIssue({
@@ -172,6 +173,7 @@ const pipelineSchema = z.object({
   historyInterval: z.enum(["5m", "30m", "1h", "1d"]).default("1d"),
   historyFill: z.boolean().optional(),
   watchlistLimit: z.number().int().positive().max(250).optional(),
+  latestAfterMarketHashName: z.string().min(2).optional(),
 }).superRefine((payload, context) => {
   if (payload.includeWatchlistHistory && payload.historyProvider === "cs2.sh" && (!payload.historyStart || !payload.historyEnd)) {
     context.addIssue({
@@ -196,7 +198,46 @@ const pipelineSchema = z.object({
   }
 });
 
-const syncSchema = z.discriminatedUnion("mode", [latestSchema, catalogSchema, historySchema, watchlistHistorySchema, historyGapsSchema, pipelineSchema]);
+const sweepSchema = z.object({
+  mode: z.literal("sweep"),
+  target: z.enum(["latest-china", "history-gaps"]).default("latest-china"),
+  maxBatches: z.number().int().positive().max(20).optional(),
+  startAfterMarketHashName: z.string().min(2).optional(),
+  latestLimit: z.number().int().positive().max(250).optional(),
+  historyProvider: z.enum(["cs2.sh", "cs2cap", "pricempire"]).optional(),
+  historySources: z.array(cs2HistorySourceEnum).min(1).optional(),
+  historyStart: z.string().min(8).optional(),
+  historyEnd: z.string().min(8).optional(),
+  historyLookback: z.string().min(1).optional(),
+  historyInterval: z.enum(["5m", "30m", "1h", "1d"]).default("1d"),
+  historyFill: z.boolean().optional(),
+  historyLimit: z.number().int().positive().max(250).optional(),
+  staleAfterDays: z.number().int().positive().max(365).optional(),
+}).superRefine((payload, context) => {
+  if (payload.target === "history-gaps" && payload.historyProvider === "cs2.sh" && (!payload.historyStart || !payload.historyEnd)) {
+    context.addIssue({
+      code: "custom",
+      message: "historyStart and historyEnd are required for cs2.sh history sweep",
+      path: ["historyStart"],
+    });
+  }
+  if (payload.target === "history-gaps" && payload.historyProvider === "cs2cap" && payload.historyInterval === "30m") {
+    context.addIssue({
+      code: "custom",
+      message: "CS2Cap candles support 5m, 1h, and 1d intervals",
+      path: ["historyInterval"],
+    });
+  }
+  if (payload.target === "history-gaps" && payload.historyProvider === "pricempire" && payload.historyInterval !== "1d") {
+    context.addIssue({
+      code: "custom",
+      message: "Pricempire history sync currently supports daily candles",
+      path: ["historyInterval"],
+    });
+  }
+});
+
+const syncSchema = z.discriminatedUnion("mode", [latestSchema, catalogSchema, historySchema, watchlistHistorySchema, historyGapsSchema, pipelineSchema, sweepSchema]);
 
 function readOwnerKey(request: Request, bodyOwnerKey?: string) {
   return bodyOwnerKey?.trim()
@@ -244,6 +285,11 @@ export async function POST(request: Request) {
       ...parsed.data,
       ownerKey: readOwnerKey(request, parsed.data.ownerKey),
     });
+    return NextResponse.json(summary, { status: summary.status === "ok" ? 200 : 502 });
+  }
+
+  if (parsed.data.mode === "sweep") {
+    const summary = await syncCs2GapSweep(parsed.data);
     return NextResponse.json(summary, { status: summary.status === "ok" ? 200 : 502 });
   }
 

@@ -106,6 +106,7 @@ export async function finishCs2SyncRun(params: {
   status: "ok" | "error";
   itemCount: number;
   snapshotCount: number;
+  candleCount?: number;
   message?: string | null;
 }) {
   if (!params.id) return;
@@ -115,6 +116,7 @@ export async function finishCs2SyncRun(params: {
       status: params.status,
       itemCount: params.itemCount,
       snapshotCount: params.snapshotCount,
+      candleCount: params.candleCount ?? 0,
       message: params.message,
       finishedAt: new Date(),
     },
@@ -313,21 +315,24 @@ export async function getCs2WatchlistMarketHashNames(params: {
 export async function getCs2MissingChinesePriceMarketHashNames(params: {
   limit?: number;
   staleAfterHours?: number;
+  afterMarketHashName?: string;
 }) {
   const staleBefore = new Date(Date.now() - Math.max(1, params.staleAfterHours ?? 12) * 60 * 60 * 1000);
   const rows = await prisma.cs2Item.findMany({
     where: {
-      OR: [
-        { marketSummary: { is: null } },
-        { marketSummary: { is: { chineseAskCents: null } } },
-        { marketSummary: { is: { latestObservedAt: { lt: staleBefore } } } },
+      AND: [
+        params.afterMarketHashName ? { marketHashName: { gt: params.afterMarketHashName } } : {},
+        {
+          OR: [
+            { marketSummary: { is: null } },
+            { marketSummary: { is: { chineseAskCents: null } } },
+            { marketSummary: { is: { latestObservedAt: { lt: staleBefore } } } },
+          ],
+        },
       ],
     },
     select: { marketHashName: true },
-    orderBy: [
-      { marketSummary: { latestObservedAt: "asc" } },
-      { updatedAt: "asc" },
-    ],
+    orderBy: { marketHashName: "asc" },
     take: Math.min(250, Math.max(1, params.limit ?? 100)),
   });
 
@@ -337,17 +342,23 @@ export async function getCs2MissingChinesePriceMarketHashNames(params: {
 export async function getCs2MissingHistoryMarketHashNames(params: {
   limit?: number;
   staleAfterDays?: number;
+  afterMarketHashName?: string;
 }) {
   const staleBefore = new Date(Date.now() - Math.max(1, params.staleAfterDays ?? 7) * 24 * 60 * 60 * 1000);
   const rows = await prisma.cs2Item.findMany({
     where: {
-      OR: [
-        { priceCandles: { none: {} } },
-        { priceCandles: { every: { startsAt: { lt: staleBefore } } } },
+      AND: [
+        params.afterMarketHashName ? { marketHashName: { gt: params.afterMarketHashName } } : {},
+        {
+          OR: [
+            { priceCandles: { none: {} } },
+            { priceCandles: { every: { startsAt: { lt: staleBefore } } } },
+          ],
+        },
       ],
     },
     select: { marketHashName: true },
-    orderBy: { updatedAt: "asc" },
+    orderBy: { marketHashName: "asc" },
     take: Math.min(250, Math.max(1, params.limit ?? 100)),
   });
 
@@ -424,6 +435,7 @@ export async function getCs2SyncStatus() {
       status: run.status,
       itemCount: run.itemCount,
       snapshotCount: run.snapshotCount,
+      candleCount: run.candleCount,
       message: run.message,
       startedAt: run.startedAt.toISOString(),
       finishedAt: run.finishedAt?.toISOString() ?? null,

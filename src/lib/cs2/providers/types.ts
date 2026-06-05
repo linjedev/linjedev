@@ -50,9 +50,16 @@ export type Cs2SyncSummary = {
   snapshotCount: number;
   candleCount: number;
   message: string | null;
+  nextCursor?: string | null;
 };
 
 export type Cs2PipelineSyncSummary = Cs2SyncSummary & {
   provider: "pipeline";
   runs: Cs2SyncSummary[];
+};
+
+export type Cs2SweepSyncSummary = Cs2SyncSummary & {
+  provider: "sweep";
+  target: "latest-china" | "history-gaps";
+  batches: Cs2SyncSummary[];
 };

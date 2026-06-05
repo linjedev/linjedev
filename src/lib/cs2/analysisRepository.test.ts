@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
+import type { Cs2MarketAnalysis } from "@/lib/cs2/types";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -23,7 +24,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { getCs2DatabaseMarketAnalysis } from "@/lib/cs2/analysisRepository";
+import { buildCs2AnalysisCsv, buildCs2AnalysisExportRows, getCs2DatabaseMarketAnalysis } from "@/lib/cs2/analysisRepository";
 
 describe("CS2 analysis repository", () => {
   beforeEach(() => {
@@ -130,5 +131,63 @@ describe("CS2 analysis repository", () => {
       askVolumeTotal: 5400,
       averageLiquidityScore: 18.12,
     }));
+  });
+
+  it("builds export rows and CSV for analysis workflows", () => {
+    const analysis: Cs2MarketAnalysis = {
+      generatedAt: "2026-06-05T12:00:00.000Z",
+      opportunities: [{
+        itemId: "ak-redline",
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+        itemType: "skin",
+        chineseAskCents: 2400,
+        globalAskCents: 3000,
+        spreadPercent: -20,
+        bestChineseMarket: "BUFF163",
+        bestGlobalMarket: "Skinport",
+        askVolume: 10,
+        liquidityScore: 25,
+        analysisScore: 95,
+      }],
+      trendSignals: [],
+      watchlistSignals: [{
+        itemId: "ak-redline",
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+        signal: "buy-target",
+        severity: "critical",
+        message: "Target hit",
+      }],
+      marketCoverage: {
+        totalItems: 1,
+        itemsWithChinesePrice: 1,
+        itemsWithGlobalPrice: 1,
+        itemsWithCrossMarketSpread: 1,
+        itemsWithHistory: 0,
+        candleCount: 0,
+        markets: [],
+        itemTypes: [],
+        gaps: {
+          missingChinesePrice: 0,
+          missingGlobalPrice: 0,
+          missingCrossMarketSpread: 0,
+          missingHistory: 1,
+          staleItems: 0,
+        },
+      },
+    };
+
+    expect(buildCs2AnalysisExportRows(analysis)).toEqual([
+      expect.objectContaining({
+        rowType: "opportunity",
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+        marketName: "BUFF163 -> Skinport",
+      }),
+      expect.objectContaining({
+        rowType: "watchlist",
+        signal: "buy-target",
+      }),
+    ]);
+    expect(buildCs2AnalysisCsv(analysis)).toContain("AK-47 | Redline (Field-Tested)");
+    expect(buildCs2AnalysisCsv(analysis)).toContain("BUFF163 -> Skinport");
   });
 });

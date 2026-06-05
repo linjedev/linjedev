@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, ScanSearch, TrendingDown } from "lucide-react";
+import { Activity, AlertTriangle, Download, FileJson, ScanSearch, TrendingDown } from "lucide-react";
 import type { Cs2MarketAnalysis } from "@/lib/cs2/types";
 import { formatPercent } from "@/lib/cs2/format";
 import styles from "./Cs2MarketTracker.module.css";
@@ -11,6 +11,17 @@ export function Cs2AnalysisPanel({ analysis }: { analysis: Cs2MarketAnalysis }) 
       <div className={styles.panelHeader}>
         <ScanSearch size={16} />
         <span>Analysis</span>
+      </div>
+
+      <div className={styles.exportActions}>
+        <a className={styles.syncButton} href="/api/cs2/market/analysis/export?format=csv" download>
+          <Download size={14} />
+          CSV
+        </a>
+        <a className={styles.syncButton} href="/api/cs2/market/analysis/export?format=json" target="_blank" rel="noreferrer">
+          <FileJson size={14} />
+          JSON
+        </a>
       </div>
 
       <div className={styles.coverageGrid}>

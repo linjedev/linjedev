@@ -25,7 +25,15 @@ function Sparkline({ item }: { item: Cs2ItemView }) {
   );
 }
 
-export function Cs2ItemDetail({ item }: { item: Cs2ItemView | null }) {
+export function Cs2ItemDetail({
+  item,
+  historyLoading = false,
+  historyWarning = null,
+}: {
+  item: Cs2ItemView | null;
+  historyLoading?: boolean;
+  historyWarning?: string | null;
+}) {
   if (!item) return null;
 
   return (
@@ -40,6 +48,11 @@ export function Cs2ItemDetail({ item }: { item: Cs2ItemView | null }) {
         <h1>{item.marketHashName}</h1>
       </div>
       <Sparkline item={item} />
+      {(historyLoading || historyWarning) && (
+        <div className={styles.detailStatus}>
+          {historyLoading ? "Loading full item history..." : historyWarning}
+        </div>
+      )}
       <div className={styles.priceGrid}>
         <div>
           <small>China ask</small>

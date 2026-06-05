@@ -4,7 +4,7 @@ import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
 import { fetchPricempireHistory, fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
-import type { Cs2PipelineSyncSummary, Cs2SyncSummary, ProviderCandleInput } from "@/lib/cs2/providers/types";
+import type { Cs2PipelineSyncSummary, Cs2SweepSyncSummary, Cs2SyncSummary, ProviderCandleInput } from "@/lib/cs2/providers/types";
 import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
 import {
   createCs2SyncRun,
@@ -387,6 +387,7 @@ export async function syncCs2History(params: {
       status: "ok",
       itemCount: params.marketHashNames.length,
       snapshotCount: 0,
+      candleCount,
     });
     return {
       provider: params.provider,
@@ -476,12 +477,18 @@ export async function syncCs2MissingHistory(params: {
   fill?: boolean;
   limit?: number;
   staleAfterDays?: number;
+  afterMarketHashName?: string;
 }): Promise<Cs2SyncSummary> {
   try {
+    const batchLimit = Math.min(250, Math.max(1, params.limit ?? 100));
     const marketHashNames = await getCs2MissingHistoryMarketHashNames({
-      limit: params.limit,
+      limit: batchLimit,
       staleAfterDays: params.staleAfterDays,
+      afterMarketHashName: params.afterMarketHashName,
     });
+    const nextCursor = marketHashNames.length === batchLimit
+      ? marketHashNames.at(-1) ?? null
+      : null;
 
     if (marketHashNames.length === 0) {
       return {
@@ -491,10 +498,11 @@ export async function syncCs2MissingHistory(params: {
         snapshotCount: 0,
         candleCount: 0,
         message: "No catalog history gaps to backfill.",
+        nextCursor: null,
       };
     }
 
-    return await syncCs2History({
+    const summary = await syncCs2History({
       provider: params.provider,
       marketHashNames,
       sources: params.sources,
@@ -504,6 +512,10 @@ export async function syncCs2MissingHistory(params: {
       interval: params.interval,
       fill: params.fill,
     });
+    return {
+      ...summary,
+      nextCursor,
+    };
   } catch (error) {
     return {
       provider: params.provider,
@@ -512,12 +524,14 @@ export async function syncCs2MissingHistory(params: {
       snapshotCount: 0,
       candleCount: 0,
       message: error instanceof Error ? error.message : "History gap sync failed",
+      nextCursor: null,
     };
   }
 }
 
 function summarizePipelineRuns(runs: Cs2SyncSummary[]): Cs2PipelineSyncSummary {
   const errors = runs.filter((run) => run.status === "error");
+  const nextCursor = [...runs].reverse().find((run) => run.nextCursor !== undefined)?.nextCursor ?? null;
   return {
     provider: "pipeline",
     status: errors.length > 0 ? "error" : "ok",
@@ -527,6 +541,7 @@ function summarizePipelineRuns(runs: Cs2SyncSummary[]): Cs2PipelineSyncSummary {
     message: errors.length > 0
       ? `${errors.length} CS2 pipeline step${errors.length === 1 ? "" : "s"} failed.`
       : null,
+    nextCursor,
     runs,
   };
 }
@@ -546,18 +561,24 @@ export async function syncCs2MarketPipeline(params: {
   historyInterval?: "5m" | "30m" | "1h" | "1d";
   historyFill?: boolean;
   watchlistLimit?: number;
+  latestAfterMarketHashName?: string;
 }): Promise<Cs2PipelineSyncSummary> {
   const runs: Cs2SyncSummary[] = [];
   const includeCatalog = params.includeCatalog ?? true;
   const includeLatest = params.includeLatest ?? true;
+  const exactItemLimit = Math.min(250, Math.max(1, params.latestLimit ?? 100));
   const exactItemNames = params.ownerKey
     ? await getCs2WatchlistMarketHashNames({
       ownerKey: params.ownerKey,
       limit: Math.min(250, Math.max(1, params.watchlistLimit ?? 100)),
     }).catch(() => [])
     : await getCs2MissingChinesePriceMarketHashNames({
-      limit: Math.min(250, Math.max(1, params.latestLimit ?? 100)),
+      limit: exactItemLimit,
+      afterMarketHashName: params.latestAfterMarketHashName,
     }).catch(() => []);
+  const latestGapNextCursor = !params.ownerKey && exactItemNames.length === exactItemLimit
+    ? exactItemNames.at(-1) ?? null
+    : null;
 
   if (includeCatalog) {
     runs.push(await syncCs2Catalog({
@@ -605,19 +626,23 @@ export async function syncCs2MarketPipeline(params: {
     }
 
     if (process.env.C5GAME_API_KEY && exactItemNames.length > 0) {
-      runs.push(await syncCs2LatestPrices({
+      const run = await syncCs2LatestPrices({
         provider: "c5game",
         marketHashNames: exactItemNames,
         limit: params.latestLimit,
-      }));
+      });
+      run.nextCursor = latestGapNextCursor;
+      runs.push(run);
     }
 
     if (process.env.CSPRICEAPI_API_KEY && exactItemNames.length > 0) {
-      runs.push(await syncCs2LatestPrices({
+      const run = await syncCs2LatestPrices({
         provider: "cspriceapi",
         marketHashNames: exactItemNames,
         limit: params.latestLimit,
-      }));
+      });
+      run.nextCursor = latestGapNextCursor;
+      runs.push(run);
     }
   }
 
@@ -655,4 +680,77 @@ export async function syncCs2MarketPipeline(params: {
   }
 
   return summarizePipelineRuns(runs);
+}
+
+function summarizeSweepBatches(target: Cs2SweepSyncSummary["target"], batches: Cs2SyncSummary[]): Cs2SweepSyncSummary {
+  const errors = batches.filter((batch) => batch.status === "error");
+  const nextCursor = batches.at(-1)?.nextCursor ?? null;
+  return {
+    provider: "sweep",
+    target,
+    status: errors.length > 0 ? "error" : "ok",
+    itemCount: batches.reduce((sum, batch) => sum + batch.itemCount, 0),
+    snapshotCount: batches.reduce((sum, batch) => sum + batch.snapshotCount, 0),
+    candleCount: batches.reduce((sum, batch) => sum + batch.candleCount, 0),
+    message: errors.length > 0
+      ? `${errors.length} CS2 sweep batch${errors.length === 1 ? "" : "es"} failed.`
+      : null,
+    nextCursor,
+    batches,
+  };
+}
+
+export async function syncCs2GapSweep(params: {
+  target: Cs2SweepSyncSummary["target"];
+  maxBatches?: number;
+  startAfterMarketHashName?: string;
+  latestLimit?: number;
+  historyProvider?: Cs2HistoryProvider;
+  historySources?: string[];
+  historyStart?: string;
+  historyEnd?: string;
+  historyLookback?: string;
+  historyInterval?: "5m" | "30m" | "1h" | "1d";
+  historyFill?: boolean;
+  historyLimit?: number;
+  staleAfterDays?: number;
+}): Promise<Cs2SweepSyncSummary> {
+  const batchCount = Math.min(20, Math.max(1, params.maxBatches ?? 3));
+  const batches: Cs2SyncSummary[] = [];
+  let cursor: string | null | undefined = params.startAfterMarketHashName ?? null;
+
+  for (let index = 0; index < batchCount; index += 1) {
+    const batch: Cs2SyncSummary = params.target === "latest-china"
+      ? await syncCs2MarketPipeline({
+        includeCatalog: index === 0,
+        includeLatest: true,
+        includeWatchlistHistory: false,
+        latestLimit: params.latestLimit,
+        latestAfterMarketHashName: cursor ?? undefined,
+      })
+      : await syncCs2MissingHistory({
+        provider: params.historyProvider ?? (
+          process.env.CS2CAP_API_KEY
+            ? "cs2cap"
+            : process.env.CS2SH_API_KEY
+              ? "cs2.sh"
+              : "pricempire"
+        ),
+        sources: params.historySources,
+        start: params.historyStart,
+        end: params.historyEnd,
+        lookback: params.historyLookback,
+        interval: params.historyInterval ?? "1d",
+        fill: params.historyFill,
+        limit: params.historyLimit,
+        staleAfterDays: params.staleAfterDays,
+        afterMarketHashName: cursor ?? undefined,
+      });
+
+    batches.push(batch);
+    cursor = batch.nextCursor ?? null;
+    if (batch.status === "error" || !cursor) break;
+  }
+
+  return summarizeSweepBatches(params.target, batches);
 }

@@ -1,5 +1,6 @@
 .shell {
   position: relative;
+  box-sizing: border-box;
   height: 100svh;
   min-height: 100svh;
   overflow: hidden;
@@ -11,6 +12,12 @@
     linear-gradient(180deg, #050608 0%, #111216 48%, #050608 100%);
   color: #f5f5f7;
   padding: 18px;
+}
+
+.shell *,
+.shell *::before,
+.shell *::after {
+  box-sizing: border-box;
 }
 
 .grid {
@@ -343,7 +350,7 @@
 .layout {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: 280px minmax(430px, 1fr) 340px;
+  grid-template-columns: minmax(280px, 0.75fr) minmax(440px, 1.45fr) minmax(380px, 0.9fr);
   gap: 12px;
   min-height: 0;
 }
@@ -444,10 +451,16 @@
   gap: 8px;
 }
 
+.exportActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .syncControlRow {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -488,6 +501,7 @@
   background: rgba(255, 255, 255, 0.06);
   color: #f5f5f7;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .syncButton:disabled {
@@ -739,18 +753,19 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .catalogToolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
   gap: 10px;
   min-height: 52px;
   padding: 8px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: visible;
 }
 
 .filterRow,
@@ -764,6 +779,10 @@
 
 .filterRow {
   overflow-x: auto;
+}
+
+.catalogControls {
+  justify-content: flex-start;
 }
 
 .filterChip,
@@ -826,12 +845,13 @@
 .tableHeader,
 .itemRow {
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) 74px 74px 58px 38px;
-  gap: 8px;
+  grid-template-columns: minmax(180px, 1fr) minmax(60px, 0.42fr) minmax(60px, 0.42fr) 50px 34px;
+  gap: 6px;
   align-items: center;
 }
 
 .tableHeader {
+  flex: 0 0 auto;
   min-height: 44px;
   padding: 0 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -843,6 +863,7 @@
 }
 
 .tableBody {
+  flex: 1 1 auto;
   overflow: auto;
   min-height: 0;
 }
@@ -893,8 +914,8 @@
 .floatListingImage,
 .itemThumbFallback {
   flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: 6px;
   object-fit: contain;
   object-position: center center;
@@ -932,6 +953,17 @@
   color: rgba(245, 245, 247, 0.56);
 }
 
+.detailStatus {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(246, 196, 83, 0.08);
+  color: rgba(245, 245, 247, 0.68);
+  font-size: 12px;
+}
+
 .detailTitle {
   display: flex;
   flex-direction: column;
@@ -939,11 +971,13 @@
 }
 
 .detailImageFrame {
-  min-height: 196px;
+  height: clamp(230px, 25vh, 300px);
+  aspect-ratio: 16 / 10;
   display: grid;
   place-items: center;
-  padding: 14px;
+  padding: 20px;
   border-radius: 8px;
+  overflow: visible;
   background:
     linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
@@ -951,8 +985,11 @@
 }
 
 .detailImageFrame img {
-  max-width: 100%;
-  max-height: 182px;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(100%, 620px);
+  max-height: calc(100% - 40px);
   object-fit: contain;
   object-position: center center;
 }
@@ -1036,7 +1073,7 @@
 
 @media (max-width: 1120px) {
   .layout {
-    grid-template-columns: 240px minmax(360px, 1fr);
+    grid-template-columns: 280px minmax(420px, 1fr);
   }
 
   .detailPane {

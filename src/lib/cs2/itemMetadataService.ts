@@ -9,6 +9,11 @@ type Cs2ApiItem = {
   category?: { name?: unknown } | null;
 };
 
+type Cs2ApiItemMatch = {
+  row: Cs2ApiItem;
+  groupName: string | null;
+};
+
 export type Cs2ItemMetadata = {
   marketHashName: string;
   imageUrl: string | null;
@@ -35,18 +40,53 @@ function readString(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-function rowToMetadata(row: Cs2ApiItem): Cs2ItemMetadata | null {
+function groupNameToItemType(groupName: string | null) {
+  if (!groupName) return null;
+  const normalized = groupName.toLowerCase().replace(/[_-]+/g, " ");
+  if (normalized.includes("skin")) return "skin";
+  if (normalized.includes("sticker")) return "sticker";
+  if (normalized.includes("crate")) return "case";
+  if (normalized.includes("collectible")) return "collectible";
+  if (normalized.includes("graffiti")) return "graffiti";
+  if (normalized.includes("music")) return "music-kit";
+  if (normalized.includes("keychain") || normalized.includes("charm")) return "charm";
+  if (normalized.includes("agent")) return "operator";
+  if (normalized.includes("patch")) return "patch";
+  if (normalized.includes("key")) return "key";
+  if (normalized.includes("tool")) return "tool";
+  return null;
+}
+
+function rowToMetadata(row: Cs2ApiItem, groupName: string | null): Cs2ItemMetadata | null {
   const marketHashName = readString(row.market_hash_name);
   if (!marketHashName) return null;
+  const category = readString(row.category?.name) ?? groupName;
   return {
     marketHashName,
     imageUrl: readString(row.image),
     rarity: readString(row.rarity?.name),
     collection: readString(row.collection?.name) ?? readString(row.collections?.[0]?.name),
-    category: readString(row.category?.name),
-    itemType: inferItemType(marketHashName),
+    category,
+    itemType: groupNameToItemType(groupName) ?? inferItemType(marketHashName),
     exterior: inferExterior(marketHashName),
   };
+}
+
+function collectMetadataRows(value: unknown, groupName: string | null = null): Cs2ApiItemMatch[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => collectMetadataRows(entry, groupName));
+  }
+
+  if (typeof value !== "object" || value === null) return [];
+  const record = value as Record<string, unknown>;
+  if (typeof record.market_hash_name === "string") {
+    return [{ row: record as Cs2ApiItem, groupName }];
+  }
+
+  return Object.entries(record).flatMap(([key, entry]) => {
+    const nextGroupName = Array.isArray(entry) ? key : groupName;
+    return collectMetadataRows(entry, nextGroupName);
+  });
 }
 
 async function fetchMetadataIndex() {
@@ -56,13 +96,9 @@ async function fetchMetadataIndex() {
   if (!response.ok) throw new Error(`CSGO-API all items returned ${response.status}`);
 
   const payload = await response.json() as unknown;
-  const rows = typeof payload === "object" && payload !== null
-    ? Object.values(payload as Record<string, unknown>)
-    : [];
   const index = new Map<string, Cs2ItemMetadata>();
-  for (const value of rows) {
-    if (typeof value !== "object" || value === null) continue;
-    const metadata = rowToMetadata(value as Cs2ApiItem);
+  for (const { row, groupName } of collectMetadataRows(payload)) {
+    const metadata = rowToMetadata(row, groupName);
     if (metadata) index.set(metadata.marketHashName, metadata);
   }
   return index;
