@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { syncCs2Catalog, syncCs2History, syncCs2LatestPrices, syncCs2MarketPipeline, syncCs2WatchlistHistory } from "@/lib/cs2/syncService";
+import { syncCs2Catalog, syncCs2History, syncCs2LatestPrices, syncCs2MarketPipeline, syncCs2MissingHistory, syncCs2WatchlistHistory } from "@/lib/cs2/syncService";
 
 const cs2HistorySourceEnum = z.enum([
   "buff",
@@ -23,11 +23,19 @@ const latestSchema = z.object({
   providers: z.array(z.string().min(2)).max(80).optional(),
   limit: z.number().int().positive().max(100000).optional(),
   type: z.string().min(2).optional(),
+}).superRefine((payload, context) => {
+  if ((payload.provider === "c5game" || payload.provider === "cspriceapi") && (payload.marketHashNames ?? []).length === 0) {
+    context.addIssue({
+      code: "custom",
+      message: `${payload.provider} latest sync requires explicit marketHashNames`,
+      path: ["marketHashNames"],
+    });
+  }
 });
 
 const catalogSchema = z.object({
   mode: z.literal("catalog"),
-  provider: z.literal("cs2cap").default("cs2cap"),
+  provider: z.enum(["metadata", "cs2cap"]).default("metadata"),
   query: z.string().min(1).optional(),
   limit: z.number().int().positive().max(100000).optional(),
 });
@@ -77,11 +85,46 @@ const watchlistHistorySchema = z.object({
   interval: z.enum(["5m", "30m", "1h", "1d"]).default("1d"),
   fill: z.boolean().optional(),
   limit: z.number().int().positive().max(250).optional(),
+  staleAfterDays: z.number().int().positive().max(365).optional(),
 }).superRefine((payload, context) => {
   if (payload.provider === "cs2.sh" && (!payload.start || !payload.end)) {
     context.addIssue({
       code: "custom",
       message: "start and end are required for cs2.sh watchlist history sync",
+      path: ["start"],
+    });
+  }
+  if (payload.provider === "cs2cap" && payload.interval === "30m") {
+    context.addIssue({
+      code: "custom",
+      message: "CS2Cap candles support 5m, 1h, and 1d intervals",
+      path: ["interval"],
+    });
+  }
+  if (payload.provider === "pricempire" && payload.interval !== "1d") {
+    context.addIssue({
+      code: "custom",
+      message: "Pricempire history sync currently supports daily candles",
+      path: ["interval"],
+    });
+  }
+});
+
+const historyGapsSchema = z.object({
+  mode: z.literal("history-gaps"),
+  provider: z.enum(["cs2.sh", "cs2cap", "pricempire"]).default("cs2cap"),
+  sources: z.array(cs2HistorySourceEnum).min(1).optional(),
+  start: z.string().min(8).optional(),
+  end: z.string().min(8).optional(),
+  lookback: z.string().min(1).optional(),
+  interval: z.enum(["5m", "30m", "1h", "1d"]).default("1d"),
+  fill: z.boolean().optional(),
+  limit: z.number().int().positive().max(250).optional(),
+}).superRefine((payload, context) => {
+  if (payload.provider === "cs2.sh" && (!payload.start || !payload.end)) {
+    context.addIssue({
+      code: "custom",
+      message: "start and end are required for cs2.sh history gap sync",
       path: ["start"],
     });
   }
@@ -153,7 +196,7 @@ const pipelineSchema = z.object({
   }
 });
 
-const syncSchema = z.discriminatedUnion("mode", [latestSchema, catalogSchema, historySchema, watchlistHistorySchema, pipelineSchema]);
+const syncSchema = z.discriminatedUnion("mode", [latestSchema, catalogSchema, historySchema, watchlistHistorySchema, historyGapsSchema, pipelineSchema]);
 
 function readOwnerKey(request: Request, bodyOwnerKey?: string) {
   return bodyOwnerKey?.trim()
@@ -188,6 +231,11 @@ export async function POST(request: Request) {
       ...parsed.data,
       ownerKey: readOwnerKey(request, parsed.data.ownerKey),
     });
+    return NextResponse.json(summary, { status: summary.status === "ok" ? 200 : 502 });
+  }
+
+  if (parsed.data.mode === "history-gaps") {
+    const summary = await syncCs2MissingHistory(parsed.data);
     return NextResponse.json(summary, { status: summary.status === "ok" ? 200 : 502 });
   }
 

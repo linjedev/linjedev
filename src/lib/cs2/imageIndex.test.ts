@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getIndexedCs2ImageUrl, resolveCs2ImageUrl } from "@/lib/cs2/imageIndex";
+import { buildCs2ImageCatalog, getIndexedCs2ImageUrl, resolveCs2ImageUrl } from "@/lib/cs2/imageIndex";
 
 describe("CS2 image index", () => {
   it("returns indexed direct item renders for known sample items", () => {
@@ -24,5 +24,29 @@ describe("CS2 image index", () => {
       "Unknown Item",
       "https://csgoskins.gg/social-images/background-card.png",
     )).toBeNull();
+  });
+
+  it("builds a full image catalog while preferring local transparent renders", () => {
+    const catalog = buildCs2ImageCatalog([
+      {
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+        imageUrl: "https://cdn.example.com/ak-redline.png",
+      },
+      {
+        marketHashName: "M4A4 | Poseidon (Factory New)",
+        imageUrl: "https://cdn.example.com/m4a4-poseidon.png",
+      },
+    ]);
+
+    expect(catalog).toContainEqual(expect.objectContaining({
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      imageUrl: "/cs2-images/ak-redline.png",
+      backgroundRemoved: true,
+    }));
+    expect(catalog).toContainEqual(expect.objectContaining({
+      marketHashName: "M4A4 | Poseidon (Factory New)",
+      imageUrl: "https://cdn.example.com/m4a4-poseidon.png",
+      backgroundRemoved: false,
+    }));
   });
 });

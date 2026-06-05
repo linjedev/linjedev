@@ -162,6 +162,40 @@ async function getDatabaseItems(query?: string | null) {
   return items.map(dbItemToCs2ItemView);
 }
 
+async function getDatabaseItemsByMarketHashNames(marketHashNames: string[]) {
+  const names = [...new Set(marketHashNames.map((name) => name.trim()).filter(Boolean))];
+  if (names.length === 0) return [];
+
+  const items = await prisma.cs2Item.findMany({
+    where: { marketHashName: { in: names } },
+    include: {
+      latestSnapshots: {
+        orderBy: { observedAt: "desc" },
+      },
+      marketSnapshots: {
+        orderBy: { observedAt: "desc" },
+        take: 80,
+      },
+      priceCandles: {
+        orderBy: { startsAt: "asc" },
+        take: 60,
+      },
+      marketSummary: true,
+    },
+    take: Math.min(250, names.length),
+  });
+
+  return items.map(dbItemToCs2ItemView);
+}
+
+function mergeItemsByName(...groups: Cs2ItemView[][]) {
+  const merged = new Map<string, Cs2ItemView>();
+  for (const group of groups) {
+    for (const item of group) merged.set(item.marketHashName, item);
+  }
+  return [...merged.values()];
+}
+
 async function getDatabaseWatchlist(ownerKey: string): Promise<Cs2WatchlistEntryView[]> {
   const rows = await prisma.cs2WatchlistItem.findMany({
     where: { ownerKey },
@@ -293,6 +327,8 @@ export async function getCs2TrackerOverview(params: {
       mode = "live";
     }
     watchlist = await getDatabaseWatchlist(params.ownerKey);
+    const watchlistItems = await getDatabaseItemsByMarketHashNames(watchlist.map((entry) => entry.marketHashName));
+    items = mergeItemsByName(items, watchlistItems);
   } catch (error) {
     console.warn("[cs2] Database unavailable; showing sample market data.", error);
     warning = "Database unavailable or CS2 schema pending; showing sample market data.";
@@ -316,6 +352,7 @@ export async function getCs2TrackerOverview(params: {
   }
 
   const filteredItems = filterItems(items, params.query ?? null);
+  const analysisItems = mergeItemsByName(filteredItems, items.filter((item) => watchlist.some((entry) => entry.marketHashName === item.marketHashName)));
   return {
     generatedAt: new Date().toISOString(),
     mode,
@@ -329,7 +366,7 @@ export async function getCs2TrackerOverview(params: {
     configuredProviders,
     items: filteredItems,
     watchlist,
-    analysis: buildCs2MarketAnalysis(filteredItems, watchlist),
+    analysis: buildCs2MarketAnalysis(analysisItems, watchlist),
     metrics: buildMetrics(filteredItems, watchlist),
   };
 }
@@ -404,8 +441,19 @@ export async function addCs2WatchlistItem(params: {
     },
   });
 
+  const refreshedItem = (await getDatabaseItemsByMarketHashNames([params.marketHashName]))[0] ?? null;
+
   return {
-    watchlistItem,
+    watchlistItem: {
+      id: watchlistItem.id,
+      itemId: watchlistItem.itemId,
+      marketHashName: params.marketHashName,
+      targetBuyCents: watchlistItem.targetBuyCents,
+      targetSellCents: watchlistItem.targetSellCents,
+      notes: watchlistItem.notes,
+      createdAt: watchlistItem.createdAt.toISOString(),
+    },
+    item: refreshedItem,
     hydration,
   };
 }

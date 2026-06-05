@@ -16,11 +16,24 @@ import { Cs2ItemDetail } from "@/components/cs2/Cs2ItemDetail";
 import { Cs2MarketTable } from "@/components/cs2/Cs2MarketTable";
 import { Cs2Sidebar } from "@/components/cs2/Cs2Sidebar";
 import { formatPercent } from "@/lib/cs2/format";
-import type { Cs2CatalogCoverageFilter, Cs2CatalogMarketFocus, Cs2CatalogResponse, Cs2CatalogSort, Cs2CatalogSourceFilter, Cs2ItemView, Cs2TrackerOverview } from "@/lib/cs2/types";
+import type { Cs2CatalogCoverageFilter, Cs2CatalogMarketFocus, Cs2CatalogResponse, Cs2CatalogSort, Cs2CatalogSourceFilter, Cs2ItemView, Cs2TrackerOverview, Cs2WatchlistEntryView } from "@/lib/cs2/types";
 import styles from "./Cs2MarketTracker.module.css";
 
 const OWNER_KEY_STORAGE = "linje-cs2-watch-owner";
 const LOCAL_WATCHLIST_STORAGE = "linje-cs2-local-watchlist";
+
+type WatchlistMutationResponse = {
+  watchlistItem: Cs2WatchlistEntryView;
+  item: Cs2ItemView | null;
+  hydration: Array<{
+    provider: string;
+    status: "ok" | "error";
+    itemCount: number;
+    snapshotCount: number;
+    candleCount: number;
+    message: string | null;
+  }>;
+};
 
 function getOwnerKey() {
   if (typeof window === "undefined") return "linje-local-watchlist";
@@ -78,6 +91,21 @@ function mergeLocalWatchlist(payload: Cs2TrackerOverview): Cs2TrackerOverview {
       watchedItems: payload.watchlist.length + localEntries.length,
     },
   };
+}
+
+function upsertByMarketHashName(items: Cs2ItemView[], item: Cs2ItemView | null) {
+  if (!item) return items;
+  const exists = items.some((candidate) => candidate.marketHashName === item.marketHashName);
+  return exists
+    ? items.map((candidate) => candidate.marketHashName === item.marketHashName ? item : candidate)
+    : [item, ...items];
+}
+
+function upsertWatchlistEntry(entries: Cs2WatchlistEntryView[], entry: Cs2WatchlistEntryView) {
+  const exists = entries.some((candidate) => candidate.marketHashName === entry.marketHashName);
+  return exists
+    ? entries.map((candidate) => candidate.marketHashName === entry.marketHashName ? entry : candidate)
+    : [entry, ...entries];
 }
 
 export function Cs2MarketTracker() {
@@ -211,6 +239,33 @@ export function Cs2MarketTracker() {
     setSearchNonce((current) => current + 1);
   }
 
+  function applyWatchlistMutation(payload: WatchlistMutationResponse) {
+    setOverview((current) => {
+      if (!current) return current;
+      const watchlist = upsertWatchlistEntry(current.watchlist, payload.watchlistItem);
+      return {
+        ...current,
+        items: upsertByMarketHashName(current.items, payload.item),
+        watchlist,
+        metrics: {
+          ...current.metrics,
+          watchedItems: watchlist.length,
+        },
+      };
+    });
+    setCatalog((current) => current && payload.item
+      ? {
+        ...current,
+        items: upsertByMarketHashName(current.items, payload.item),
+      }
+      : current);
+    if (payload.item) setSelectedItemId(payload.item.id);
+    const errors = payload.hydration.filter((summary) => summary.status === "error");
+    if (errors.length > 0) {
+      setError(`${errors.length} provider${errors.length === 1 ? "" : "s"} could not hydrate this item.`);
+    }
+  }
+
   async function addToWatchlist(item: Cs2ItemView) {
     setBusyItem(item.id);
     setError(null);
@@ -232,7 +287,7 @@ export function Cs2MarketTracker() {
         const payload = await response.json() as { error?: string };
         throw new Error(payload.error ?? `Watchlist request failed with ${response.status}`);
       }
-      await Promise.all([loadOverview(), loadCatalog()]);
+      applyWatchlistMutation(await response.json() as WatchlistMutationResponse);
     } catch (requestError) {
       writeLocalWatchlist([...readLocalWatchlist(), item.marketHashName]);
       setError(requestError instanceof Error ? `${requestError.message}; saved locally` : "Saved locally");
@@ -265,7 +320,7 @@ export function Cs2MarketTracker() {
         const payload = await response.json() as { error?: string };
         throw new Error(payload.error ?? `Watchlist save failed with ${response.status}`);
       }
-      await Promise.all([loadOverview(), loadCatalog()]);
+      applyWatchlistMutation(await response.json() as WatchlistMutationResponse);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to save watchlist item");
     } finally {

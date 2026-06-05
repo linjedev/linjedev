@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchCs2CapCatalogItems, fetchCs2CapLatestItems } from "@/lib/cs2/providers/cs2cap";
+import { fetchCs2CapCandles, fetchCs2CapCatalogItems, fetchCs2CapLatestItems } from "@/lib/cs2/providers/cs2cap";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
 import { fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
-import { getCs2WatchlistMarketHashNames, persistProviderCandles, persistProviderCatalogItems, persistProviderItems } from "@/lib/cs2/syncRepository";
-import { hydrateCs2ItemsFromConfiguredProviders, syncCs2MarketPipeline, syncCs2WatchlistHistory } from "@/lib/cs2/syncService";
+import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
+import { getCs2MissingChinesePriceMarketHashNames, getCs2MissingHistoryMarketHashNames, getCs2WatchlistMarketHashNames, persistProviderCandles, persistProviderCatalogItems, persistProviderItems } from "@/lib/cs2/syncRepository";
+import { hydrateCs2ItemsFromConfiguredProviders, syncCs2Catalog, syncCs2LatestPrices, syncCs2MarketPipeline, syncCs2MissingHistory, syncCs2WatchlistHistory } from "@/lib/cs2/syncService";
 
 vi.mock("@/lib/cs2/providers/cs2cap", () => ({
   fetchCs2CapCandles: vi.fn(),
@@ -36,9 +37,15 @@ vi.mock("@/lib/cs2/providers/skinport", () => ({
   fetchSkinportLatestItems: vi.fn(),
 }));
 
+vi.mock("@/lib/cs2/itemMetadataService", () => ({
+  getCs2ItemMetadataCatalog: vi.fn(),
+}));
+
 vi.mock("@/lib/cs2/syncRepository", () => ({
   createCs2SyncRun: vi.fn(),
   finishCs2SyncRun: vi.fn(),
+  getCs2MissingChinesePriceMarketHashNames: vi.fn(),
+  getCs2MissingHistoryMarketHashNames: vi.fn(),
   getCs2WatchlistMarketHashNames: vi.fn(),
   getCs2SyncStatus: vi.fn(),
   persistProviderCandles: vi.fn(),
@@ -54,6 +61,9 @@ describe("CS2 sync service hydration", () => {
     delete process.env.PRICEMPIRE_API_KEY;
     delete process.env.C5GAME_API_KEY;
     delete process.env.CSPRICEAPI_API_KEY;
+    vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([] as never);
+    vi.mocked(getCs2MissingChinesePriceMarketHashNames).mockResolvedValue([] as never);
+    vi.mocked(getCs2MissingHistoryMarketHashNames).mockResolvedValue([] as never);
   });
 
   it("skips provider calls when no live API keys are configured", async () => {
@@ -120,6 +130,24 @@ describe("CS2 sync service hydration", () => {
       expect.objectContaining({ provider: "c5game", status: "ok", snapshotCount: 5 }),
       expect.objectContaining({ provider: "cspriceapi", status: "ok", snapshotCount: 6 }),
     ]);
+  });
+
+  it("rejects exact-item latest providers without explicit item names", async () => {
+    const c5Summary = await syncCs2LatestPrices({ provider: "c5game" });
+    const csPriceSummary = await syncCs2LatestPrices({ provider: "cspriceapi" });
+
+    expect(fetchC5GameLatestItems).not.toHaveBeenCalled();
+    expect(fetchCsPriceApiLatestItems).not.toHaveBeenCalled();
+    expect(c5Summary).toEqual(expect.objectContaining({
+      provider: "c5game",
+      status: "error",
+      message: "c5game latest sync requires explicit marketHashNames.",
+    }));
+    expect(csPriceSummary).toEqual(expect.objectContaining({
+      provider: "cspriceapi",
+      status: "error",
+      message: "cspriceapi latest sync requires explicit marketHashNames.",
+    }));
   });
 
   it("backfills history for watched items without manually passing item names", async () => {
@@ -215,6 +243,16 @@ describe("CS2 sync service hydration", () => {
 
   it("runs the public Skinport latest-price pipeline step when no provider API keys are configured", async () => {
     vi.mocked(fetchSkinportLatestItems).mockResolvedValue([{ marketHashName: "M4A4 | Poseidon (Factory New)", snapshots: [] }] as never);
+    vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([{
+      marketHashName: "M4A4 | Poseidon (Factory New)",
+      itemType: "skin",
+      category: "M4A4",
+      rarity: "Classified",
+      exterior: "Factory New",
+      collection: null,
+      imageUrl: "https://cdn.example.com/m4a4.png",
+    }] as never);
+    vi.mocked(persistProviderCatalogItems).mockResolvedValue(undefined as never);
     vi.mocked(persistProviderItems).mockResolvedValue(1 as never);
 
     const summary = await syncCs2MarketPipeline({});
@@ -222,15 +260,144 @@ describe("CS2 sync service hydration", () => {
     expect(fetchSkinportLatestItems).toHaveBeenCalledWith({
       limit: undefined,
     });
+    expect(getCs2ItemMetadataCatalog).toHaveBeenCalledWith({
+      query: undefined,
+      limit: undefined,
+    });
     expect(summary).toEqual(expect.objectContaining({
       provider: "pipeline",
       status: "ok",
-      itemCount: 1,
+      itemCount: 2,
       snapshotCount: 1,
       candleCount: 0,
       message: null,
     }));
-    expect(summary.runs.map((run) => run.provider)).toEqual(["skinport"]);
+    expect(summary.runs.map((run) => run.provider)).toEqual(["metadata", "skinport"]);
+  });
+
+  it("syncs the public metadata catalog into the database", async () => {
+    vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([{
+      marketHashName: "Sticker | Crown (Foil)",
+      itemType: "sticker",
+      category: "Sticker",
+      rarity: "Exotic",
+      exterior: null,
+      collection: null,
+      imageUrl: "https://cdn.example.com/crown.png",
+    }] as never);
+    vi.mocked(persistProviderCatalogItems).mockResolvedValue(undefined as never);
+
+    const summary = await syncCs2Catalog({
+      provider: "metadata",
+      query: "crown",
+      limit: 100,
+    });
+
+    expect(getCs2ItemMetadataCatalog).toHaveBeenCalledWith({
+      query: "crown",
+      limit: 100,
+    });
+    expect(persistProviderCatalogItems).toHaveBeenCalledWith([expect.objectContaining({
+      marketHashName: "Sticker | Crown (Foil)",
+      itemType: "sticker",
+      imageUrl: "https://cdn.example.com/crown.png",
+      tradable: true,
+    })]);
+    expect(summary).toEqual(expect.objectContaining({
+      provider: "metadata",
+      status: "ok",
+      itemCount: 1,
+      snapshotCount: 0,
+    }));
+  });
+
+  it("uses missing-China catalog gaps for exact China providers when no watchlist scope is provided", async () => {
+    process.env.C5GAME_API_KEY = "c5game-key";
+    process.env.CSPRICEAPI_API_KEY = "cspriceapi-key";
+    vi.mocked(fetchSkinportLatestItems).mockResolvedValue([] as never);
+    vi.mocked(getCs2MissingChinesePriceMarketHashNames).mockResolvedValue([
+      "AK-47 | Redline (Field-Tested)",
+      "Sticker | Crown (Foil)",
+    ] as never);
+    vi.mocked(fetchC5GameLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
+    vi.mocked(fetchCsPriceApiLatestItems).mockResolvedValue([{ marketHashName: "Sticker | Crown (Foil)", snapshots: [] }] as never);
+    vi.mocked(persistProviderCatalogItems).mockResolvedValue(undefined as never);
+    vi.mocked(persistProviderItems)
+      .mockResolvedValueOnce(3 as never)
+      .mockResolvedValueOnce(4 as never)
+      .mockResolvedValueOnce(5 as never);
+
+    const summary = await syncCs2MarketPipeline({
+      includeCatalog: false,
+      latestLimit: 80,
+    });
+
+    expect(getCs2MissingChinesePriceMarketHashNames).toHaveBeenCalledWith({
+      limit: 80,
+    });
+    expect(getCs2WatchlistMarketHashNames).not.toHaveBeenCalled();
+    expect(fetchC5GameLatestItems).toHaveBeenCalledWith({
+      marketHashNames: [
+        "AK-47 | Redline (Field-Tested)",
+        "Sticker | Crown (Foil)",
+      ],
+      limit: 80,
+    });
+    expect(fetchCsPriceApiLatestItems).toHaveBeenCalledWith({
+      marketHashNames: [
+        "AK-47 | Redline (Field-Tested)",
+        "Sticker | Crown (Foil)",
+      ],
+      limit: 80,
+    });
+    expect(summary.runs.map((run) => run.provider)).toEqual(["skinport", "c5game", "cspriceapi"]);
+  });
+
+  it("backfills history for catalog items missing candles", async () => {
+    vi.mocked(getCs2MissingHistoryMarketHashNames).mockResolvedValue([
+      "AK-47 | Redline (Field-Tested)",
+      "Sticker | Crown (Foil)",
+    ] as never);
+    vi.mocked(fetchCs2CapCandles).mockResolvedValue([{
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      provider: "cs2cap",
+      marketName: "BUFF163",
+      interval: "1d",
+      openCents: 2500,
+      highCents: 2600,
+      lowCents: 2400,
+      closeCents: 2550,
+      volume: 10,
+      startsAt: new Date("2026-06-01T00:00:00.000Z"),
+    }] as never);
+    vi.mocked(persistProviderCandles).mockResolvedValue(1 as never);
+
+    const summary = await syncCs2MissingHistory({
+      provider: "cs2cap",
+      lookback: "30d",
+      interval: "1d",
+      limit: 50,
+      staleAfterDays: 14,
+    });
+
+    expect(getCs2MissingHistoryMarketHashNames).toHaveBeenCalledWith({
+      limit: 50,
+      staleAfterDays: 14,
+    });
+    expect(fetchCs2CapCandles).toHaveBeenCalledWith(expect.objectContaining({
+      marketHashNames: [
+        "AK-47 | Redline (Field-Tested)",
+        "Sticker | Crown (Foil)",
+      ],
+      lookback: "30d",
+      interval: "1d",
+    }));
+    expect(summary).toEqual(expect.objectContaining({
+      provider: "cs2cap",
+      status: "ok",
+      itemCount: 2,
+      candleCount: 1,
+    }));
   });
 
   it("runs configured China-first catalog and latest-price pipeline steps", async () => {
@@ -265,6 +432,19 @@ describe("CS2 sync service hydration", () => {
     vi.mocked(fetchC5GameLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(fetchCsPriceApiLatestItems).mockResolvedValue([{ marketHashName: "Sticker | Crown (Foil)", snapshots: [] }] as never);
     vi.mocked(fetchSkinportLatestItems).mockResolvedValue([{ marketHashName: "M4A4 | Poseidon (Factory New)", snapshots: [] }] as never);
+    vi.mocked(getCs2WatchlistMarketHashNames).mockResolvedValue([
+      "AK-47 | Redline (Field-Tested)",
+      "Sticker | Crown (Foil)",
+    ] as never);
+    vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([{
+      marketHashName: "M4A4 | Poseidon (Factory New)",
+      itemType: "skin",
+      category: "M4A4",
+      rarity: null,
+      exterior: "Factory New",
+      collection: null,
+      imageUrl: null,
+    }] as never);
     vi.mocked(persistProviderCatalogItems).mockResolvedValue(undefined as never);
     vi.mocked(persistProviderItems)
       .mockResolvedValueOnce(5 as never)
@@ -274,12 +454,17 @@ describe("CS2 sync service hydration", () => {
       .mockResolvedValueOnce(9 as never);
 
     const summary = await syncCs2MarketPipeline({
+      ownerKey: "owner-1",
       latestLimit: 1000,
       catalogLimit: 2000,
     });
 
     expect(fetchSkinportLatestItems).toHaveBeenCalledWith({
       limit: 1000,
+    });
+    expect(getCs2ItemMetadataCatalog).toHaveBeenCalledWith({
+      query: undefined,
+      limit: 2000,
     });
     expect(fetchCs2CapCatalogItems).toHaveBeenCalledWith({
       query: undefined,
@@ -293,22 +478,32 @@ describe("CS2 sync service hydration", () => {
       sources: expect.arrayContaining(["buff163", "buff163_buy", "youpin", "youpin_buy"]),
       limit: 1000,
     }));
+    expect(getCs2WatchlistMarketHashNames).toHaveBeenCalledWith({
+      ownerKey: "owner-1",
+      limit: 100,
+    });
     expect(fetchC5GameLatestItems).toHaveBeenCalledWith({
-      marketHashNames: undefined,
+      marketHashNames: [
+        "AK-47 | Redline (Field-Tested)",
+        "Sticker | Crown (Foil)",
+      ],
       limit: 1000,
     });
     expect(fetchCsPriceApiLatestItems).toHaveBeenCalledWith({
-      marketHashNames: undefined,
+      marketHashNames: [
+        "AK-47 | Redline (Field-Tested)",
+        "Sticker | Crown (Foil)",
+      ],
       limit: 1000,
     });
     expect(fetchCs2ShLatestItems).not.toHaveBeenCalled();
     expect(summary).toEqual(expect.objectContaining({
       provider: "pipeline",
       status: "ok",
-      itemCount: 7,
+      itemCount: 8,
       snapshotCount: 35,
       candleCount: 0,
     }));
-    expect(summary.runs.map((run) => run.provider)).toEqual(["cs2cap", "skinport", "cs2cap", "pricempire", "c5game", "cspriceapi"]);
+    expect(summary.runs.map((run) => run.provider)).toEqual(["metadata", "cs2cap", "skinport", "cs2cap", "pricempire", "c5game", "cspriceapi"]);
   });
 });

@@ -15,6 +15,17 @@ export async function GET() {
       latestSnapshotCount: 0,
       marketSummaryCount: 0,
       candleCount: 0,
+      coverage: {
+        itemsWithLatestSnapshots: 0,
+        itemsWithChinesePrice: 0,
+        itemsWithGlobalPrice: 0,
+        itemsWithHistory: 0,
+        itemsMissingLatestSnapshots: 0,
+        itemsMissingChinesePrice: 0,
+        itemsMissingGlobalPrice: 0,
+        itemsMissingHistory: 0,
+      },
+      providerCoverage: [],
       latestObservation: null,
       recentRuns: [],
     });

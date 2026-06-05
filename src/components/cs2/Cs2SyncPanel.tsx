@@ -9,7 +9,7 @@ type Cs2SyncPanelProps = {
   ownerKey: string;
 };
 
-type SyncAction = "pipeline" | "watchlist-history";
+type SyncAction = "pipeline" | "watchlist-history" | "history-gaps";
 
 const EMPTY_STATUS: Cs2SyncStatus = {
   generatedAt: "",
@@ -20,6 +20,17 @@ const EMPTY_STATUS: Cs2SyncStatus = {
   latestSnapshotCount: 0,
   marketSummaryCount: 0,
   candleCount: 0,
+  coverage: {
+    itemsWithLatestSnapshots: 0,
+    itemsWithChinesePrice: 0,
+    itemsWithGlobalPrice: 0,
+    itemsWithHistory: 0,
+    itemsMissingLatestSnapshots: 0,
+    itemsMissingChinesePrice: 0,
+    itemsMissingGlobalPrice: 0,
+    itemsMissingHistory: 0,
+  },
+  providerCoverage: [],
   latestObservation: null,
   recentRuns: [],
 };
@@ -72,7 +83,16 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
           historyInterval: "1d",
           watchlistLimit: 50,
         }
-        : {
+        : action === "history-gaps"
+          ? {
+            mode: "history-gaps",
+            provider: historyProvider,
+            sources: historySourcesFor(historyProvider),
+            lookback,
+            interval: "1d",
+            limit: 50,
+          }
+          : {
           mode: "watchlist-history",
           ownerKey,
           provider: historyProvider,
@@ -92,7 +112,7 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
       if (!response.ok) {
         throw new Error(payload.message ?? `Sync request failed with ${response.status}`);
       }
-      setMessage(action === "pipeline" ? "Pipeline sync started." : "Watchlist history sync started.");
+      setMessage(action === "pipeline" ? "Pipeline sync started." : action === "history-gaps" ? "History gap sync started." : "Watchlist history sync started.");
       await loadStatus();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Sync request failed.");
@@ -164,6 +184,15 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
           <History size={14} />
           Watch history
         </button>
+        <button
+          className={styles.syncButton}
+          type="button"
+          onClick={() => void triggerSync("history-gaps")}
+          disabled={busyAction !== null}
+        >
+          <History size={14} />
+          Gap history
+        </button>
       </div>
 
       <div className={styles.syncMeta}>
@@ -173,6 +202,10 @@ export function Cs2SyncPanel({ ownerKey }: Cs2SyncPanelProps) {
             : status.message ?? "No sync data yet"}
         </small>
         <small>{historyProvider === "cs2.sh" ? "China-first history: BUFF / YouPin / C5Game" : historyProvider === "pricempire" ? "China-first history: BUFF163 daily" : "Composite history via CS2Cap"}</small>
+        <small>{status.coverage.itemsWithChinesePrice} CN priced / {status.coverage.itemsWithHistory} with history / {status.coverage.itemsMissingLatestSnapshots} missing latest</small>
+        {status.providerCoverage.length > 0 ? (
+          <small>{status.providerCoverage.slice(0, 3).map((entry) => `${entry.provider}:${entry.itemCount}`).join(" / ")}</small>
+        ) : null}
         {message ? <strong>{message}</strong> : null}
       </div>
 

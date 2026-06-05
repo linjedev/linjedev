@@ -1,7 +1,11 @@
 .shell {
   position: relative;
+  height: 100svh;
   min-height: 100svh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   background:
     radial-gradient(circle at 62% 12%, rgba(255, 255, 255, 0.08), transparent 22rem),
     linear-gradient(180deg, #050608 0%, #111216 48%, #050608 100%);
@@ -164,14 +168,12 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin: 12px 0;
 }
 
 .floatPanel {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
   padding: 12px;
   border-radius: 8px;
 }
@@ -339,7 +341,7 @@
 }
 
 .layout {
-  height: calc(100svh - 378px);
+  flex: 1 1 auto;
   display: grid;
   grid-template-columns: 280px minmax(430px, 1fr) 340px;
   gap: 12px;
@@ -351,7 +353,6 @@
 .detailPane {
   border-radius: 8px;
   min-height: 0;
-  overflow: hidden;
 }
 
 .leftPane,
@@ -360,6 +361,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow: auto;
 }
 
 .panelHeader {
@@ -382,15 +384,21 @@
   min-height: 0;
 }
 
+.anchorList,
+.watchList,
+.analysisPanel,
+.syncPanel {
+  flex: 0 0 auto;
+}
+
 .watchList {
-  overflow: auto;
+  overflow: visible;
 }
 
 .analysisPanel {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 0;
 }
 
 .syncPanel {
@@ -614,7 +622,7 @@
 .venueRow,
 .watchRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   min-height: 54px;
@@ -652,6 +660,12 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.anchorRow strong,
+.venueRow strong,
+.watchRow strong {
+  overflow-wrap: anywhere;
 }
 
 .watchRow span {
@@ -724,12 +738,15 @@
 .marketTable {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow: auto;
 }
 
 .catalogToolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
   min-height: 52px;
   padding: 8px 10px;
@@ -740,6 +757,7 @@
 .catalogControls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
@@ -831,7 +849,7 @@
 
 .itemRow {
   width: 100%;
-  min-height: 68px;
+  min-height: 74px;
   padding: 0 12px;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -875,10 +893,11 @@
 .floatListingImage,
 .itemThumbFallback {
   flex: 0 0 auto;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 6px;
   object-fit: contain;
+  object-position: center center;
 }
 
 .itemThumb,
@@ -920,9 +939,10 @@
 }
 
 .detailImageFrame {
-  min-height: 156px;
+  min-height: 196px;
   display: grid;
   place-items: center;
+  padding: 14px;
   border-radius: 8px;
   background:
     linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
@@ -931,9 +951,10 @@
 }
 
 .detailImageFrame img {
-  max-width: 92%;
-  max-height: 150px;
+  max-width: 100%;
+  max-height: 182px;
   object-fit: contain;
+  object-position: center center;
 }
 
 .detailImageFrame span {
@@ -947,6 +968,7 @@
   font-size: 24px;
   line-height: 1.08;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .sparkline {

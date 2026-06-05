@@ -5,9 +5,12 @@ import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs
 import { fetchPricempireHistory, fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
 import type { Cs2PipelineSyncSummary, Cs2SyncSummary, ProviderCandleInput } from "@/lib/cs2/providers/types";
+import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
 import {
   createCs2SyncRun,
   finishCs2SyncRun,
+  getCs2MissingChinesePriceMarketHashNames,
+  getCs2MissingHistoryMarketHashNames,
   getCs2WatchlistMarketHashNames,
   getCs2SyncStatus,
   persistProviderCandles,
@@ -22,6 +25,7 @@ import {
 
 export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "c5game" | "cspriceapi";
 export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire";
+export type Cs2CatalogProvider = "metadata" | "cs2cap";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
 
 export { getCs2SyncStatus };
@@ -189,6 +193,10 @@ export async function syncCs2LatestPrices(params: {
   const syncRun = await createCs2SyncRun(params.provider);
 
   try {
+    if ((params.provider === "c5game" || params.provider === "cspriceapi") && (params.marketHashNames ?? []).length === 0) {
+      throw new Error(`${params.provider} latest sync requires explicit marketHashNames.`);
+    }
+
     const items = params.provider === "cs2cap"
       ? await fetchCs2CapLatestItems({
         marketHashNames: params.marketHashNames,
@@ -257,17 +265,31 @@ export async function syncCs2LatestPrices(params: {
 }
 
 export async function syncCs2Catalog(params: {
-  provider: "cs2cap";
+  provider: Cs2CatalogProvider;
   query?: string;
   limit?: number;
 }): Promise<Cs2SyncSummary> {
   const syncRun = await createCs2SyncRun(params.provider);
 
   try {
-    const items = await fetchCs2CapCatalogItems({
-      query: params.query,
-      limit: params.limit,
-    });
+    const items = params.provider === "metadata"
+      ? (await getCs2ItemMetadataCatalog({
+        query: params.query,
+        limit: params.limit,
+      })).map((item) => ({
+        marketHashName: item.marketHashName,
+        itemType: item.itemType ?? "unknown",
+        category: item.category,
+        rarity: item.rarity,
+        exterior: item.exterior,
+        collection: item.collection,
+        imageUrl: item.imageUrl,
+        tradable: true,
+      }))
+      : await fetchCs2CapCatalogItems({
+        query: params.query,
+        limit: params.limit,
+      });
     await persistProviderCatalogItems(items);
     await finishCs2SyncRun({
       id: syncRun?.id,
@@ -444,6 +466,56 @@ export async function syncCs2WatchlistHistory(params: {
   }
 }
 
+export async function syncCs2MissingHistory(params: {
+  provider: Cs2HistoryProvider;
+  sources?: string[];
+  start?: string;
+  end?: string;
+  lookback?: string;
+  interval: "5m" | "30m" | "1h" | "1d";
+  fill?: boolean;
+  limit?: number;
+  staleAfterDays?: number;
+}): Promise<Cs2SyncSummary> {
+  try {
+    const marketHashNames = await getCs2MissingHistoryMarketHashNames({
+      limit: params.limit,
+      staleAfterDays: params.staleAfterDays,
+    });
+
+    if (marketHashNames.length === 0) {
+      return {
+        provider: params.provider,
+        status: "ok",
+        itemCount: 0,
+        snapshotCount: 0,
+        candleCount: 0,
+        message: "No catalog history gaps to backfill.",
+      };
+    }
+
+    return await syncCs2History({
+      provider: params.provider,
+      marketHashNames,
+      sources: params.sources,
+      start: params.start,
+      end: params.end,
+      lookback: params.lookback,
+      interval: params.interval,
+      fill: params.fill,
+    });
+  } catch (error) {
+    return {
+      provider: params.provider,
+      status: "error",
+      itemCount: 0,
+      snapshotCount: 0,
+      candleCount: 0,
+      message: error instanceof Error ? error.message : "History gap sync failed",
+    };
+  }
+}
+
 function summarizePipelineRuns(runs: Cs2SyncSummary[]): Cs2PipelineSyncSummary {
   const errors = runs.filter((run) => run.status === "error");
   return {
@@ -483,7 +555,16 @@ export async function syncCs2MarketPipeline(params: {
       ownerKey: params.ownerKey,
       limit: Math.min(250, Math.max(1, params.watchlistLimit ?? 100)),
     }).catch(() => [])
-    : [];
+    : await getCs2MissingChinesePriceMarketHashNames({
+      limit: Math.min(250, Math.max(1, params.latestLimit ?? 100)),
+    }).catch(() => []);
+
+  if (includeCatalog) {
+    runs.push(await syncCs2Catalog({
+      provider: "metadata",
+      limit: params.catalogLimit,
+    }));
+  }
 
   if (includeCatalog && process.env.CS2CAP_API_KEY) {
     runs.push(await syncCs2Catalog({

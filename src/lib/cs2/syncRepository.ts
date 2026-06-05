@@ -310,12 +310,61 @@ export async function getCs2WatchlistMarketHashNames(params: {
   return rows.map((row) => row.item.marketHashName);
 }
 
+export async function getCs2MissingChinesePriceMarketHashNames(params: {
+  limit?: number;
+  staleAfterHours?: number;
+}) {
+  const staleBefore = new Date(Date.now() - Math.max(1, params.staleAfterHours ?? 12) * 60 * 60 * 1000);
+  const rows = await prisma.cs2Item.findMany({
+    where: {
+      OR: [
+        { marketSummary: { is: null } },
+        { marketSummary: { is: { chineseAskCents: null } } },
+        { marketSummary: { is: { latestObservedAt: { lt: staleBefore } } } },
+      ],
+    },
+    select: { marketHashName: true },
+    orderBy: [
+      { marketSummary: { latestObservedAt: "asc" } },
+      { updatedAt: "asc" },
+    ],
+    take: Math.min(250, Math.max(1, params.limit ?? 100)),
+  });
+
+  return rows.map((row) => row.marketHashName);
+}
+
+export async function getCs2MissingHistoryMarketHashNames(params: {
+  limit?: number;
+  staleAfterDays?: number;
+}) {
+  const staleBefore = new Date(Date.now() - Math.max(1, params.staleAfterDays ?? 7) * 24 * 60 * 60 * 1000);
+  const rows = await prisma.cs2Item.findMany({
+    where: {
+      OR: [
+        { priceCandles: { none: {} } },
+        { priceCandles: { every: { startsAt: { lt: staleBefore } } } },
+      ],
+    },
+    select: { marketHashName: true },
+    orderBy: { updatedAt: "asc" },
+    take: Math.min(250, Math.max(1, params.limit ?? 100)),
+  });
+
+  return rows.map((row) => row.marketHashName);
+}
+
 export async function getCs2SyncStatus() {
   const [
     itemCount,
     latestSnapshotCount,
     marketSummaryCount,
     candleCount,
+    itemsWithLatestSnapshots,
+    itemsWithChinesePrice,
+    itemsWithGlobalPrice,
+    itemsWithHistory,
+    providerCoverage,
     lastRuns,
     latestObservation,
   ] = await Promise.all([
@@ -323,6 +372,15 @@ export async function getCs2SyncStatus() {
     prisma.cs2MarketLatestSnapshot.count(),
     prisma.cs2ItemMarketSummary.count(),
     prisma.cs2PriceCandle.count(),
+    prisma.cs2Item.count({ where: { latestSnapshots: { some: {} } } }),
+    prisma.cs2ItemMarketSummary.count({ where: { chineseAskCents: { not: null } } }),
+    prisma.cs2ItemMarketSummary.count({ where: { globalAskCents: { not: null } } }),
+    prisma.cs2Item.count({ where: { priceCandles: { some: {} } } }),
+    prisma.cs2MarketLatestSnapshot.groupBy({
+      by: ["provider", "marketRegion"],
+      _count: { _all: true, itemId: true },
+      orderBy: { _count: { itemId: "desc" } },
+    }),
     prisma.cs2MarketSyncRun.findMany({
       orderBy: { startedAt: "desc" },
       take: 10,
@@ -339,6 +397,22 @@ export async function getCs2SyncStatus() {
     latestSnapshotCount,
     marketSummaryCount,
     candleCount,
+    coverage: {
+      itemsWithLatestSnapshots,
+      itemsWithChinesePrice,
+      itemsWithGlobalPrice,
+      itemsWithHistory,
+      itemsMissingLatestSnapshots: Math.max(0, itemCount - itemsWithLatestSnapshots),
+      itemsMissingChinesePrice: Math.max(0, itemCount - itemsWithChinesePrice),
+      itemsMissingGlobalPrice: Math.max(0, itemCount - itemsWithGlobalPrice),
+      itemsMissingHistory: Math.max(0, itemCount - itemsWithHistory),
+    },
+    providerCoverage: providerCoverage.map((group) => ({
+      provider: group.provider,
+      marketRegion: group.marketRegion,
+      itemCount: group._count.itemId,
+      snapshotCount: group._count._all,
+    })),
     latestObservation: latestObservation ? {
       observedAt: latestObservation.observedAt.toISOString(),
       provider: latestObservation.provider,

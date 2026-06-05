@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
+import { getCs2ItemMetadataByMarketHashName } from "@/lib/cs2/itemMetadataService";
+import { hydrateCs2ItemsFromConfiguredProviders } from "@/lib/cs2/syncService";
 import { prisma } from "@/lib/db";
 
 vi.mock("@/lib/db", () => ({
@@ -34,7 +36,15 @@ vi.mock("@/lib/cs2/providers/cspriceapi", () => ({
   fetchCsPriceApiLatestItems: vi.fn().mockResolvedValue([]),
 }));
 
-import { getCs2TrackerOverview } from "@/lib/cs2/marketService";
+vi.mock("@/lib/cs2/itemMetadataService", () => ({
+  getCs2ItemMetadataByMarketHashName: vi.fn(),
+}));
+
+vi.mock("@/lib/cs2/syncService", () => ({
+  hydrateCs2ItemsFromConfiguredProviders: vi.fn(),
+}));
+
+import { addCs2WatchlistItem, getCs2TrackerOverview } from "@/lib/cs2/marketService";
 
 describe("CS2 market service source status", () => {
   beforeEach(() => {
@@ -44,6 +54,8 @@ describe("CS2 market service source status", () => {
     delete process.env.PRICEMPIRE_API_KEY;
     delete process.env.C5GAME_API_KEY;
     delete process.env.CSPRICEAPI_API_KEY;
+    vi.mocked(getCs2ItemMetadataByMarketHashName).mockResolvedValue(new Map() as never);
+    vi.mocked(hydrateCs2ItemsFromConfiguredProviders).mockResolvedValue([] as never);
   });
 
   it("reports direct configured China sources separately from aggregator-fed anchors", async () => {
@@ -219,5 +231,151 @@ describe("CS2 market service source status", () => {
       hasLiveCoverage: true,
       itemCount: 1,
     }));
+  });
+
+  it("keeps watched items in analysis even when they are outside the visible query page", async () => {
+    vi.mocked(prisma.cs2Item.findMany)
+      .mockResolvedValueOnce([{
+        id: "m4a4-poseidon",
+        marketHashName: "M4A4 | Poseidon (Factory New)",
+        itemType: "skin",
+        category: "M4A4",
+        rarity: "Classified",
+        exterior: "Factory New",
+        collection: null,
+        imageUrl: null,
+        tradable: true,
+        latestSnapshots: [],
+        marketSnapshots: [],
+        priceCandles: [],
+        marketSummary: null,
+      }] as never)
+      .mockResolvedValueOnce([{
+        id: "ak-redline",
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+        itemType: "skin",
+        category: "AK-47",
+        rarity: "Classified",
+        exterior: "Field-Tested",
+        collection: null,
+        imageUrl: null,
+        tradable: true,
+        latestSnapshots: [{
+          provider: "cspriceapi",
+          marketName: "BUFF163",
+          marketRegion: "china",
+          askCents: 2400,
+          bidCents: null,
+          medianCents: null,
+          askVolume: 10,
+          bidVolume: null,
+          salesVolume24h: null,
+          liquidityScore: 14,
+          observedAt: new Date("2026-06-05T12:00:00.000Z"),
+          sourceUrl: null,
+        }],
+        marketSnapshots: [],
+        priceCandles: [],
+        marketSummary: {
+          bestAskCents: 2400,
+          bestBidCents: null,
+          chineseAskCents: 2400,
+          globalAskCents: null,
+          spreadPercent: null,
+        },
+      }] as never);
+    vi.mocked(prisma.cs2WatchlistItem.findMany).mockResolvedValue([{
+      id: "watch-1",
+      itemId: "ak-redline",
+      ownerKey: "owner-watch",
+      userId: null,
+      targetBuyCents: 2500,
+      targetSellCents: null,
+      notes: null,
+      createdAt: new Date("2026-06-05T12:00:00.000Z"),
+      updatedAt: new Date("2026-06-05T12:00:00.000Z"),
+      item: {
+        id: "ak-redline",
+        marketHashName: "AK-47 | Redline (Field-Tested)",
+      },
+    }] as never);
+
+    const overview = await getCs2TrackerOverview({
+      ownerKey: "owner-watch",
+      query: "poseidon",
+    });
+
+    expect(overview.items.map((item) => item.marketHashName)).toEqual(["M4A4 | Poseidon (Factory New)"]);
+    expect(overview.analysis.watchlistSignals).toContainEqual(expect.objectContaining({
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      signal: "buy-target",
+    }));
+  });
+
+  it("returns a normalized watchlist entry and refreshed item after add", async () => {
+    vi.mocked(prisma.cs2Item.upsert).mockResolvedValue({
+      id: "ak-redline",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+    } as never);
+    vi.mocked(prisma.cs2WatchlistItem.upsert).mockResolvedValue({
+      id: "watch-1",
+      itemId: "ak-redline",
+      targetBuyCents: 2500,
+      targetSellCents: 3200,
+      notes: "watch spread",
+      createdAt: new Date("2026-06-05T12:00:00.000Z"),
+    } as never);
+    vi.mocked(prisma.cs2Item.findMany).mockResolvedValue([{
+      id: "ak-redline",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      itemType: "skin",
+      category: "AK-47",
+      rarity: "Classified",
+      exterior: "Field-Tested",
+      collection: null,
+      imageUrl: null,
+      tradable: true,
+      latestSnapshots: [],
+      marketSnapshots: [],
+      priceCandles: [],
+      marketSummary: null,
+    }] as never);
+    vi.mocked(hydrateCs2ItemsFromConfiguredProviders).mockResolvedValue([{
+      provider: "cspriceapi",
+      status: "ok",
+      itemCount: 1,
+      snapshotCount: 3,
+      candleCount: 0,
+      message: null,
+    }] as never);
+
+    const result = await addCs2WatchlistItem({
+      ownerKey: "owner-1",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      targetBuyCents: 2500,
+      targetSellCents: 3200,
+      notes: "watch spread",
+    });
+
+    expect(hydrateCs2ItemsFromConfiguredProviders).toHaveBeenCalledWith({
+      marketHashNames: ["AK-47 | Redline (Field-Tested)"],
+    });
+    expect(result.watchlistItem).toEqual({
+      id: "watch-1",
+      itemId: "ak-redline",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+      targetBuyCents: 2500,
+      targetSellCents: 3200,
+      notes: "watch spread",
+      createdAt: "2026-06-05T12:00:00.000Z",
+    });
+    expect(result.item).toEqual(expect.objectContaining({
+      id: "ak-redline",
+      marketHashName: "AK-47 | Redline (Field-Tested)",
+    }));
+    expect(result.hydration).toEqual([expect.objectContaining({
+      provider: "cspriceapi",
+      status: "ok",
+    })]);
   });
 });

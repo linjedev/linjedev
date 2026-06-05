@@ -10,6 +10,18 @@ const LOCAL_TRANSPARENT_SAMPLE_IMAGE_URLS = {
 const STAR_PREFIX = "\u2605";
 type ImageIndexEntry = [string, string];
 
+export type Cs2ImageCatalogEntry = {
+  marketHashName: string;
+  imageUrl: string;
+  backgroundRemoved: boolean;
+  source: "indexed-transparent-local-render" | "csgo-api";
+};
+
+type ImageMetadataInput = {
+  marketHashName: string;
+  imageUrl: string | null;
+};
+
 function normalizeStarPrefix(value: string) {
   return value
     .normalize("NFKC")
@@ -54,4 +66,32 @@ export function resolveCs2ImageUrl(marketHashName: string, candidateUrl?: string
   if (indexedUrl) return indexedUrl;
   if (!candidateUrl) return null;
   return candidateUrl.includes("/social-images/") ? null : candidateUrl;
+}
+
+export function buildCs2ImageCatalog(metadataItems: ImageMetadataInput[]): Cs2ImageCatalogEntry[] {
+  const entries = new Map<string, Cs2ImageCatalogEntry>();
+
+  for (const [marketHashName, imageUrl] of Object.entries(CS2_IMAGE_INDEX)) {
+    const normalizedName = normalizeStarPrefix(marketHashName.normalize("NFKC"));
+    if (entries.has(normalizedName)) continue;
+    entries.set(normalizedName, {
+      marketHashName: normalizedName,
+      imageUrl,
+      backgroundRemoved: true,
+      source: "indexed-transparent-local-render",
+    });
+  }
+
+  for (const metadata of metadataItems) {
+    const normalizedName = normalizeStarPrefix(metadata.marketHashName.normalize("NFKC"));
+    if (!metadata.imageUrl || entries.has(normalizedName)) continue;
+    entries.set(normalizedName, {
+      marketHashName: normalizedName,
+      imageUrl: metadata.imageUrl,
+      backgroundRemoved: false,
+      source: "csgo-api",
+    });
+  }
+
+  return Array.from(entries.values()).sort((a, b) => a.marketHashName.localeCompare(b.marketHashName));
 }

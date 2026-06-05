@@ -276,6 +276,22 @@ export type Cs2SyncStatus = {
   latestSnapshotCount: number;
   marketSummaryCount: number;
   candleCount: number;
+  coverage: {
+    itemsWithLatestSnapshots: number;
+    itemsWithChinesePrice: number;
+    itemsWithGlobalPrice: number;
+    itemsWithHistory: number;
+    itemsMissingLatestSnapshots: number;
+    itemsMissingChinesePrice: number;
+    itemsMissingGlobalPrice: number;
+    itemsMissingHistory: number;
+  };
+  providerCoverage: Array<{
+    provider: string;
+    marketRegion: Cs2MarketRegion;
+    itemCount: number;
+    snapshotCount: number;
+  }>;
   latestObservation: {
     observedAt: string;
     provider: string;
