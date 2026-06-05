@@ -18,7 +18,7 @@ $trigger = New-ScheduledTaskTrigger `
 
 $action = New-ScheduledTaskAction `
   -Execute $taskCommand `
-  -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$syncScript`""
+  -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$syncScript`""
 
 $principal = New-ScheduledTaskPrincipal `
   -UserId $env:USERNAME `
@@ -46,5 +46,6 @@ catch {
 
 $schtasksTime = $startTime.ToString("HH:mm")
 $taskArgs = "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$syncScript`""
+$taskArgs = "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$syncScript`""
 
 & schtasks /Create /F /SC MINUTE /MO $IntervalMinutes /ST $schtasksTime /TN $TaskName /TR $taskArgs /RL LIMITED /RU "$env:USERNAME"
