@@ -4,6 +4,7 @@ import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
 import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
+import { fetchDMarketLatestItems } from "@/lib/cs2/providers/dmarket";
 import { fetchMarketCsgoLatestItems, fetchMarketCsgoSalesHistory } from "@/lib/cs2/providers/marketcsgo";
 import { fetchPricempireHistory, fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
@@ -28,7 +29,7 @@ import {
   getConfiguredPricempirePriceSources,
 } from "@/lib/cs2/marketSources";
 
-export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "marketcsgo" | "waxpeer" | "bitskins";
+export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "marketcsgo" | "waxpeer" | "bitskins" | "dmarket";
 export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam" | "marketcsgo";
 export type Cs2CatalogProvider = "metadata" | "cs2cap";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
@@ -255,6 +256,28 @@ export async function hydrateCs2ItemsFromConfiguredProviders(params: {
     });
   }
 
+  try {
+    const items = await fetchDMarketLatestItems({ marketHashNames });
+    const snapshotCount = await persistProviderItems(items);
+    summaries.push({
+      provider: "dmarket",
+      status: "ok",
+      itemCount: items.length,
+      snapshotCount,
+      candleCount: 0,
+      message: null,
+    });
+  } catch (error) {
+    summaries.push({
+      provider: "dmarket",
+      status: "error",
+      itemCount: 0,
+      snapshotCount: 0,
+      candleCount: 0,
+      message: error instanceof Error ? error.message : "DMarket hydration failed",
+    });
+  }
+
   return summaries;
 }
 
@@ -310,6 +333,11 @@ export async function syncCs2LatestPrices(params: {
         })
       : params.provider === "bitskins"
         ? await fetchBitSkinsLatestItems({
+          marketHashNames: params.marketHashNames,
+          limit: params.limit,
+        })
+      : params.provider === "dmarket"
+        ? await fetchDMarketLatestItems({
           marketHashNames: params.marketHashNames,
           limit: params.limit,
         })
@@ -722,6 +750,10 @@ export async function syncCs2MarketPipeline(params: {
     }));
     runs.push(await syncCs2LatestPrices({
       provider: "bitskins",
+      limit: params.latestLimit,
+    }));
+    runs.push(await syncCs2LatestPrices({
+      provider: "dmarket",
       limit: params.latestLimit,
     }));
 

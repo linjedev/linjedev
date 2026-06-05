@@ -7,6 +7,7 @@ import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
 import { fetchCsFloatLatestItems } from "@/lib/cs2/providers/csfloat";
+import { fetchDMarketLatestItems } from "@/lib/cs2/providers/dmarket";
 import { fetchMarketCsgoLatestItems } from "@/lib/cs2/providers/marketcsgo";
 import { fetchSteamLatestItems } from "@/lib/cs2/providers/steam";
 import { fetchWaxpeerLatestItems } from "@/lib/cs2/providers/waxpeer";
@@ -128,6 +129,10 @@ async function fetchConfiguredLatestSnapshots(marketHashNames: string[]): Promis
     }),
     fetchBitSkinsLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
       console.warn("[cs2] BitSkins overview refresh failed.", error);
+      return new Map<string, Cs2MarketSnapshotView[]>();
+    }),
+    fetchDMarketLatestItems({ marketHashNames }).then(providerItemsToSnapshotMap).catch((error) => {
+      console.warn("[cs2] DMarket overview refresh failed.", error);
       return new Map<string, Cs2MarketSnapshotView[]>();
     }),
     process.env.CSFLOAT_API_KEY
@@ -367,7 +372,7 @@ export async function getCs2TrackerOverview(params: {
   }
 
   const configuredProviders = getConfiguredMarketProviders();
-  if (configuredProviders.some((provider) => ["cs2.sh", "c5game", "cspriceapi", "marketcsgo", "waxpeer", "steam", "csfloat", "bitskins"].includes(provider))) {
+  if (configuredProviders.some((provider) => ["cs2.sh", "c5game", "cspriceapi", "marketcsgo", "waxpeer", "steam", "csfloat", "bitskins", "dmarket"].includes(provider))) {
     try {
       const liveSnapshots = await fetchConfiguredLatestSnapshots(items.slice(0, 40).map((item) => item.marketHashName));
       if (liveSnapshots.size > 0) {

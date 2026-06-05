@@ -204,7 +204,7 @@ export function getConfiguredMarketProviders() {
     ...(process.env.WAXPEER_API_KEY ? ["waxpeer"] : []),
     ...(process.env.CSFLOAT_API_KEY ? ["csfloat"] : []),
     "steam",
-    ...(process.env.DMARKET_API_KEY ? ["dmarket"] : []),
+    "dmarket",
     "bitskins",
     ...(process.env.CS2CAP_API_KEY || process.env.PRICEMPIRE_API_KEY ? EXTENDED_AGGREGATOR_MARKETS : []),
   ];
