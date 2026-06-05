@@ -45,7 +45,6 @@ catch {
 }
 
 $schtasksTime = $startTime.ToString("HH:mm")
-$taskArgs = "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$syncScript`""
 $taskArgs = "powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$syncScript`""
 
 & schtasks /Create /F /SC MINUTE /MO $IntervalMinutes /ST $schtasksTime /TN $TaskName /TR $taskArgs /RL LIMITED /RU "$env:USERNAME"
