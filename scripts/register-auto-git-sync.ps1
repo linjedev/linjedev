@@ -23,12 +23,24 @@ $principal = New-ScheduledTaskPrincipal `
   -LogonType S4U `
   -RunLevel Highest
 
-Register-ScheduledTask `
-  -TaskName $TaskName `
-  -Trigger $trigger `
-  -Action $action `
-  -Principal $principal `
-  -Description "Auto commit and push repository changes every $IntervalMinutes minutes." `
-  -Force | Out-Null
+try {
+  Register-ScheduledTask `
+    -TaskName $TaskName `
+    -Trigger $trigger `
+    -Action $action `
+    -Principal $principal `
+    -Description "Auto commit and push repository changes every $IntervalMinutes minutes." `
+    -Force | Out-Null
 
-Write-Output "Task '$TaskName' registered for this user at interval $IntervalMinutes minutes."
+  Write-Output "Task '$TaskName' registered for this user at interval $IntervalMinutes minutes."
+  return
+}
+catch {
+  Write-Output "Register-ScheduledTask failed: $($_.Exception.Message)"
+  Write-Output "Falling back to classic schtasks registration (no admin required in most setups)."
+}
+
+$schtasksTime = $startTime.ToString("HH:mm")
+$taskArgs = "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$syncScript`""
+
+& schtasks /Create /F /SC MINUTE /MO $IntervalMinutes /ST $schtasksTime /TN $TaskName /TR $taskArgs /RL LIMITED /RU "$env:USERNAME"
