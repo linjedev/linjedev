@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchBitSkinsLatestItems } from "@/lib/cs2/providers/bitskins";
 import { fetchCs2CapCandles, fetchCs2CapCatalogItems, fetchCs2CapLatestItems } from "@/lib/cs2/providers/cs2cap";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
@@ -17,6 +18,10 @@ vi.mock("@/lib/cs2/providers/cs2cap", () => ({
   fetchCs2CapCandles: vi.fn(),
   fetchCs2CapCatalogItems: vi.fn(),
   fetchCs2CapLatestItems: vi.fn(),
+}));
+
+vi.mock("@/lib/cs2/providers/bitskins", () => ({
+  fetchBitSkinsLatestItems: vi.fn(),
 }));
 
 vi.mock("@/lib/cs2/providers/c5game", () => ({
@@ -86,17 +91,21 @@ describe("CS2 sync service hydration", () => {
     delete process.env.CSPRICEAPI_API_KEY;
     delete process.env.MARKET_CSGO_API_KEY;
     delete process.env.WAXPEER_API_KEY;
+    vi.mocked(fetchBitSkinsLatestItems).mockResolvedValue([] as never);
     vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([] as never);
     vi.mocked(getCs2MissingChinesePriceMarketHashNames).mockResolvedValue([] as never);
     vi.mocked(getCs2MissingHistoryMarketHashNames).mockResolvedValue([] as never);
+    vi.mocked(persistProviderItems).mockResolvedValue(0 as never);
   });
 
-  it("skips provider calls when no live API keys are configured", async () => {
+  it("uses the public BitSkins hydration source when no keyed providers are configured", async () => {
     const summaries = await hydrateCs2ItemsFromConfiguredProviders({
       marketHashNames: [" AK-47 | Redline (Field-Tested) ", ""],
     });
 
-    expect(summaries).toEqual([]);
+    expect(summaries).toEqual([
+      expect.objectContaining({ provider: "bitskins", status: "ok", itemCount: 0, snapshotCount: 0 }),
+    ]);
     expect(fetchCs2ShLatestItems).not.toHaveBeenCalled();
     expect(fetchCs2CapLatestItems).not.toHaveBeenCalled();
     expect(fetchPricempireLatestItems).not.toHaveBeenCalled();
@@ -107,7 +116,10 @@ describe("CS2 sync service hydration", () => {
     expect(fetchMarketCsgoLatestItems).not.toHaveBeenCalled();
     expect(fetchWaxpeerLatestItems).not.toHaveBeenCalled();
     expect(fetchSkinportLatestItems).not.toHaveBeenCalled();
-    expect(persistProviderItems).not.toHaveBeenCalled();
+    expect(fetchBitSkinsLatestItems).toHaveBeenCalledWith({
+      marketHashNames: ["AK-47 | Redline (Field-Tested)"],
+    });
+    expect(persistProviderItems).toHaveBeenCalledWith([]);
   });
 
   it("hydrates an exact watchlist item from every configured China-aware provider", async () => {
@@ -125,6 +137,7 @@ describe("CS2 sync service hydration", () => {
     vi.mocked(fetchCsPriceApiLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(fetchMarketCsgoLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(fetchWaxpeerLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
+    vi.mocked(fetchBitSkinsLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(persistProviderItems)
       .mockResolvedValueOnce(2 as never)
       .mockResolvedValueOnce(3 as never)
@@ -132,7 +145,8 @@ describe("CS2 sync service hydration", () => {
       .mockResolvedValueOnce(5 as never)
       .mockResolvedValueOnce(6 as never)
       .mockResolvedValueOnce(7 as never)
-      .mockResolvedValueOnce(8 as never);
+      .mockResolvedValueOnce(8 as never)
+      .mockResolvedValueOnce(9 as never);
 
     const summaries = await hydrateCs2ItemsFromConfiguredProviders({
       marketHashNames: [
@@ -164,6 +178,9 @@ describe("CS2 sync service hydration", () => {
     expect(fetchWaxpeerLatestItems).toHaveBeenCalledWith({
       marketHashNames: ["AK-47 | Redline (Field-Tested)"],
     });
+    expect(fetchBitSkinsLatestItems).toHaveBeenCalledWith({
+      marketHashNames: ["AK-47 | Redline (Field-Tested)"],
+    });
     expect(summaries).toEqual([
       expect.objectContaining({ provider: "cs2.sh", status: "ok", snapshotCount: 2 }),
       expect.objectContaining({ provider: "cs2cap", status: "ok", snapshotCount: 3 }),
@@ -172,6 +189,7 @@ describe("CS2 sync service hydration", () => {
       expect.objectContaining({ provider: "cspriceapi", status: "ok", snapshotCount: 6 }),
       expect.objectContaining({ provider: "marketcsgo", status: "ok", snapshotCount: 7 }),
       expect.objectContaining({ provider: "waxpeer", status: "ok", snapshotCount: 8 }),
+      expect.objectContaining({ provider: "bitskins", status: "ok", snapshotCount: 9 }),
     ]);
   });
 
@@ -426,8 +444,9 @@ describe("CS2 sync service hydration", () => {
     }));
   });
 
-  it("runs the public Skinport latest-price pipeline step when no provider API keys are configured", async () => {
+  it("runs public Skinport and BitSkins latest-price pipeline steps when no provider API keys are configured", async () => {
     vi.mocked(fetchSkinportLatestItems).mockResolvedValue([{ marketHashName: "M4A4 | Poseidon (Factory New)", snapshots: [] }] as never);
+    vi.mocked(fetchBitSkinsLatestItems).mockResolvedValue([{ marketHashName: "Sticker | Crown (Foil)", snapshots: [] }] as never);
     vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([{
       marketHashName: "M4A4 | Poseidon (Factory New)",
       itemType: "skin",
@@ -445,6 +464,9 @@ describe("CS2 sync service hydration", () => {
     expect(fetchSkinportLatestItems).toHaveBeenCalledWith({
       limit: undefined,
     });
+    expect(fetchBitSkinsLatestItems).toHaveBeenCalledWith({
+      limit: undefined,
+    });
     expect(getCs2ItemMetadataCatalog).toHaveBeenCalledWith({
       query: undefined,
       limit: undefined,
@@ -452,12 +474,12 @@ describe("CS2 sync service hydration", () => {
     expect(summary).toEqual(expect.objectContaining({
       provider: "pipeline",
       status: "ok",
-      itemCount: 2,
-      snapshotCount: 1,
+      itemCount: 3,
+      snapshotCount: 2,
       candleCount: 0,
       message: null,
     }));
-    expect(summary.runs.map((run) => run.provider)).toEqual(["metadata", "skinport"]);
+    expect(summary.runs.map((run) => run.provider)).toEqual(["metadata", "skinport", "bitskins"]);
   });
 
   it("syncs the public metadata catalog into the database", async () => {
@@ -555,7 +577,7 @@ describe("CS2 sync service hydration", () => {
       limit: 2,
     });
     expect(summary.nextCursor).toBe("Sticker | Crown (Foil)");
-    expect(summary.runs.map((run) => run.provider)).toEqual(["skinport", "steam", "csfloat", "c5game", "cspriceapi"]);
+    expect(summary.runs.map((run) => run.provider)).toEqual(["skinport", "bitskins", "steam", "csfloat", "c5game", "cspriceapi"]);
   });
 
   it("backfills history for catalog items missing candles", async () => {
@@ -730,7 +752,7 @@ describe("CS2 sync service hydration", () => {
       snapshotCount: 56,
       candleCount: 0,
     }));
-    expect(summary.runs.map((run) => run.provider)).toEqual(["metadata", "cs2cap", "skinport", "cs2cap", "pricempire", "steam", "csfloat", "c5game", "cspriceapi"]);
+    expect(summary.runs.map((run) => run.provider)).toEqual(["metadata", "cs2cap", "skinport", "bitskins", "cs2cap", "pricempire", "steam", "csfloat", "c5game", "cspriceapi"]);
   });
 
   it("sweeps China latest-price gaps across cursor batches", async () => {

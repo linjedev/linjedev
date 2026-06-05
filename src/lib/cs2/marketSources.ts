@@ -146,9 +146,9 @@ export const CS2_MARKET_SOURCES: Cs2MarketSource[] = [
     region: "global",
     role: "market",
     homepageUrl: "https://bitskins.com/docs/api/v2",
-    requiresApiKey: true,
+    requiresApiKey: false,
     priority: 45,
-    coverage: "Direct marketplace API for pricing summaries, market items, and item history.",
+    coverage: "Direct marketplace API with a public cached CS2 in-sell price feed plus authenticated trading endpoints.",
   },
   {
     id: "buffmarket",
@@ -205,7 +205,7 @@ export function getConfiguredMarketProviders() {
     ...(process.env.CSFLOAT_API_KEY ? ["csfloat"] : []),
     "steam",
     ...(process.env.DMARKET_API_KEY ? ["dmarket"] : []),
-    ...(process.env.BITSKINS_API_KEY ? ["bitskins"] : []),
+    "bitskins",
     ...(process.env.CS2CAP_API_KEY || process.env.PRICEMPIRE_API_KEY ? EXTENDED_AGGREGATOR_MARKETS : []),
   ];
   return [...new Set(configured)];

@@ -1,4 +1,5 @@
 import { fetchCs2CapCandles, fetchCs2CapCatalogItems, fetchCs2CapLatestItems } from "@/lib/cs2/providers/cs2cap";
+import { fetchBitSkinsLatestItems } from "@/lib/cs2/providers/bitskins";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
@@ -27,7 +28,7 @@ import {
   getConfiguredPricempirePriceSources,
 } from "@/lib/cs2/marketSources";
 
-export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "marketcsgo" | "waxpeer";
+export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "marketcsgo" | "waxpeer" | "bitskins";
 export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam" | "marketcsgo";
 export type Cs2CatalogProvider = "metadata" | "cs2cap";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
@@ -232,6 +233,28 @@ export async function hydrateCs2ItemsFromConfiguredProviders(params: {
     }
   }
 
+  try {
+    const items = await fetchBitSkinsLatestItems({ marketHashNames });
+    const snapshotCount = await persistProviderItems(items);
+    summaries.push({
+      provider: "bitskins",
+      status: "ok",
+      itemCount: items.length,
+      snapshotCount,
+      candleCount: 0,
+      message: null,
+    });
+  } catch (error) {
+    summaries.push({
+      provider: "bitskins",
+      status: "error",
+      itemCount: 0,
+      snapshotCount: 0,
+      candleCount: 0,
+      message: error instanceof Error ? error.message : "BitSkins hydration failed",
+    });
+  }
+
   return summaries;
 }
 
@@ -282,6 +305,11 @@ export async function syncCs2LatestPrices(params: {
         })
       : params.provider === "waxpeer"
         ? await fetchWaxpeerLatestItems({
+          marketHashNames: params.marketHashNames,
+          limit: params.limit,
+        })
+      : params.provider === "bitskins"
+        ? await fetchBitSkinsLatestItems({
           marketHashNames: params.marketHashNames,
           limit: params.limit,
         })
@@ -690,6 +718,10 @@ export async function syncCs2MarketPipeline(params: {
   if (includeLatest) {
     runs.push(await syncCs2LatestPrices({
       provider: "skinport",
+      limit: params.latestLimit,
+    }));
+    runs.push(await syncCs2LatestPrices({
+      provider: "bitskins",
       limit: params.latestLimit,
     }));
 

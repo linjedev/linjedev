@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchBitSkinsLatestItems } from "@/lib/cs2/providers/bitskins";
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
@@ -30,6 +31,10 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/cs2/providers/cs2sh", () => ({
   fetchCs2ShLatestItems: vi.fn().mockResolvedValue([]),
   fetchCs2ShHistory: vi.fn(),
+}));
+
+vi.mock("@/lib/cs2/providers/bitskins", () => ({
+  fetchBitSkinsLatestItems: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/cs2/providers/c5game", () => ({
@@ -77,6 +82,7 @@ describe("CS2 market service source status", () => {
     delete process.env.CSFLOAT_API_KEY;
     delete process.env.MARKET_CSGO_API_KEY;
     delete process.env.WAXPEER_API_KEY;
+    vi.mocked(fetchBitSkinsLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchCs2ShLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchC5GameLatestItems).mockResolvedValue([] as never);
     vi.mocked(fetchCsPriceApiLatestItems).mockResolvedValue([] as never);
