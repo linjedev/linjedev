@@ -5,7 +5,7 @@ import {
   inferMarketRegion,
   normalizeMarketName,
 } from "@/lib/cs2/normalization";
-import type { ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
+import type { ProviderCandleInput, ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
 
 const STEAM_MARKET_BASE_URL = process.env.STEAM_MARKET_BASE_URL ?? "https://steamcommunity.com";
 const DEFAULT_APP_ID = 730;
@@ -29,6 +29,23 @@ function parseSteamVolume(value: unknown) {
   if (!raw) return null;
   const parsed = Number(raw.replace(/,/g, "").match(/\d+/u)?.[0]);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseSteamHistoryTimestamp(value: unknown) {
+  const raw = readString(value);
+  if (!raw) return null;
+  const dayMatch = raw.match(/^([A-Za-z]{3}\s+\d{1,2}\s+\d{4})/u);
+  const candidate = dayMatch ? `${dayMatch[1]} 00:00:00 UTC` : raw;
+  const parsed = new Date(candidate);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function dayKey(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function dayStart(value: string) {
+  return new Date(`${value}T00:00:00.000Z`);
 }
 
 export function steamPriceOverviewToInput(params: {
@@ -105,4 +122,83 @@ export async function fetchSteamLatestItems(params: {
   }
 
   return items;
+}
+
+export function steamPriceHistoryToCandles(params: {
+  marketHashName: string;
+  payload: unknown;
+}) {
+  const payloadObject = typeof params.payload === "object" && params.payload !== null
+    ? params.payload as Record<string, unknown>
+    : {};
+  if (payloadObject.success === false) return [];
+  const rows = Array.isArray(payloadObject.prices)
+    ? payloadObject.prices
+    : Array.isArray(params.payload)
+      ? params.payload
+      : [];
+  const grouped = new Map<string, Array<{ timestamp: Date; priceCents: number; volume: number | null }>>();
+
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    const timestamp = parseSteamHistoryTimestamp(row[0]);
+    const priceCents = parseSteamPrice(row[1]);
+    if (timestamp === null || priceCents === null) continue;
+    const key = dayKey(timestamp);
+    grouped.set(key, [...(grouped.get(key) ?? []), {
+      timestamp,
+      priceCents,
+      volume: parseSteamVolume(row[2]),
+    }]);
+  }
+
+  return [...grouped.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([date, points]): ProviderCandleInput => {
+    const ordered = [...points].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    const prices = ordered.map((point) => point.priceCents);
+    const volume = ordered.some((point) => point.volume !== null)
+      ? ordered.reduce((sum, point) => sum + (point.volume ?? 0), 0)
+      : null;
+    return {
+      marketHashName: params.marketHashName,
+      provider: "steam",
+      marketName: normalizeMarketName("steam"),
+      interval: "1d",
+      openCents: ordered[0].priceCents,
+      highCents: Math.max(...prices),
+      lowCents: Math.min(...prices),
+      closeCents: ordered.at(-1)?.priceCents ?? ordered[0].priceCents,
+      volume,
+      startsAt: dayStart(date),
+    };
+  });
+}
+
+async function fetchSteamPriceHistoryPayload(marketHashName: string, params: {
+  appId?: number;
+}) {
+  const url = new URL(`${STEAM_MARKET_BASE_URL}/market/pricehistory/`);
+  url.searchParams.set("appid", String(params.appId ?? DEFAULT_APP_ID));
+  url.searchParams.set("market_hash_name", marketHashName);
+
+  const headers = process.env.STEAM_MARKET_COOKIE
+    ? { Cookie: process.env.STEAM_MARKET_COOKIE }
+    : undefined;
+  const response = await fetch(url, {
+    headers,
+    next: { revalidate: 300 },
+  });
+  if (!response.ok) throw new Error(`Steam pricehistory returned ${response.status}`);
+  return await response.json() as unknown;
+}
+
+export async function fetchSteamPriceHistory(params: {
+  marketHashNames: string[];
+  appId?: number;
+}) {
+  const marketHashNames = [...new Set(params.marketHashNames.map((name) => name.trim()).filter(Boolean))];
+  const candles = await Promise.all(marketHashNames.map(async (marketHashName) => steamPriceHistoryToCandles({
+    marketHashName,
+    payload: await fetchSteamPriceHistoryPayload(marketHashName, params),
+  })));
+  return candles.flat();
 }

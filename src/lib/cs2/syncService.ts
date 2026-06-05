@@ -5,7 +5,7 @@ import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs
 import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
 import { fetchPricempireHistory, fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
-import { fetchSteamLatestItems } from "@/lib/cs2/providers/steam";
+import { fetchSteamLatestItems, fetchSteamPriceHistory } from "@/lib/cs2/providers/steam";
 import type { Cs2PipelineSyncSummary, Cs2SweepSyncSummary, Cs2SyncSummary, ProviderCandleInput } from "@/lib/cs2/providers/types";
 import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
 import {
@@ -26,7 +26,7 @@ import {
 } from "@/lib/cs2/marketSources";
 
 export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi";
-export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat";
+export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam";
 export type Cs2CatalogProvider = "metadata" | "cs2cap";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
 
@@ -362,6 +362,9 @@ export async function syncCs2History(params: {
     if (params.provider === "csfloat" && params.interval !== "1d") {
       throw new Error("CSFloat sales history sync currently supports daily candles.");
     }
+    if (params.provider === "steam" && params.interval !== "1d") {
+      throw new Error("Steam market history sync currently supports daily candles.");
+    }
 
     let candles: ProviderCandleInput[];
     if (params.provider === "cs2cap") {
@@ -375,6 +378,10 @@ export async function syncCs2History(params: {
         lookback: params.lookback,
         interval: params.interval,
         fill: params.fill,
+      });
+    } else if (params.provider === "steam") {
+      candles = await fetchSteamPriceHistory({
+        marketHashNames: params.marketHashNames,
       });
     } else if (params.provider === "csfloat") {
       candles = await fetchCsFloatSalesHistory({

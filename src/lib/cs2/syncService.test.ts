@@ -6,7 +6,7 @@ import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs
 import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
 import { fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
-import { fetchSteamLatestItems } from "@/lib/cs2/providers/steam";
+import { fetchSteamLatestItems, fetchSteamPriceHistory } from "@/lib/cs2/providers/steam";
 import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
 import { getCs2MissingChinesePriceMarketHashNames, getCs2MissingHistoryMarketHashNames, getCs2WatchlistMarketHashNames, persistProviderCandles, persistProviderCatalogItems, persistProviderItems } from "@/lib/cs2/syncRepository";
 import { hydrateCs2ItemsFromConfiguredProviders, syncCs2Catalog, syncCs2GapSweep, syncCs2LatestPrices, syncCs2MarketPipeline, syncCs2MissingHistory, syncCs2WatchlistHistory } from "@/lib/cs2/syncService";
@@ -46,6 +46,7 @@ vi.mock("@/lib/cs2/providers/skinport", () => ({
 
 vi.mock("@/lib/cs2/providers/steam", () => ({
   fetchSteamLatestItems: vi.fn(),
+  fetchSteamPriceHistory: vi.fn(),
 }));
 
 vi.mock("@/lib/cs2/itemMetadataService", () => ({
@@ -262,6 +263,44 @@ describe("CS2 sync service hydration", () => {
     });
     expect(summary).toEqual(expect.objectContaining({
       provider: "csfloat",
+      status: "ok",
+      itemCount: 1,
+      candleCount: 1,
+    }));
+  });
+
+  it("backfills Steam market history for watched items", async () => {
+    vi.mocked(getCs2WatchlistMarketHashNames).mockResolvedValue([
+      "Sticker | Crown (Foil)",
+    ] as never);
+    vi.mocked(fetchSteamPriceHistory).mockResolvedValue([
+      {
+        marketHashName: "Sticker | Crown (Foil)",
+        provider: "steam",
+        marketName: "Steam",
+        interval: "1d",
+        openCents: 102599,
+        highCents: 103000,
+        lowCents: 102000,
+        closeCents: 102700,
+        volume: 3,
+        startsAt: new Date("2026-06-04T00:00:00.000Z"),
+      },
+    ] as never);
+    vi.mocked(persistProviderCandles).mockResolvedValue(1 as never);
+
+    const summary = await syncCs2WatchlistHistory({
+      ownerKey: "owner-1",
+      provider: "steam",
+      interval: "1d",
+      limit: 50,
+    });
+
+    expect(fetchSteamPriceHistory).toHaveBeenCalledWith({
+      marketHashNames: ["Sticker | Crown (Foil)"],
+    });
+    expect(summary).toEqual(expect.objectContaining({
+      provider: "steam",
       status: "ok",
       itemCount: 1,
       candleCount: 1,
