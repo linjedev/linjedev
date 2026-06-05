@@ -3,6 +3,7 @@ import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
 import { fetchCsFloatLatestItems, fetchCsFloatSalesHistory } from "@/lib/cs2/providers/csfloat";
+import { fetchMarketCsgoLatestItems } from "@/lib/cs2/providers/marketcsgo";
 import { fetchPricempireHistory, fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
 import { fetchSteamLatestItems, fetchSteamPriceHistory } from "@/lib/cs2/providers/steam";
@@ -25,7 +26,7 @@ import {
   getConfiguredPricempirePriceSources,
 } from "@/lib/cs2/marketSources";
 
-export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi";
+export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "marketcsgo";
 export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam";
 export type Cs2CatalogProvider = "metadata" | "cs2cap";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
@@ -182,6 +183,30 @@ export async function hydrateCs2ItemsFromConfiguredProviders(params: {
     }
   }
 
+  if (process.env.MARKET_CSGO_API_KEY) {
+    try {
+      const items = await fetchMarketCsgoLatestItems({ marketHashNames });
+      const snapshotCount = await persistProviderItems(items);
+      summaries.push({
+        provider: "marketcsgo",
+        status: "ok",
+        itemCount: items.length,
+        snapshotCount,
+        candleCount: 0,
+        message: null,
+      });
+    } catch (error) {
+      summaries.push({
+        provider: "marketcsgo",
+        status: "error",
+        itemCount: 0,
+        snapshotCount: 0,
+        candleCount: 0,
+        message: error instanceof Error ? error.message : "Market.CSGO hydration failed",
+      });
+    }
+  }
+
   return summaries;
 }
 
@@ -195,7 +220,7 @@ export async function syncCs2LatestPrices(params: {
   const syncRun = await createCs2SyncRun(params.provider);
 
   try {
-    if ((params.provider === "c5game" || params.provider === "cspriceapi" || params.provider === "steam" || params.provider === "csfloat") && (params.marketHashNames ?? []).length === 0) {
+    if ((params.provider === "c5game" || params.provider === "cspriceapi" || params.provider === "steam" || params.provider === "csfloat" || params.provider === "marketcsgo") && (params.marketHashNames ?? []).length === 0) {
       throw new Error(`${params.provider} latest sync requires explicit marketHashNames.`);
     }
 
@@ -222,6 +247,11 @@ export async function syncCs2LatestPrices(params: {
         })
       : params.provider === "csfloat"
         ? await fetchCsFloatLatestItems({
+          marketHashNames: params.marketHashNames,
+          limit: params.limit,
+        })
+      : params.provider === "marketcsgo"
+        ? await fetchMarketCsgoLatestItems({
           marketHashNames: params.marketHashNames,
           limit: params.limit,
         })
@@ -682,6 +712,14 @@ export async function syncCs2MarketPipeline(params: {
       });
       run.nextCursor = latestGapNextCursor;
       runs.push(run);
+    }
+
+    if (process.env.MARKET_CSGO_API_KEY && exactItemNames.length > 0) {
+      runs.push(await syncCs2LatestPrices({
+        provider: "marketcsgo",
+        marketHashNames: exactItemNames,
+        limit: params.latestLimit,
+      }));
     }
   }
 

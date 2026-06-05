@@ -34,4 +34,19 @@ describe("CS2 market source configuration", () => {
       process.env.CS2CAP_API_KEY = previous;
     }
   });
+
+  it("surfaces Market.CSGO when the direct API key is configured", () => {
+    const previous = process.env.MARKET_CSGO_API_KEY;
+    process.env.MARKET_CSGO_API_KEY = "marketcsgo-key";
+
+    expect(getConfiguredMarketProviders()).toEqual(expect.arrayContaining([
+      "marketcsgo",
+    ]));
+
+    if (previous === undefined) {
+      delete process.env.MARKET_CSGO_API_KEY;
+    } else {
+      process.env.MARKET_CSGO_API_KEY = previous;
+    }
+  });
 });
