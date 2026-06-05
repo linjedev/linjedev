@@ -1,3 +1,11 @@
+import {
+  inferCategory,
+  inferExterior,
+  inferItemType,
+  inferMarketRegion,
+  normalizeMarketName,
+} from "@/lib/cs2/normalization";
+import type { ProviderItemInput, ProviderSnapshotInput } from "@/lib/cs2/providers/types";
 import type { Cs2FloatListingView, Cs2FloatSort } from "@/lib/cs2/types";
 
 const CSFLOAT_BASE_URL = "https://csfloat.com/api/v1";
@@ -66,6 +74,64 @@ export function flattenCsFloatListings(rows: Record<string, unknown>[]) {
     .filter((listing): listing is Cs2FloatListingView => listing !== null);
 }
 
+function median(values: number[]) {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[middle];
+  return Math.round((sorted[middle - 1] + sorted[middle]) / 2);
+}
+
+export function csFloatListingsToProviderItems(listings: Cs2FloatListingView[], observedAt = new Date()): ProviderItemInput[] {
+  const byItem = new Map<string, Cs2FloatListingView[]>();
+  for (const listing of listings) {
+    byItem.set(listing.marketHashName, [...(byItem.get(listing.marketHashName) ?? []), listing]);
+  }
+
+  const marketName = normalizeMarketName("csfloat");
+  return [...byItem.entries()].map(([marketHashName, itemListings]) => {
+    const pricedListings = itemListings.filter((listing) => listing.priceCents !== null);
+    const askCents = pricedListings.length > 0
+      ? Math.min(...pricedListings.map((listing) => listing.priceCents ?? Number.MAX_SAFE_INTEGER))
+      : null;
+    const referencePrices = itemListings
+      .map((listing) => listing.referencePriceCents)
+      .filter((price): price is number => price !== null);
+    const bestListing = pricedListings
+      .sort((a, b) => (a.priceCents ?? Number.MAX_SAFE_INTEGER) - (b.priceCents ?? Number.MAX_SAFE_INTEGER))[0] ?? itemListings[0];
+    const snapshot: ProviderSnapshotInput = {
+      provider: "csfloat",
+      marketName,
+      marketRegion: inferMarketRegion(marketName),
+      askCents,
+      bidCents: null,
+      medianCents: median(referencePrices),
+      askVolume: itemListings.length,
+      bidVolume: null,
+      salesVolume24h: null,
+      liquidityScore: null,
+      observedAt,
+      sourceUrl: bestListing.listingUrl ?? `https://csfloat.com/search?market_hash_name=${encodeURIComponent(marketHashName)}`,
+      raw: {
+        listingCount: itemListings.length,
+        listings: itemListings.slice(0, 10),
+      },
+    };
+
+    return {
+      marketHashName,
+      itemType: inferItemType(marketHashName),
+      category: inferCategory(marketHashName),
+      rarity: bestListing.rarity === null ? null : String(bestListing.rarity),
+      exterior: inferExterior(marketHashName) ?? bestListing.wearName,
+      collection: null,
+      imageUrl: bestListing.imageUrl,
+      tradable: true,
+      snapshots: [snapshot],
+    };
+  });
+}
+
 export async function fetchCsFloatListings(params: {
   query?: string | null;
   marketHashName?: string | null;
@@ -98,4 +164,20 @@ export async function fetchCsFloatListings(params: {
     ? payload
     : dataRows;
   return flattenCsFloatListings(rows.filter((row): row is Record<string, unknown> => typeof row === "object" && row !== null));
+}
+
+export async function fetchCsFloatLatestItems(params: {
+  marketHashNames?: string[];
+  limit?: number;
+}) {
+  const marketHashNames = [...new Set((params.marketHashNames ?? []).map((name) => name.trim()).filter(Boolean))];
+  if (marketHashNames.length === 0) return [];
+
+  const listings = (await Promise.all(marketHashNames.map((marketHashName) => fetchCsFloatListings({
+    marketHashName,
+    sort: "lowest_price",
+    limit: params.limit ? Math.min(50, params.limit) : 20,
+  })))).flat();
+
+  return csFloatListingsToProviderItems(listings);
 }

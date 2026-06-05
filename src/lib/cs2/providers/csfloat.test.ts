@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flattenCsFloatListings } from "@/lib/cs2/providers/csfloat";
+import { csFloatListingsToProviderItems, flattenCsFloatListings } from "@/lib/cs2/providers/csfloat";
 
 describe("CSFloat listing normalization", () => {
   it("maps listing asset float, paint, image, and sticker data", () => {
@@ -40,5 +40,66 @@ describe("CSFloat listing normalization", () => {
       name: "Sticker | Team EnVyUs (Holo) | MLG Columbus 2016",
       slot: 3,
     }));
+  });
+
+  it("rolls active listings into a market snapshot for sync", () => {
+    const items = csFloatListingsToProviderItems([
+      {
+        id: "high",
+        marketHashName: "M4A4 | Poseidon (Factory New)",
+        itemName: "M4A4 | Poseidon",
+        wearName: "Factory New",
+        priceCents: 223000,
+        referencePriceCents: 236500,
+        floatValue: 0.031,
+        paintSeed: 112,
+        paintIndex: 449,
+        floatRank: null,
+        rarity: 6,
+        imageUrl: "https://cdn.example.com/poseidon.png",
+        screenshotUrl: null,
+        inspectUrl: null,
+        listingUrl: "https://csfloat.com/item/high",
+        hasScreenshot: true,
+        stickers: [],
+      },
+      {
+        id: "low",
+        marketHashName: "M4A4 | Poseidon (Factory New)",
+        itemName: "M4A4 | Poseidon",
+        wearName: "Factory New",
+        priceCents: 221000,
+        referencePriceCents: 235000,
+        floatValue: 0.027,
+        paintSeed: 113,
+        paintIndex: 449,
+        floatRank: null,
+        rarity: 6,
+        imageUrl: "https://cdn.example.com/poseidon.png",
+        screenshotUrl: null,
+        inspectUrl: null,
+        listingUrl: "https://csfloat.com/item/low",
+        hasScreenshot: true,
+        stickers: [],
+      },
+    ], new Date("2026-06-05T12:00:00.000Z"));
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        marketHashName: "M4A4 | Poseidon (Factory New)",
+        itemType: "skin",
+        imageUrl: "https://cdn.example.com/poseidon.png",
+        snapshots: [
+          expect.objectContaining({
+            provider: "csfloat",
+            marketName: "CSFloat",
+            askCents: 221000,
+            medianCents: 235750,
+            askVolume: 2,
+            sourceUrl: "https://csfloat.com/item/low",
+          }),
+        ],
+      }),
+    ]);
   });
 });

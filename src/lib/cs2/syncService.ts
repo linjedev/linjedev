@@ -2,8 +2,10 @@ import { fetchCs2CapCandles, fetchCs2CapCatalogItems, fetchCs2CapLatestItems } f
 import { fetchC5GameLatestItems } from "@/lib/cs2/providers/c5game";
 import { fetchCsPriceApiLatestItems } from "@/lib/cs2/providers/cspriceapi";
 import { fetchCs2ShHistory, fetchCs2ShLatestItems } from "@/lib/cs2/providers/cs2sh";
+import { fetchCsFloatLatestItems } from "@/lib/cs2/providers/csfloat";
 import { fetchPricempireHistory, fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
+import { fetchSteamLatestItems } from "@/lib/cs2/providers/steam";
 import type { Cs2PipelineSyncSummary, Cs2SweepSyncSummary, Cs2SyncSummary, ProviderCandleInput } from "@/lib/cs2/providers/types";
 import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
 import {
@@ -23,7 +25,7 @@ import {
   getConfiguredPricempirePriceSources,
 } from "@/lib/cs2/marketSources";
 
-export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "c5game" | "cspriceapi";
+export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi";
 export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire";
 export type Cs2CatalogProvider = "metadata" | "cs2cap";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
@@ -193,7 +195,7 @@ export async function syncCs2LatestPrices(params: {
   const syncRun = await createCs2SyncRun(params.provider);
 
   try {
-    if ((params.provider === "c5game" || params.provider === "cspriceapi") && (params.marketHashNames ?? []).length === 0) {
+    if ((params.provider === "c5game" || params.provider === "cspriceapi" || params.provider === "steam" || params.provider === "csfloat") && (params.marketHashNames ?? []).length === 0) {
       throw new Error(`${params.provider} latest sync requires explicit marketHashNames.`);
     }
 
@@ -210,6 +212,16 @@ export async function syncCs2LatestPrices(params: {
         })
       : params.provider === "cspriceapi"
         ? await fetchCsPriceApiLatestItems({
+          marketHashNames: params.marketHashNames,
+          limit: params.limit,
+        })
+      : params.provider === "steam"
+        ? await fetchSteamLatestItems({
+          marketHashNames: params.marketHashNames,
+          limit: params.limit,
+        })
+      : params.provider === "csfloat"
+        ? await fetchCsFloatLatestItems({
           marketHashNames: params.marketHashNames,
           limit: params.limit,
         })
@@ -621,6 +633,19 @@ export async function syncCs2MarketPipeline(params: {
       runs.push(await syncCs2LatestPrices({
         provider: "pricempire",
         providers: sources,
+        limit: params.latestLimit,
+      }));
+    }
+
+    if (exactItemNames.length > 0) {
+      runs.push(await syncCs2LatestPrices({
+        provider: "steam",
+        marketHashNames: exactItemNames,
+        limit: params.latestLimit,
+      }));
+      runs.push(await syncCs2LatestPrices({
+        provider: "csfloat",
+        marketHashNames: exactItemNames,
         limit: params.latestLimit,
       }));
     }
