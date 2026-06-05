@@ -8,6 +8,7 @@ import { fetchMarketCsgoLatestItems, fetchMarketCsgoSalesHistory } from "@/lib/c
 import { fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
 import { fetchSteamLatestItems, fetchSteamPriceHistory } from "@/lib/cs2/providers/steam";
+import { fetchWaxpeerLatestItems } from "@/lib/cs2/providers/waxpeer";
 import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
 import { getCs2MissingChinesePriceMarketHashNames, getCs2MissingHistoryMarketHashNames, getCs2WatchlistMarketHashNames, persistProviderCandles, persistProviderCatalogItems, persistProviderItems } from "@/lib/cs2/syncRepository";
 import { hydrateCs2ItemsFromConfiguredProviders, syncCs2Catalog, syncCs2GapSweep, syncCs2LatestPrices, syncCs2MarketPipeline, syncCs2MissingHistory, syncCs2WatchlistHistory } from "@/lib/cs2/syncService";
@@ -55,6 +56,10 @@ vi.mock("@/lib/cs2/providers/steam", () => ({
   fetchSteamPriceHistory: vi.fn(),
 }));
 
+vi.mock("@/lib/cs2/providers/waxpeer", () => ({
+  fetchWaxpeerLatestItems: vi.fn(),
+}));
+
 vi.mock("@/lib/cs2/itemMetadataService", () => ({
   getCs2ItemMetadataCatalog: vi.fn(),
 }));
@@ -80,6 +85,7 @@ describe("CS2 sync service hydration", () => {
     delete process.env.C5GAME_API_KEY;
     delete process.env.CSPRICEAPI_API_KEY;
     delete process.env.MARKET_CSGO_API_KEY;
+    delete process.env.WAXPEER_API_KEY;
     vi.mocked(getCs2ItemMetadataCatalog).mockResolvedValue([] as never);
     vi.mocked(getCs2MissingChinesePriceMarketHashNames).mockResolvedValue([] as never);
     vi.mocked(getCs2MissingHistoryMarketHashNames).mockResolvedValue([] as never);
@@ -99,6 +105,7 @@ describe("CS2 sync service hydration", () => {
     expect(fetchSteamLatestItems).not.toHaveBeenCalled();
     expect(fetchCsFloatLatestItems).not.toHaveBeenCalled();
     expect(fetchMarketCsgoLatestItems).not.toHaveBeenCalled();
+    expect(fetchWaxpeerLatestItems).not.toHaveBeenCalled();
     expect(fetchSkinportLatestItems).not.toHaveBeenCalled();
     expect(persistProviderItems).not.toHaveBeenCalled();
   });
@@ -110,19 +117,22 @@ describe("CS2 sync service hydration", () => {
     process.env.C5GAME_API_KEY = "c5game-key";
     process.env.CSPRICEAPI_API_KEY = "cspriceapi-key";
     process.env.MARKET_CSGO_API_KEY = "marketcsgo-key";
+    process.env.WAXPEER_API_KEY = "waxpeer-key";
     vi.mocked(fetchCs2ShLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(fetchCs2CapLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(fetchPricempireLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(fetchC5GameLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(fetchCsPriceApiLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(fetchMarketCsgoLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
+    vi.mocked(fetchWaxpeerLatestItems).mockResolvedValue([{ marketHashName: "AK-47 | Redline (Field-Tested)", snapshots: [] }] as never);
     vi.mocked(persistProviderItems)
       .mockResolvedValueOnce(2 as never)
       .mockResolvedValueOnce(3 as never)
       .mockResolvedValueOnce(4 as never)
       .mockResolvedValueOnce(5 as never)
       .mockResolvedValueOnce(6 as never)
-      .mockResolvedValueOnce(7 as never);
+      .mockResolvedValueOnce(7 as never)
+      .mockResolvedValueOnce(8 as never);
 
     const summaries = await hydrateCs2ItemsFromConfiguredProviders({
       marketHashNames: [
@@ -151,6 +161,9 @@ describe("CS2 sync service hydration", () => {
     expect(fetchMarketCsgoLatestItems).toHaveBeenCalledWith({
       marketHashNames: ["AK-47 | Redline (Field-Tested)"],
     });
+    expect(fetchWaxpeerLatestItems).toHaveBeenCalledWith({
+      marketHashNames: ["AK-47 | Redline (Field-Tested)"],
+    });
     expect(summaries).toEqual([
       expect.objectContaining({ provider: "cs2.sh", status: "ok", snapshotCount: 2 }),
       expect.objectContaining({ provider: "cs2cap", status: "ok", snapshotCount: 3 }),
@@ -158,6 +171,7 @@ describe("CS2 sync service hydration", () => {
       expect.objectContaining({ provider: "c5game", status: "ok", snapshotCount: 5 }),
       expect.objectContaining({ provider: "cspriceapi", status: "ok", snapshotCount: 6 }),
       expect.objectContaining({ provider: "marketcsgo", status: "ok", snapshotCount: 7 }),
+      expect.objectContaining({ provider: "waxpeer", status: "ok", snapshotCount: 8 }),
     ]);
   });
 
@@ -167,12 +181,14 @@ describe("CS2 sync service hydration", () => {
     const steamSummary = await syncCs2LatestPrices({ provider: "steam" });
     const csfloatSummary = await syncCs2LatestPrices({ provider: "csfloat" });
     const marketCsgoSummary = await syncCs2LatestPrices({ provider: "marketcsgo" });
+    const waxpeerSummary = await syncCs2LatestPrices({ provider: "waxpeer" });
 
     expect(fetchC5GameLatestItems).not.toHaveBeenCalled();
     expect(fetchCsPriceApiLatestItems).not.toHaveBeenCalled();
     expect(fetchSteamLatestItems).not.toHaveBeenCalled();
     expect(fetchCsFloatLatestItems).not.toHaveBeenCalled();
     expect(fetchMarketCsgoLatestItems).not.toHaveBeenCalled();
+    expect(fetchWaxpeerLatestItems).not.toHaveBeenCalled();
     expect(c5Summary).toEqual(expect.objectContaining({
       provider: "c5game",
       status: "error",
@@ -197,6 +213,11 @@ describe("CS2 sync service hydration", () => {
       provider: "marketcsgo",
       status: "error",
       message: "marketcsgo latest sync requires explicit marketHashNames.",
+    }));
+    expect(waxpeerSummary).toEqual(expect.objectContaining({
+      provider: "waxpeer",
+      status: "error",
+      message: "waxpeer latest sync requires explicit marketHashNames.",
     }));
   });
 

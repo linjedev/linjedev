@@ -18,13 +18,13 @@ const cs2HistorySourceEnum = z.enum([
 
 const latestSchema = z.object({
   mode: z.literal("latest").default("latest"),
-  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "skinport", "steam", "csfloat", "c5game", "cspriceapi", "marketcsgo"]).default("cs2.sh"),
+  provider: z.enum(["cs2.sh", "cs2cap", "pricempire", "skinport", "steam", "csfloat", "c5game", "cspriceapi", "marketcsgo", "waxpeer"]).default("cs2.sh"),
   marketHashNames: z.array(z.string().min(2)).max(250).optional(),
   providers: z.array(z.string().min(2)).max(80).optional(),
   limit: z.number().int().positive().max(100000).optional(),
   type: z.string().min(2).optional(),
 }).superRefine((payload, context) => {
-  if ((payload.provider === "c5game" || payload.provider === "cspriceapi" || payload.provider === "steam" || payload.provider === "csfloat" || payload.provider === "marketcsgo") && (payload.marketHashNames ?? []).length === 0) {
+  if ((payload.provider === "c5game" || payload.provider === "cspriceapi" || payload.provider === "steam" || payload.provider === "csfloat" || payload.provider === "marketcsgo" || payload.provider === "waxpeer") && (payload.marketHashNames ?? []).length === 0) {
     context.addIssue({
       code: "custom",
       message: `${payload.provider} latest sync requires explicit marketHashNames`,

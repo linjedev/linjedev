@@ -7,6 +7,7 @@ import { fetchMarketCsgoLatestItems, fetchMarketCsgoSalesHistory } from "@/lib/c
 import { fetchPricempireHistory, fetchPricempireLatestItems } from "@/lib/cs2/providers/pricempire";
 import { fetchSkinportLatestItems } from "@/lib/cs2/providers/skinport";
 import { fetchSteamLatestItems, fetchSteamPriceHistory } from "@/lib/cs2/providers/steam";
+import { fetchWaxpeerLatestItems } from "@/lib/cs2/providers/waxpeer";
 import type { Cs2PipelineSyncSummary, Cs2SweepSyncSummary, Cs2SyncSummary, ProviderCandleInput } from "@/lib/cs2/providers/types";
 import { getCs2ItemMetadataCatalog } from "@/lib/cs2/itemMetadataService";
 import {
@@ -26,7 +27,7 @@ import {
   getConfiguredPricempirePriceSources,
 } from "@/lib/cs2/marketSources";
 
-export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "marketcsgo";
+export type Cs2LatestProvider = "cs2.sh" | "cs2cap" | "pricempire" | "skinport" | "steam" | "csfloat" | "c5game" | "cspriceapi" | "marketcsgo" | "waxpeer";
 export type Cs2HistoryProvider = "cs2.sh" | "cs2cap" | "pricempire" | "csfloat" | "steam" | "marketcsgo";
 export type Cs2CatalogProvider = "metadata" | "cs2cap";
 type Cs2CapCandleInterval = "5m" | "1h" | "1d";
@@ -207,6 +208,30 @@ export async function hydrateCs2ItemsFromConfiguredProviders(params: {
     }
   }
 
+  if (process.env.WAXPEER_API_KEY) {
+    try {
+      const items = await fetchWaxpeerLatestItems({ marketHashNames });
+      const snapshotCount = await persistProviderItems(items);
+      summaries.push({
+        provider: "waxpeer",
+        status: "ok",
+        itemCount: items.length,
+        snapshotCount,
+        candleCount: 0,
+        message: null,
+      });
+    } catch (error) {
+      summaries.push({
+        provider: "waxpeer",
+        status: "error",
+        itemCount: 0,
+        snapshotCount: 0,
+        candleCount: 0,
+        message: error instanceof Error ? error.message : "WAXPEER hydration failed",
+      });
+    }
+  }
+
   return summaries;
 }
 
@@ -220,7 +245,7 @@ export async function syncCs2LatestPrices(params: {
   const syncRun = await createCs2SyncRun(params.provider);
 
   try {
-    if ((params.provider === "c5game" || params.provider === "cspriceapi" || params.provider === "steam" || params.provider === "csfloat" || params.provider === "marketcsgo") && (params.marketHashNames ?? []).length === 0) {
+    if ((params.provider === "c5game" || params.provider === "cspriceapi" || params.provider === "steam" || params.provider === "csfloat" || params.provider === "marketcsgo" || params.provider === "waxpeer") && (params.marketHashNames ?? []).length === 0) {
       throw new Error(`${params.provider} latest sync requires explicit marketHashNames.`);
     }
 
@@ -252,6 +277,11 @@ export async function syncCs2LatestPrices(params: {
         })
       : params.provider === "marketcsgo"
         ? await fetchMarketCsgoLatestItems({
+          marketHashNames: params.marketHashNames,
+          limit: params.limit,
+        })
+      : params.provider === "waxpeer"
+        ? await fetchWaxpeerLatestItems({
           marketHashNames: params.marketHashNames,
           limit: params.limit,
         })
@@ -724,6 +754,14 @@ export async function syncCs2MarketPipeline(params: {
     if (process.env.MARKET_CSGO_API_KEY && exactItemNames.length > 0) {
       runs.push(await syncCs2LatestPrices({
         provider: "marketcsgo",
+        marketHashNames: exactItemNames,
+        limit: params.latestLimit,
+      }));
+    }
+
+    if (process.env.WAXPEER_API_KEY && exactItemNames.length > 0) {
+      runs.push(await syncCs2LatestPrices({
+        provider: "waxpeer",
         marketHashNames: exactItemNames,
         limit: params.latestLimit,
       }));

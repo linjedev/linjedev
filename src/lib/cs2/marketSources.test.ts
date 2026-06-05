@@ -49,4 +49,19 @@ describe("CS2 market source configuration", () => {
       process.env.MARKET_CSGO_API_KEY = previous;
     }
   });
+
+  it("surfaces WAXPEER when the direct API key is configured", () => {
+    const previous = process.env.WAXPEER_API_KEY;
+    process.env.WAXPEER_API_KEY = "waxpeer-key";
+
+    expect(getConfiguredMarketProviders()).toEqual(expect.arrayContaining([
+      "waxpeer",
+    ]));
+
+    if (previous === undefined) {
+      delete process.env.WAXPEER_API_KEY;
+    } else {
+      process.env.WAXPEER_API_KEY = previous;
+    }
+  });
 });

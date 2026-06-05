@@ -201,6 +201,7 @@ export function getConfiguredMarketProviders() {
     ...(process.env.CSPRICEAPI_API_KEY ? ["cspriceapi"] : []),
     ...(process.env.C5GAME_API_KEY ? ["c5game"] : []),
     ...(process.env.MARKET_CSGO_API_KEY ? ["marketcsgo"] : []),
+    ...(process.env.WAXPEER_API_KEY ? ["waxpeer"] : []),
     ...(process.env.CSFLOAT_API_KEY ? ["csfloat"] : []),
     "steam",
     ...(process.env.DMARKET_API_KEY ? ["dmarket"] : []),
