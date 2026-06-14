@@ -58,6 +58,7 @@ export default async function proxy(req: NextRequest) {
     if (SPLASH_ONLY) {
         if (
             path.startsWith("/_next")
+            || path.startsWith("/tunelab")
             || path === "/logo/logo-icon.svg"
             || path.startsWith("/cs2-images")
             || path === "/api/health"
@@ -84,6 +85,7 @@ export default async function proxy(req: NextRequest) {
     if (
         path.startsWith("/_next")
         || path.startsWith("/api")
+        || path.startsWith("/tunelab")
         || path.startsWith("/data")
         || path.startsWith("/cesium")
         || path.includes(".")

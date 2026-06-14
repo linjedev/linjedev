@@ -1,0 +1,54 @@
+.tunelab-route {
+  width: 100vw;
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: #050505;
+  color: #f5f5f5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.tunelab-route,
+.tunelab-route * ,
+.tunelab-route *::before,
+.tunelab-route *::after {
+  box-sizing: border-box;
+}
+
+.tunelab-route * {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tunelab-route button,
+.tunelab-route [role="button"] {
+  cursor: pointer;
+}
+
+.tunelab-route input,
+.tunelab-route select,
+.tunelab-route textarea {
+  color-scheme: dark;
+  font-family: inherit;
+}
+
+.tunelab-route input[type="number"],
+.tunelab-route input[type="text"],
+.tunelab-route select,
+.tunelab-route textarea {
+  font-size: 16px;
+}
+
+.tunelab-route .tl-shell {
+  isolation: isolate;
+}
+
+@media (min-width: 901px) {
+  .tunelab-route .tl-output-content {
+    max-width: 1380px;
+    margin: 0 auto;
+  }
+}
