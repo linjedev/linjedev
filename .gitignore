@@ -124,6 +124,19 @@ packages/wwv-data-engine/
 
 # Build outputs and generated assets
 /public/cesium/
+/speedtest-app/tunelab-android/
+/speedtest-app/tunelab-mobile/
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/keystore.properties
+/android/*.jks
+/android/*.keystore
+/ios/App/Pods/
+/ios/App/build/
+/ios/App/DerivedData/
+/ios/App/App/public/
 build_output*.log
 build_output*.txt
 /build*.log

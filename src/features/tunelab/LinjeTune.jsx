@@ -3268,6 +3268,7 @@ export default function ForzaTuner() {
 
   useEffect(()=>{
     const CAR_DB_URLS = [
+      "data/cars.json",
       "/tunelab/data/cars.json",
       "https://raw.githubusercontent.com/super-android/tunelab/main/cars.json",
     ];
