@@ -1740,7 +1740,7 @@ User request: ${extraPrompt}` : usr;
             navigator.clipboard?.writeText(txt).catch(()=>{});
             setToast("Tune inputs copied!");
           }
-          else if(id==="refresh"){localStorage.removeItem("tl_v1_cardb_cache");localStorage.removeItem("tl_v1_cardb_version");window.location.reload();}
+          else if(id==="refresh"){localStorage.removeItem("tl_v1_cardb_cache");localStorage.removeItem("tl_v1_cardb_version");localStorage.removeItem("tl_v1_cardb_time");window.location.reload();}
           else if(id==="reset"){if(window.confirm("Reset all data? This cannot be undone.")){Object.keys(localStorage).filter(k=>k.startsWith("tl_")).forEach(k=>localStorage.removeItem(k));window.location.reload();}}
         }}
       />}
@@ -2078,6 +2078,7 @@ function AboutScreen({onClose}) {
           <button onClick={()=>{
             localStorage.removeItem("tl_v1_cardb_cache");
             localStorage.removeItem("tl_v1_cardb_version");
+            localStorage.removeItem("tl_v1_cardb_time");
             window.location.reload();
           }} style={{...S.btn,width:"100%",padding:"11px",background:`${C.green}10`,border:`1px solid ${C.green}30`,borderRadius:8,color:C.green,fontFamily:C.fBody,fontSize:14,gap:6}}>
             ↻ Refresh car database
@@ -2122,9 +2123,19 @@ const CAR_DB_SEED = [
   {make:"Honda",model:"Civic Type R",year:"2023",drive:"FWD",cls:"A",weight:3042,pi:620,ev:false},
 ];
 
-const CAR_DB_FULL = Array.isArray(localCarsData?.cars) && localCarsData.cars.length
-  ? localCarsData.cars
-  : CAR_DB_SEED;
+function normalizeCarData(data, fallback = []) {
+  if (Array.isArray(data) && data.length) return data;
+  if (Array.isArray(data?.cars) && data.cars.length) return data.cars;
+  return fallback;
+}
+
+function carDataVersion(data) {
+  const value = Number(data?.version);
+  return Number.isFinite(value) ? value : 0;
+}
+
+const CAR_DB_FULL = normalizeCarData(localCarsData, CAR_DB_SEED);
+const CAR_DB_VERSION = carDataVersion(localCarsData);
 
 // 555 cars total
 
@@ -3218,19 +3229,75 @@ export default function ForzaTuner() {
   // Falls back to hardcoded CAR_DB_FULL if offline or fetch fails
   const [remoteCarDB, setRemoteCarDB] = useState(null);
   const [showOnboard, setShowOnboard] = useState(()=>!LS.get("tl_seen_intro", false));
-  const [carFetchMeta, setCarFetchMeta] = useState(null); // {count, time}
+  const [carFetchMeta, setCarFetchMeta] = useState(() => ({
+    count: CAR_DB_FULL.length,
+    time: Date.now(),
+    source: "local",
+  })); // {count, time, source}
   const carDB = remoteCarDB || CAR_DB_FULL;
+  const carMakes = useMemo(
+    () => [...new Set(carDB.map((car) => car.make).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [carDB],
+  );
 
   useEffect(()=>{
+    const CAR_DB_URLS = [
+      "/tunelab/data/cars.json",
+      "https://raw.githubusercontent.com/super-android/tunelab/main/cars.json",
+    ];
     const CACHE_KEY  = "tl_v1_cardb_cache";
     const VER_KEY    = "tl_v1_cardb_version";
+    const TIME_KEY   = "tl_v1_cardb_time";
+    let cancelled = false;
+    let hydratedFromCache = false;
 
-    // Use cached version immediately while fetching
     try {
-      localStorage.removeItem(CACHE_KEY);
-      localStorage.removeItem(VER_KEY);
-    } catch(e) {}
+      const cached = localStorage.getItem(CACHE_KEY);
+      const cars = normalizeCarData(cached ? JSON.parse(cached) : null);
+      if(cars.length) {
+        hydratedFromCache = true;
+        setRemoteCarDB(cars);
+        setCarFetchMeta({
+          count: cars.length,
+          time: Number(localStorage.getItem(TIME_KEY)) || Date.now(),
+          source: "cache",
+        });
+      }
+    } catch(e) {
+      setCarFetchMeta({count: CAR_DB_FULL.length, time: Date.now(), source: "local"});
+    }
 
+    const loadLatest = async () => {
+      for (const url of CAR_DB_URLS) {
+        try {
+          const response = await fetch(url, {cache: "no-store"});
+          if(!response.ok) continue;
+          const data = await response.json();
+          const cars = normalizeCarData(data);
+          if(!cars.length) continue;
+
+          const now = Date.now();
+          const incomingVersion = carDataVersion(data);
+          const cachedVersion = Number(localStorage.getItem(VER_KEY) || "0");
+          const shouldUse = incomingVersion >= Math.max(cachedVersion, CAR_DB_VERSION);
+          if(cancelled) return;
+
+          setCarFetchMeta({count: cars.length, time: now, source: "online"});
+          if(shouldUse || !hydratedFromCache) {
+            setRemoteCarDB(cars);
+            try {
+              localStorage.setItem(CACHE_KEY, JSON.stringify(cars));
+              localStorage.setItem(VER_KEY, String(incomingVersion || CAR_DB_VERSION));
+              localStorage.setItem(TIME_KEY, String(now));
+            } catch(e) {}
+          }
+          return;
+        } catch(e) {}
+      }
+    };
+
+    loadLatest();
+    return () => { cancelled = true; };
   },[]);
 
   const getState = () => ({
@@ -3422,6 +3489,11 @@ const searchResults = carSearch.length > 0
   const BRIGHT      = ["Touge","Drag"];
   const onAccent    = BRIGHT.includes(tuneId) ? "#0a0c0f" : "#ffffff";
   const isAdvanced  = mode==="S";
+  const carStatus = carFetchMeta?.source === "online"
+    ? `● ${carFetchMeta.count} cars · updated ${Math.round((Date.now()-carFetchMeta.time)/60000)<1?"just now":Math.round((Date.now()-carFetchMeta.time)/60000)+"m ago"}`
+    : carFetchMeta?.source === "cache"
+      ? `● ${carFetchMeta.count} cars · cached`
+      : `● ${carDB.length} cars · bundled`;
 
   return (
     <div className="tl-shell" style={{minHeight:"100vh",background:C.bg,color:C.text,margin:"0 auto",fontFamily:C.fBody,display:"flex",flexDirection:"column"}}>
@@ -3436,7 +3508,7 @@ const searchResults = carSearch.length > 0
           else if(id==="about") setOverlay("about");
           else if(id==="settings") setOverlay("settings");
           else if(id==="paintlab"){ setOverlay(null); setScreen("paintlab"); }
-          else if(id==="refresh"){localStorage.removeItem("tl_v1_cardb_cache");localStorage.removeItem("tl_v1_cardb_version");window.location.reload();}
+          else if(id==="refresh"){localStorage.removeItem("tl_v1_cardb_cache");localStorage.removeItem("tl_v1_cardb_version");localStorage.removeItem("tl_v1_cardb_time");window.location.reload();}
           else if(id==="reset"){if(window.confirm("Reset all data? This cannot be undone.")){Object.keys(localStorage).filter(k=>k.startsWith("tl_")).forEach(k=>localStorage.removeItem(k));window.location.reload();}}
         }}
       />}
@@ -3452,7 +3524,7 @@ const searchResults = carSearch.length > 0
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontFamily:C.fCond,fontSize:22,fontWeight:700,color:C.text,letterSpacing:"0.12em",lineHeight:1}}><span style={{color:accentColor}}>Linje</span>Tune</div>
             <div style={{fontFamily:C.fMono,fontSize:8,color:C.green,letterSpacing:"0.08em",marginTop:2}}>
-              {carFetchMeta?`● ${carFetchMeta.count} cars · fetched ${Math.round((Date.now()-carFetchMeta.time)/60000)<1?"just now":Math.round((Date.now()-carFetchMeta.time)/60000)+"m ago"}`:"○ offline · cached cars"}
+              {carStatus}
             </div>
           </div>
           {/* Quick/Full toggle */}
@@ -3489,7 +3561,7 @@ const searchResults = carSearch.length > 0
                 outline:"none",cursor:"pointer",appearance:"none",
                 backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23566878'/%3E%3C/svg%3E")`,
                 backgroundRepeat:"no-repeat",backgroundPosition:"right 10px center",paddingRight:28}}>
-              {MAKES.map(mk=><option key={mk} value={mk}>{mk}</option>)}
+              {carMakes.map(mk=><option key={mk} value={mk}>{mk}</option>)}
             </select>
           </div>
           <div onClick={()=>setShowSearch(true)}
