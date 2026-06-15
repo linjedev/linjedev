@@ -27,8 +27,20 @@ function headers(contentType) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
+
+    if (url.pathname === "/tunelab") {
+      return Response.redirect(`${url.origin}/tunelab/`, 308);
+    }
+
+    if (url.pathname.startsWith("/tunelab/") && env?.ASSETS) {
+      const assetResponse = await env.ASSETS.fetch(request);
+      if (assetResponse.status !== 404) return assetResponse;
+
+      const spaUrl = new URL("/tunelab/index.html", request.url);
+      return env.ASSETS.fetch(new Request(spaUrl, request));
+    }
 
     if (url.pathname === "/logo/logo-icon.svg") {
       return new Response(LOGO_SVG, {
