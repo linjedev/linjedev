@@ -66,7 +66,7 @@ export async function grantLinjeTunePurchase(params: {
   const product = getLinjeTuneProduct(params.productId);
   if (!product) throw new Error("UNKNOWN_LINJETUNE_PRODUCT");
 
-  const account = await prisma.linjeTuneAccount.upsert({
+  await prisma.linjeTuneAccount.upsert({
     where: { ownerId: params.ownerId },
     update: {},
     create: { ownerId: params.ownerId },
