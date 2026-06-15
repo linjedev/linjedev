@@ -5,7 +5,7 @@ import { getToken } from "next-auth/jwt";
 
 const workspaceCache = new Map<string, { status: string; expiresAt: number }>();
 const CACHE_TTL = 60_000; // 60 seconds
-const SPLASH_ONLY = process.env.LINJE_SPLASH_ONLY !== "false";
+const SPLASH_ONLY = process.env.LINJE_SPLASH_ONLY === "true";
 
 async function resolveWorkspace(subdomain: string) {
     const cached = workspaceCache.get(subdomain);
@@ -59,9 +59,12 @@ export default async function proxy(req: NextRequest) {
         if (
             path.startsWith("/_next")
             || path.startsWith("/tunelab")
+            || path === "/"
             || path === "/logo/logo-icon.svg"
             || path.startsWith("/cs2-images")
             || path === "/api/health"
+            || path.startsWith("/api/linjetune")
+            || path.startsWith("/api/billing")
             || path.startsWith("/api/cs2")
         ) {
             return NextResponse.next();
@@ -85,6 +88,7 @@ export default async function proxy(req: NextRequest) {
     if (
         path.startsWith("/_next")
         || path.startsWith("/api")
+        || path === "/"
         || path.startsWith("/tunelab")
         || path.startsWith("/data")
         || path.startsWith("/cesium")
@@ -118,7 +122,7 @@ export default async function proxy(req: NextRequest) {
     // Root Domain (Control Plane) Routing
     if (isCloudDeploy && !tenantSubdomain) {
         // Redirect apex app domain to the external marketing/hub site
-        if (path === "/" || path === "/register" || path === "/dashboard" || path === "/create-workspace") {
+        if (path === "/register" || path === "/dashboard" || path === "/create-workspace") {
             return NextResponse.redirect("https://linje.dev/hub");
         }
     }
