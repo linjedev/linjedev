@@ -57,14 +57,42 @@ Use `android/keystore.properties.example` as the template if the local signing f
 
 ## iOS
 
-The iOS Capacitor project is generated in `ios/`, but Windows cannot build, sign, run the iOS Simulator, or upload an iOS app. Use macOS with Xcode and CocoaPods.
+The iOS Capacitor project is generated in `ios/` with bundle id `dev.linje.linjetune`, app name `LinjeTune`, matching black/white app icon and launch assets, and App Store export options at `ios/App/ExportOptions.plist`.
+
+Windows can sync the iOS project, but it cannot build, sign, run the iOS Simulator, archive, export an `.ipa`, or upload an iOS app. Use macOS with Xcode and CocoaPods for the final package.
 
 On a Mac:
 
 ```bash
 corepack pnpm@9.15.4 install
 corepack pnpm@9.15.4 ios:sync
+```
+
+Smoke-test in the iOS Simulator:
+
+```bash
+corepack pnpm@9.15.4 ios:build:sim
 corepack pnpm@9.15.4 ios:open
 ```
 
-Then build, run, sign, archive, and upload from Xcode.
+In Xcode, select the `App` target, choose your Apple Developer team for automatic signing, then run on a simulator or device.
+
+Build the App Store archive:
+
+```bash
+corepack pnpm@9.15.4 ios:archive
+```
+
+Export the `.ipa`:
+
+```bash
+corepack pnpm@9.15.4 ios:ipa
+```
+
+Output:
+
+```text
+ios/App/output/LinjeTune.ipa
+```
+
+Upload the exported `.ipa` with Xcode Organizer, Transporter, or App Store Connect tooling.
