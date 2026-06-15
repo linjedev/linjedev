@@ -275,3 +275,32 @@ model UserApiKey {
 
   @@map("user_api_keys")
 }
+
+model LinjeTuneAccount {
+  id                  String                  @id @default(uuid())
+  ownerId             String                  @unique
+  paintLabUnlocked    Boolean                 @default(false)
+  tuneTokens          Int                     @default(0)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  transactions        LinjeTuneTransaction[]
+
+  @@map("linjetune_accounts")
+}
+
+model LinjeTuneTransaction {
+  id                String           @id @default(uuid())
+  accountId         String
+  stripeSessionId   String?          @unique
+  productId         String
+  type              String
+  tuneTokensDelta   Int              @default(0)
+  paintLabUnlocked  Boolean          @default(false)
+  amountTotal       Int?
+  currency          String?
+  createdAt         DateTime         @default(now())
+  account           LinjeTuneAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+  @@map("linjetune_transactions")
+}

@@ -1,5 +1,6 @@
 import { stripe } from "@/lib/stripe/client";
 import { NextResponse } from "next/server";
+import { grantLinjeTuneCheckoutSession } from "@/lib/linjetune/entitlements";
 
 export async function POST(req: Request) {
     const body = await req.text();
@@ -18,8 +19,13 @@ export async function POST(req: Request) {
     }
 
     if (event.type === "checkout.session.completed") {
-        console.log("Subscription completed!");
-        // Update user tier in DB, send license key via email
+        const session = event.data.object;
+        if (session.metadata?.app === "linjetune") {
+            await grantLinjeTuneCheckoutSession(session);
+        } else {
+            console.log("Subscription completed!");
+            // Update user tier in DB, send license key via email
+        }
     }
 
     return new NextResponse(null, { status: 200 });

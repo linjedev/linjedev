@@ -272,6 +272,17 @@ const PROVIDER_KEY = "tl_v1_provider";
 const KEYS_KEY     = "tl_v1_keys";
 const USAGE_KEY    = "tl_v1_ai_usage";
 const PREFS_KEY    = "tl_v1_prefs";
+const OWNER_KEY    = "tl_v1_owner";
+const WEEKLY_KEY   = "tl_v1_weekly_tunes";
+const ENTITLEMENTS_KEY = "tl_v1_entitlements";
+const FREE_TUNES_PER_WEEK = 5;
+
+const TUNE_PRODUCTS = [
+  {id:"tunes_10", label:"10 tunes", price:"£1.99", sub:"£0.20 each"},
+  {id:"tunes_25", label:"25 tunes", price:"£3.99", sub:"£0.16 each"},
+  {id:"tunes_60", label:"60 tunes", price:"£7.99", sub:"£0.13 each"},
+];
+const PAINTLAB_PRODUCT = {id:"paintlab", label:"PaintLab unlock", price:"£2.99"};
 
 const cookieStore = {
   get: (name, fallback) => {
@@ -951,6 +962,90 @@ const S = {
   body:   { fontFamily:C.fBody },
 };
 
+function getLinjeTuneOwnerId() {
+  if (typeof window === "undefined") return "";
+  let ownerId = LS.get(OWNER_KEY, "");
+  if (!/^lt_[a-zA-Z0-9_-]{16,80}$/.test(ownerId)) {
+    const random = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    ownerId = `lt_${String(random).replace(/[^a-zA-Z0-9_-]/g, "")}`;
+    LS.set(OWNER_KEY, ownerId);
+  }
+  document.cookie = `${OWNER_KEY}=${encodeURIComponent(ownerId)}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+  return ownerId;
+}
+
+function currentWeekId(d = new Date()) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function getWeeklyTuneUsage() {
+  const usage = LS.get(WEEKLY_KEY, {week: currentWeekId(), used: 0});
+  const week = currentWeekId();
+  if (usage.week !== week) return {week, used: 0};
+  return {week, used: Number(usage.used) || 0};
+}
+
+function setWeeklyTuneUsage(usage) {
+  LS.set(WEEKLY_KEY, usage);
+}
+
+function defaultEntitlements() {
+  return {paintLabUnlocked:false, tuneTokens:0, paidTuneAccess:false};
+}
+
+function getCachedEntitlements() {
+  return {...defaultEntitlements(), ...LS.get(ENTITLEMENTS_KEY, {})};
+}
+
+async function syncLinjeTuneEntitlements(setter) {
+  getLinjeTuneOwnerId();
+  try {
+    const response = await fetch("/api/linjetune/entitlements", {cache:"no-store"});
+    if (!response.ok) throw new Error("entitlements");
+    const entitlements = {...defaultEntitlements(), ...(await response.json())};
+    LS.set(ENTITLEMENTS_KEY, entitlements);
+    setter(entitlements);
+    return entitlements;
+  } catch {
+    const cached = getCachedEntitlements();
+    setter(cached);
+    return cached;
+  }
+}
+
+async function startLinjeTuneCheckout(productId, setEntitlements) {
+  getLinjeTuneOwnerId();
+  const response = await fetch("/api/linjetune/checkout", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({productId}),
+  });
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.error || "Checkout unavailable");
+  if (data.preview && data.entitlements) {
+    LS.set(ENTITLEMENTS_KEY, data.entitlements);
+    setEntitlements(data.entitlements);
+    return {preview:true};
+  }
+  if (data.url) window.location.href = data.url;
+  return {redirect:true};
+}
+
+async function consumePaidTuneToken(setEntitlements) {
+  const response = await fetch("/api/linjetune/consume-token", {method:"POST"});
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.error || "No tune credits remaining");
+  LS.set(ENTITLEMENTS_KEY, data);
+  setEntitlements(data);
+  return data;
+}
+
 function readableTextForColor(color, fallback = "#ffffff") {
   if (!color) return fallback;
   if (color === C.accent || color === C.green || String(color).includes("--tl-green")) return "#0a0a0a";
@@ -1452,6 +1547,53 @@ function Wizard({ctx, onClose}) {
 
 // ─── OUTPUT SCREEN ────────────────────────────────────────────────────────────
 
+function BillingDrawer({onClose, entitlements, weeklyUsage, onBuy, mode = "tunes"}) {
+  const freeLeft = Math.max(0, FREE_TUNES_PER_WEEK - (weeklyUsage?.used || 0));
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState("");
+  const buy = async(productId) => {
+    setBusy(productId);
+    setError("");
+    try { await onBuy(productId); }
+    catch(e) { setError(e.message || "Checkout unavailable"); }
+    setBusy(null);
+  };
+  return (
+    <div className="tl-shell" style={{position:"fixed",inset:0,background:"#000c",zIndex:500,display:"flex",alignItems:"flex-end",margin:"0 auto"}} onClick={onClose}>
+      <div style={{width:"100%",background:C.bg,borderTop:`1px solid ${C.border}`,borderRadius:"16px 16px 0 0",padding:"18px 16px 30px",fontFamily:C.fBody}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div>
+            <div style={{fontFamily:C.fMono,fontSize:10,color:C.green,letterSpacing:"0.18em",textTransform:"uppercase"}}>{mode==="paint"?"PaintLab access":"Tune credits"}</div>
+            <div style={{fontSize:12,color:C.muted,marginTop:5,lineHeight:1.5}}>
+              {mode==="paint"?"Unlock PaintLab permanently. Stripe converts GBP at checkout where supported.":`${freeLeft} free weekly tunes left - ${entitlements.tuneTokens || 0} paid credits`}
+            </div>
+          </div>
+          <button onClick={onClose} style={{...S.btn,color:C.muted,fontSize:18}}>x</button>
+        </div>
+        {mode==="paint" ? (
+          <button onClick={()=>buy(PAINTLAB_PRODUCT.id)} disabled={!!busy}
+            style={{...S.btn,width:"100%",padding:"13px",background:C.green,border:`1px solid ${C.green}`,borderRadius:8,color:"#050505",fontFamily:C.fCond,fontSize:15,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase"}}>
+            {busy===PAINTLAB_PRODUCT.id?"Opening checkout...":`${PAINTLAB_PRODUCT.label} - ${PAINTLAB_PRODUCT.price}`}
+          </button>
+        ) : (
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+            {TUNE_PRODUCTS.map(p=>(
+              <button key={p.id} onClick={()=>buy(p.id)} disabled={!!busy}
+                style={{...S.btn,padding:"12px 8px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,display:"flex",flexDirection:"column",gap:4}}>
+                <span style={{fontFamily:C.fCond,fontSize:16,fontWeight:700,letterSpacing:"0.08em"}}>{p.label}</span>
+                <span style={{fontFamily:C.fMono,fontSize:12,color:C.green}}>{busy===p.id?"Opening...":p.price}</span>
+                <span style={{fontSize:11,color:C.dim}}>{p.sub}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {mode!=="paint"&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6,marginTop:12}}>Paid credits unlock AI-enhanced tuning while credits are available. Imported API keys stay only in this browser's cookies.</div>}
+        {error&&<div style={{fontSize:12,color:C.red,marginTop:10}}>{error}</div>}
+      </div>
+    </div>
+  );
+}
+
 function EnhancingBar({color, icon, label}) {
   const [secs, setSecs] = useState(0);
   useEffect(()=>{
@@ -1555,7 +1697,7 @@ function EnhanceDrawer({accentColor, hasAI, prov, onClose, onEnhance}) {
   );
 }
 
-function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, units, inputDevice, onSaveUnits, onGoToPaintLab}) {
+function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, units, inputDevice, onSaveUnits, onGoToPaintLab, entitlements, paidAiUnlocked, onBuy}) {
   const [tunePage,    setTunePage]    = useState("Tires");
   const [toast,       setToast]       = useState(null);
   const [overlay,     setOverlay]     = useState(null);
@@ -1573,7 +1715,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
   const [provId, setProvId] = useState(()=>LS.get(PROVIDER_KEY,"none"));
   const [aiKeys, setAiKeys] = useState(()=>LS.get(KEYS_KEY,{}));
   const prov   = AI_PROVIDERS.find(p=>p.id===provId)||AI_PROVIDERS[0];
-  const hasAI  = prov.id!=="none" && !!aiKeys[prov.id];
+  const hasAI  = paidAiUnlocked && prov.id!=="none" && !!aiKeys[prov.id];
 
   // Re-read AI settings whenever overlay closes (so key saved in AIScreen is picked up)
   useEffect(()=>{
@@ -1641,6 +1783,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
   };
 
   const handleManualCopy = () => {
+    if(!paidAiUnlocked){setOverlay("billing");return;}
     const {sys,usr} = buildEnhancePrompt(appState,tunePages);
     const fullPrompt = `${sys}\n\n${usr}`;
     if(navigator.clipboard){
@@ -1654,6 +1797,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
   const handleAIEnhance = useCallback(async() => {
     // Physical lock — prevents double-tap and re-render re-triggers
     if(aiEnhancing) return;
+    if(!paidAiUnlocked){setOverlay("billing");return;}
     if(!hasAI){setOverlay("ai");return;}
     setAiEnhancing(true);
     try {
@@ -1703,11 +1847,12 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
       }
     }
     setAiEnhancing(false);
-  }, [aiEnhancing, hasAI, prov, aiKeys, appState, tunePages]);
+  }, [aiEnhancing, paidAiUnlocked, hasAI, prov, aiKeys, appState, tunePages]);
 
   // Enhance with optional custom prompt injected
   const handleAIEnhanceWithPrompt = useCallback(async(extraPrompt="") => {
     if(aiEnhancing) return;
+    if(!paidAiUnlocked){setOverlay("billing");return;}
     if(!hasAI){setOverlay("ai");return;}
     setAiEnhancing(true);
     try {
@@ -1733,7 +1878,7 @@ User request: ${extraPrompt}` : usr;
       else setToast(`AI error: ${e.message||"unknown"}`);
     }
     setAiEnhancing(false);
-  }, [aiEnhancing, hasAI, prov, aiKeys, appState, tunePages]);
+  }, [aiEnhancing, paidAiUnlocked, hasAI, prov, aiKeys, appState, tunePages]);
 
 
   // Auto-switch to first valid tab if current is null (D mode skips Gearing)
@@ -1757,7 +1902,7 @@ User request: ${extraPrompt}` : usr;
         appState={appState}
         onClose={()=>setOverlay(null)}
         onNav={(id, st)=>{
-          if(id==="ai") setOverlay("ai");
+          if(id==="ai") paidAiUnlocked ? setOverlay("ai") : setOverlay("billing");
           else if(id==="about") setOverlay("about");
           else if(id==="settings") setOverlay("settings");
           else if(id==="paintlab"){ setOverlay(null); if(onGoToPaintLab) onGoToPaintLab(); else onBack(); }
@@ -1770,6 +1915,7 @@ User request: ${extraPrompt}` : usr;
           else if(id==="reset"){if(window.confirm("Reset all data? This cannot be undone.")){Object.keys(localStorage).filter(k=>k.startsWith("tl_")).forEach(k=>localStorage.removeItem(k));window.location.reload();}}
         }}
       />}
+      {overlay==="billing"&&<BillingDrawer onClose={()=>setOverlay(null)} entitlements={entitlements||defaultEntitlements()} weeklyUsage={getWeeklyTuneUsage()} onBuy={onBuy}/>}
       {overlay==="ai"&&<AIScreen onClose={()=>setOverlay(null)}/>}
       {overlay==="enhance"&&<EnhanceDrawer
         accentColor={accentColor}
@@ -1973,7 +2119,7 @@ IMPORTANT — do NOT change these settings: ${lockList.join(", ")}.` : "";
               <button onClick={()=>setOverlay("wizard")} style={{...S.btn,padding:"11px",background:C.card,border:`1px solid ${C.border}`,borderRadius:10,color:C.text,fontFamily:C.fBody,fontSize:12,fontWeight:500,gap:5}}>
                 🔧 Wizard
               </button>
-              <button onClick={()=>hasAI&&!aiEnhancing?setOverlay("enhance"):!hasAI?setOverlay("ai"):null} disabled={aiEnhancing}
+              <button onClick={()=>paidAiUnlocked ? (hasAI&&!aiEnhancing?setOverlay("enhance"):!hasAI?setOverlay("ai"):null) : setOverlay("billing")} disabled={aiEnhancing}
                 style={{...S.btn,padding:"12px",
                   background:aiEnhancing?"transparent":hasAI?`${accentColor}12`:C.card,
                   border:`1px solid ${aiEnhancing?C.border:hasAI?`${accentColor}44`:C.border}`,
@@ -1981,7 +2127,7 @@ IMPORTANT — do NOT change these settings: ${lockList.join(", ")}.` : "";
                   color:aiEnhancing?C.dim:hasAI?accentColor:C.muted,
                   fontFamily:C.fCond,fontSize:12,fontWeight:700,letterSpacing:"0.15em",textTransform:"uppercase",
                   gap:5,opacity:aiEnhancing?0.5:1,cursor:aiEnhancing?"not-allowed":"pointer"}}>
-                {aiEnhancing?"Enhancing…":hasAI?"✦ Enhance":"✦ Enhance"}
+                {aiEnhancing?"Enhancing…":paidAiUnlocked?"✦ Enhance":"Unlock AI"}
               </button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:7}}>
@@ -1990,7 +2136,7 @@ IMPORTANT — do NOT change these settings: ${lockList.join(", ")}.` : "";
                 <span>📋 Copy prompt</span>
                 <span style={{fontSize:9,color:C.dim}}>→ paste in browser</span>
               </button>
-              <button onClick={()=>{setShowPaste(true);setPasteError("");}} style={{...S.btn,padding:"9px 6px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:9,color:C.dim,fontFamily:C.fBody,fontSize:11,gap:3,flexDirection:"column",lineHeight:1.3}}>
+              <button onClick={()=>{if(!paidAiUnlocked){setOverlay("billing");return;} setShowPaste(true);setPasteError("");}} style={{...S.btn,padding:"9px 6px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:9,color:C.dim,fontFamily:C.fBody,fontSize:11,gap:3,flexDirection:"column",lineHeight:1.3}}>
                 <span>📥 Paste response</span>
                 <span style={{fontSize:9,color:C.dim}}>← apply AI notes</span>
               </button>
@@ -3202,6 +3348,9 @@ export default function ForzaTuner() {
   const [mode,        setMode]        = useState(()=>LS.get("tl_v1_mode","D"));
   const [overlay,     setOverlay]     = useState(null);
   const [toast,       setToast]       = useState(null);
+  const [entitlements,setEntitlements]= useState(()=>getCachedEntitlements());
+  const [weeklyUsage, setWeeklyUsage] = useState(()=>getWeeklyTuneUsage());
+  const [paidAiForTune,setPaidAiForTune]= useState(false);
 
   const [make,        setMake]        = useState("Nissan");
   const [model,       setModel]       = useState("GT-R Black Edition (R35)");
@@ -3250,6 +3399,20 @@ export default function ForzaTuner() {
   const [aiSummary,    setAiSummary]    = useState(null);
   const [showPaste,    setShowPaste]    = useState(false);
   const [pasteError,   setPasteError]   = useState("");
+
+  useEffect(()=>{
+    getLinjeTuneOwnerId();
+    syncLinjeTuneEntitlements(setEntitlements);
+    setWeeklyUsage(getWeeklyTuneUsage());
+  },[]);
+
+  const buyProduct = useCallback(async(productId)=>{
+    const result = await startLinjeTuneCheckout(productId, setEntitlements);
+    if(result?.preview) {
+      setOverlay(null);
+      setToast("Purchase unlocked in preview mode.");
+    }
+  },[]);
 
   // Remote car DB — fetches latest cars.json from GitHub on launch
   // Falls back to hardcoded CAR_DB_FULL if offline or fetch fails
@@ -3345,10 +3508,26 @@ export default function ForzaTuner() {
   const handleGenerate = async() => {
     setLoading(true);
     try {
+      let paidForThisTune = false;
+      const usage = getWeeklyTuneUsage();
+      if (usage.used < FREE_TUNES_PER_WEEK) {
+        const nextUsage = {...usage, used: usage.used + 1};
+        setWeeklyTuneUsage(nextUsage);
+        setWeeklyUsage(nextUsage);
+      } else if ((entitlements.tuneTokens || 0) > 0) {
+        await consumePaidTuneToken(setEntitlements);
+        paidForThisTune = true;
+      } else {
+        setOverlay("billing");
+        setToast("Free weekly tunes used. Buy credits to continue.");
+        setLoading(false);
+        return;
+      }
       const st = getState();
       const tune = calcTune(st);
       setTunePages(tune);
       setGenerated(true);
+      setPaidAiForTune(paidForThisTune || (entitlements.tuneTokens || 0) > 0);
       setScreen("output");
     } catch(e) {
       console.log("Generate error:", e.message);
@@ -3365,6 +3544,14 @@ export default function ForzaTuner() {
     setPi(s.pi||850); setCarClass(s.carClass||"S1");
     setTunePages(entry.tunePages||{}); setGenerated(true); setScreen("output");
     setToast("Tune loaded!");
+  };
+
+  const openPaintLab = () => {
+    if (entitlements.paintLabUnlocked) {
+      setScreen("paintlab");
+    } else {
+      setOverlay("paintlab-billing");
+    }
   };
 
   // Set viewport + apply theme class on mount + listen for changes
@@ -3505,7 +3692,10 @@ const searchResults = carSearch.length > 0
         units={units}
         inputDevice={inputDevice}
         onSaveUnits={(u,dev)=>{LS.set("tl_v1_units",u);LS.set("tl_v1_device",dev);setUnits(u);setInputDevice(dev);}}
-        onGoToPaintLab={()=>setScreen("paintlab")}
+        onGoToPaintLab={openPaintLab}
+        entitlements={entitlements}
+        paidAiUnlocked={paidAiForTune || (entitlements.tuneTokens || 0) > 0}
+        onBuy={buyProduct}
       />
     </OutputErrorBoundary>
   );
@@ -3530,15 +3720,17 @@ const searchResults = carSearch.length > 0
         appState={getState()}
         onClose={()=>setOverlay(null)}
         onNav={(id)=>{
-          if(id==="ai") setOverlay("ai");
+          if(id==="ai") (paidAiForTune || (entitlements.tuneTokens || 0) > 0) ? setOverlay("ai") : setOverlay("billing");
           else if(id==="about") setOverlay("about");
           else if(id==="settings") setOverlay("settings");
-          else if(id==="paintlab"){ setOverlay(null); setScreen("paintlab"); }
+          else if(id==="paintlab"){ setOverlay(null); openPaintLab(); }
           else if(id==="refresh"){localStorage.removeItem("tl_v1_cardb_cache");localStorage.removeItem("tl_v1_cardb_version");localStorage.removeItem("tl_v1_cardb_time");window.location.reload();}
           else if(id==="reset"){if(window.confirm("Reset all data? This cannot be undone.")){Object.keys(localStorage).filter(k=>k.startsWith("tl_")).forEach(k=>localStorage.removeItem(k));window.location.reload();}}
         }}
       />}
       {overlay==="save"&&<SaveDrawer appState={getState()} tunePages={tunePages} onLoad={loadTune} onClose={()=>setOverlay(null)}/>}
+      {overlay==="billing"&&<BillingDrawer onClose={()=>setOverlay(null)} entitlements={entitlements} weeklyUsage={weeklyUsage} onBuy={buyProduct}/>}
+      {overlay==="paintlab-billing"&&<BillingDrawer onClose={()=>setOverlay(null)} entitlements={entitlements} weeklyUsage={weeklyUsage} onBuy={buyProduct} mode="paint"/>}
       {overlay==="ai"&&<AIScreen onClose={()=>setOverlay(null)}/>}
       {overlay==="about"&&<AboutScreen onClose={()=>setOverlay(null)}/>}
       {overlay==="settings"&&<SettingsScreen units={units} device={inputDevice} onSave={(u,dev)=>{LS.set("tl_v1_units",u);LS.set("tl_v1_device",dev);setUnits(u);setInputDevice(dev);setOverlay(null);}} onClose={()=>setOverlay(null)}/>}
