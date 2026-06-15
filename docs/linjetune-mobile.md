@@ -96,3 +96,31 @@ ios/App/output/LinjeTune.ipa
 ```
 
 Upload the exported `.ipa` with Xcode Organizer, Transporter, or App Store Connect tooling.
+
+### GitHub IPA Build
+
+The `LinjeTune iOS Release` workflow can build a signed `.ipa` on GitHub's macOS runners after Apple Developer signing assets are added as repository secrets.
+
+Required secrets:
+
+```text
+IOS_DISTRIBUTION_CERTIFICATE_BASE64
+IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+IOS_PROVISIONING_PROFILE_BASE64
+IOS_KEYCHAIN_PASSWORD
+APPLE_TEAM_ID
+```
+
+Create the certificate secret from a `.p12` distribution certificate:
+
+```bash
+base64 -i linjetune_distribution.p12 | pbcopy
+```
+
+Create the provisioning profile secret from an App Store provisioning profile for bundle id `dev.linje.linjetune`:
+
+```bash
+base64 -i LinjeTune_App_Store.mobileprovision | pbcopy
+```
+
+After the secrets are set, run the `LinjeTune iOS Release` workflow manually from GitHub Actions. It archives the app, exports the `.ipa`, and uploads a `LinjeTune-ios-ipa` workflow artifact.
