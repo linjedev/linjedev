@@ -44,7 +44,16 @@ Output:
 android/app/build/outputs/bundle/release/app-release.aab
 ```
 
-For Play Store submission, configure release signing locally in Android Studio or in a non-committed signing config. Do not commit keystores, passwords, or `android/keystore.properties`.
+For Play Store submission, the release build reads local signing details from:
+
+```text
+android/keystore.properties
+android/linjetune-upload-key.jks
+```
+
+Both files are intentionally ignored by git. Back them up somewhere private. Losing this upload key can block future Play Store updates unless Google Play App Signing key reset is available for the app.
+
+Use `android/keystore.properties.example` as the template if the local signing files need to be recreated on another machine.
 
 ## iOS
 
