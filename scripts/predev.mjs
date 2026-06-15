@@ -31,6 +31,8 @@ const edition = (process.env.NEXT_PUBLIC_WWV_EDITION || "local").trim().toLowerC
 
 if (edition !== "demo") {
     run("node scripts/boot-db.mjs");
+    loadEnv(".env", { override: true });
+    loadEnv(".env.local", { override: true });
     run("npx dotenv-cli -c -- node scripts/safe-db-push.mjs");
 }
 
