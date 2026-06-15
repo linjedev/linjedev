@@ -30,7 +30,7 @@ function headers(contentType) {
 
 async function serveTuneApp(request, env) {
   if (env?.ASSETS) {
-    const spaUrl = new URL("/tunelab/index.html", request.url);
+    const spaUrl = new URL("/tunelab/", request.url);
     const response = await env.ASSETS.fetch(new Request(spaUrl, request));
     if (response.status !== 404) return response;
   }
@@ -81,7 +81,7 @@ export default {
       const assetResponse = await env.ASSETS.fetch(request);
       if (assetResponse.status !== 404) return assetResponse;
 
-      const spaUrl = new URL("/tunelab/index.html", request.url);
+      const spaUrl = new URL("/tunelab/", request.url);
       return env.ASSETS.fetch(new Request(spaUrl, request));
     }
 
