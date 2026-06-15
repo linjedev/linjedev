@@ -1135,7 +1135,7 @@ function UnitsScreen({onDone}) {
         </div>
 
         <button onClick={()=>onDone({weight:w,springs:sp,pressure:p,speed:spd},dev)}
-          style={{...S.btn,width:"100%",padding:"15px",background:C.accent,borderRadius:12,color:"#fff",fontFamily:C.fBody,fontSize:14,fontWeight:600,letterSpacing:"0.04em"}}>
+          style={{...S.btn,width:"100%",padding:"15px",background:C.accent,borderRadius:12,color:"#050505",fontFamily:C.fBody,fontSize:14,fontWeight:700,letterSpacing:"0.04em"}}>
           Let's go →
         </button>
       </div>
