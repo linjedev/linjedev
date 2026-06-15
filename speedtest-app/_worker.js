@@ -28,16 +28,29 @@ function headers(contentType) {
   };
 }
 
+async function serveTuneApp(request, env) {
+  if (env?.ASSETS) {
+    const spaUrl = new URL("/tunelab/index.html", request.url);
+    const response = await env.ASSETS.fetch(new Request(spaUrl, request));
+    if (response.status !== 404) return response;
+  }
+
+  return new Response(page(), {
+    status: 200,
+    headers: headers("text/html; charset=utf-8"),
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
     if (url.pathname === "/") {
-      return Response.redirect(`${url.origin}/tunelab/`, 308);
+      return serveTuneApp(request, env);
     }
 
     if (url.pathname === "/tunelab") {
-      return Response.redirect(`${url.origin}/tunelab/`, 308);
+      return Response.redirect(url.origin, 308);
     }
 
     if (url.pathname === "/tunelab/data/cars.json") {

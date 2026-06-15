@@ -285,12 +285,12 @@ const cookieStore = {
     if (typeof document === "undefined") return;
     try {
       const maxAge = 60 * 60 * 24 * 365;
-      document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(JSON.stringify(value))}; path=/tunelab; max-age=${maxAge}; SameSite=Lax`;
+      document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(JSON.stringify(value))}; path=/; max-age=${maxAge}; SameSite=Lax`;
     } catch {}
   },
   remove: (name) => {
     if (typeof document === "undefined") return;
-    document.cookie = `${encodeURIComponent(name)}=; path=/tunelab; max-age=0; SameSite=Lax`;
+    document.cookie = `${encodeURIComponent(name)}=; path=/; max-age=0; SameSite=Lax`;
   },
 };
 
@@ -946,6 +946,22 @@ const S = {
   body:   { fontFamily:C.fBody },
 };
 
+function readableTextForColor(color, fallback = "#ffffff") {
+  if (!color) return fallback;
+  if (color === C.accent || color === C.green || String(color).includes("--tl-green")) return "#0a0a0a";
+  const hex = String(color).trim();
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex);
+  if (!match) return fallback;
+  const full = match[1].length === 3
+    ? match[1].split("").map((ch) => ch + ch).join("")
+    : match[1];
+  const r = parseInt(full.slice(0, 2), 16) / 255;
+  const g = parseInt(full.slice(2, 4), 16) / 255;
+  const b = parseInt(full.slice(4, 6), 16) / 255;
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance > 0.62 ? "#0a0a0a" : "#ffffff";
+}
+
 function Toast({msg, onDone}) {
   useEffect(()=>{ const t=setTimeout(onDone,2500); return()=>clearTimeout(t); },[]);
   return (
@@ -956,26 +972,30 @@ function Toast({msg, onDone}) {
 }
 
 function Seg({label, opts, val, set, color, onColor}) {
+  const [hovered, setHovered] = useState(null);
   const ac = color || C.accent;
-  const tc = onColor || "#fff";
+  const tc = onColor || readableTextForColor(ac);
   return (
     <div style={{marginBottom:12}}>
       {label && <span style={S.label}>{label}</span>}
       <div style={{display:"flex",gap:0}}>
-        {opts.map((o,i) => (
-          <button key={o} onClick={()=>set(o)} style={{...S.btn,flex:1,padding:"9px 4px",
-            borderTop:`1px solid ${val===o?ac:C.border}`,
-            borderBottom:`1px solid ${val===o?ac:C.border}`,
-            borderLeft:`1px solid ${val===o?ac:C.border}`,
-            borderRight:i===opts.length-1?`1px solid ${val===o?ac:C.border}`:"none",
+        {opts.map((o,i) => {
+          const active = val===o;
+          const highlighted = active || hovered===o;
+          return (
+          <button key={o} onClick={()=>set(o)} onMouseEnter={()=>setHovered(o)} onMouseLeave={()=>setHovered(null)} style={{...S.btn,flex:1,padding:"9px 4px",
+            borderTop:`1px solid ${highlighted?ac:C.border}`,
+            borderBottom:`1px solid ${highlighted?ac:C.border}`,
+            borderLeft:`1px solid ${highlighted?ac:C.border}`,
+            borderRight:i===opts.length-1?`1px solid ${highlighted?ac:C.border}`:"none",
             borderRadius:i===0?"4px 0 0 4px":i===opts.length-1?"0 4px 4px 0":"0",
-            background:val===o?ac:"transparent",
-            color:val===o?tc:C.muted,
-            fontFamily:C.fCond,fontSize:13,fontWeight:val===o?700:500,
+            background:highlighted?ac:"transparent",
+            color:highlighted?tc:C.muted,
+            fontFamily:C.fCond,fontSize:13,fontWeight:active?700:500,
             letterSpacing:"0.1em",textTransform:"uppercase",transition:"all 0.12s"}}>
             {o}
           </button>
-        ))}
+        );})}
       </div>
     </div>
   );
@@ -1542,8 +1562,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
 
   const color       = TUNE_MODES.find(t=>t.id===appState.tuneId)?.color||C.accent;
   const accentColor = color;
-  const BRIGHT      = ["Touge","Drag"];
-  const onAccent    = BRIGHT.includes(appState.tuneId) ? "#0a0c0f" : "#ffffff";
+  const onAccent    = readableTextForColor(accentColor);
   const [provId, setProvId] = useState(()=>LS.get(PROVIDER_KEY,"none"));
   const [aiKeys, setAiKeys] = useState(()=>LS.get(KEYS_KEY,{}));
   const prov   = AI_PROVIDERS.find(p=>p.id===provId)||AI_PROVIDERS[0];
@@ -3486,8 +3505,7 @@ const searchResults = carSearch.length > 0
   // ── MAIN INPUT SCREEN ──────────────────────────────────────────────────────
   const color       = TUNE_MODES.find(t=>t.id===tuneId)?.color||C.accent;
   const accentColor = color;
-  const BRIGHT      = ["Touge","Drag"];
-  const onAccent    = BRIGHT.includes(tuneId) ? "#0a0c0f" : "#ffffff";
+  const onAccent    = readableTextForColor(accentColor);
   const isAdvanced  = mode==="S";
   const carStatus = carFetchMeta?.source === "online"
     ? `● ${carFetchMeta.count} cars · updated ${Math.round((Date.now()-carFetchMeta.time)/60000)<1?"just now":Math.round((Date.now()-carFetchMeta.time)/60000)+"m ago"}`
