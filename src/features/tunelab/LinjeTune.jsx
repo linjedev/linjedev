@@ -999,6 +999,8 @@ function defaultEntitlements() {
   return {paintLabUnlocked:false, tuneTokens:0, paidTuneAccess:false};
 }
 
+const PAINTLAB_FREE_ON_WEB = true;
+
 function getCachedEntitlements() {
   return {...defaultEntitlements(), ...LS.get(ENTITLEMENTS_KEY, {})};
 }
@@ -1907,7 +1909,7 @@ User request: ${extraPrompt}` : usr;
           else if(id==="settings") setOverlay("settings");
           else if(id==="paintlab"){
             setOverlay(null);
-            if((entitlements || defaultEntitlements()).paintLabUnlocked) {
+            if(PAINTLAB_FREE_ON_WEB || (entitlements || defaultEntitlements()).paintLabUnlocked) {
               if(onGoToPaintLab) onGoToPaintLab(); else onBack();
             } else {
               setOverlay("paintlab-billing");
@@ -3555,7 +3557,7 @@ export default function ForzaTuner() {
   };
 
   const openPaintLab = () => {
-    if (entitlements.paintLabUnlocked) {
+    if (PAINTLAB_FREE_ON_WEB || entitlements.paintLabUnlocked) {
       setScreen("paintlab");
     } else {
       setOverlay("paintlab-billing");
