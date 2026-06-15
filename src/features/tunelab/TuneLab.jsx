@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Component } from "react";
 import localCarsData from "./cars.json";
 import localColorsData from "./colors.json";
 import "./tunelab.css";
 
-// â”€â”€â”€ THEME â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── THEME ────────────────────────────────────────────────────────────────────
 const VERSION       = "1.7.0";
 
 // PI defaults and ranges per class
@@ -24,34 +24,34 @@ const KOFI_URL      = "https://ko-fi.com/tunelabs";
 const DISCORD_URL   = "https://discord.gg/N4HfuWEXaN";
 const GITHUB_URL    = "https://github.com/super-android/tunelab";
 
-// â”€â”€â”€ PHYSICS CONSTANTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// FH5-baseline spring frequencies â€” FH6 rewards SOFTER springs than physics predicts.
+// ─── PHYSICS CONSTANTS ────────────────────────────────────────────────────────
+// FH5-baseline spring frequencies — FH6 rewards SOFTER springs than physics predicts.
 // Community standard: run very soft, even minimum. Post-launch: validate and reduce freqMult if stiff.
 // ARB, camber, caster, toe updated to FH6 community standards (Apr 2026).
-// Base Hz formula (ForzaTune-derived): 6.79e-7 Ã— (PI-100)Â² + 2.45
+// Base Hz formula (ForzaTune-derived): 6.79e-7 × (PI-100)² + 2.45
 // freqMult scales that base per mode: front / rear multipliers.
 const PHYSICS = {
-  // FH6 uses FM engine â€” stiffer than FH5, faster transient response
-  // freqMult validated May 2026 via telemetry (susp std dev 0.147 â†’ target 0.10)
+  // FH6 uses FM engine — stiffer than FH5, faster transient response
+  // freqMult validated May 2026 via telemetry (susp std dev 0.147 → target 0.10)
   // +10% across race modes, Rally/Snow unchanged, Rain slightly stiffer
   freqMult: {
-    Race:    {f:1.10, r:1.01},  // +10% â€” FM engine needs stiffer baseline
-    Touge:   {f:1.08, r:0.99},  // +10% â€” tight corners need planted front
-    Drift:   {f:0.85, r:0.78},  // +6% â€” still soft but more controlled
-    Rally:   {f:0.63, r:0.58},  // unchanged â€” FH5 rally feel confirmed same
-    Drag:    {f:0.95, r:0.72},  // +5% â€” front squat control
-    Wangan:  {f:1.04, r:0.97},  // +10% â€” high speed needs stability
-    Rain:    {f:0.85, r:0.79},  // +10% â€” FM wet model more aggressive
-    General: {f:0.96, r:0.91},  // +10% â€” all-round baseline
+    Race:    {f:1.10, r:1.01},  // +10% — FM engine needs stiffer baseline
+    Touge:   {f:1.08, r:0.99},  // +10% — tight corners need planted front
+    Drift:   {f:0.85, r:0.78},  // +6% — still soft but more controlled
+    Rally:   {f:0.63, r:0.58},  // unchanged — FH5 rally feel confirmed same
+    Drag:    {f:0.95, r:0.72},  // +5% — front squat control
+    Wangan:  {f:1.04, r:0.97},  // +10% — high speed needs stability
+    Rain:    {f:0.85, r:0.79},  // +10% — FM wet model more aggressive
+    General: {f:0.96, r:0.91},  // +10% — all-round baseline
   },
-  dampRebound:      0.70,  // raised from 0.68 â€” FM engine rewards slightly more rebound
-  dampBump:         0.52,  // raised from 0.50 â€” faster bump response for FM transients
-  horizonDampMult:  1.10,  // reduced from 1.15 â€” FM base damping already higher than FH5
+  dampRebound:      0.70,  // raised from 0.68 — FM engine rewards slightly more rebound
+  dampBump:         0.52,  // raised from 0.50 — faster bump response for FM transients
+  horizonDampMult:  1.10,  // reduced from 1.15 — FM base damping already higher than FH5
   casterBase:       5.0,
   casterPIScale:    900,
 };
 
-// â”€â”€â”€ THEME CSS (injected into DOM, follows device light/dark) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── THEME CSS (injected into DOM, follows device light/dark) ─────────────────
 const THEME_STYLE = `
   :root {
     --tl-shell-max: 1180px;
@@ -177,7 +177,7 @@ const C = {
   surface:  "var(--tl-surface)",
   card:     "var(--tl-card)",
   border:   "var(--tl-border)",
-  accent:   "var(--tl-green)",        // telemetry green â€” primary action
+  accent:   "var(--tl-green)",        // telemetry green — primary action
   accentLo: "rgba(0,255,133,0.08)",
   text:     "var(--tl-text)",
   muted:    "var(--tl-muted)",
@@ -185,7 +185,7 @@ const C = {
   green:    "var(--tl-green)",
   amber:    "var(--tl-amber)",
   red:      "var(--tl-red)",
-  gold:     "var(--tl-amber)",        // map gold â†’ amber in race engineer
+  gold:     "var(--tl-amber)",        // map gold → amber in race engineer
   ice2:     "var(--tl-ice2)",
   // font families
   fCond:    "'Barlow Condensed',sans-serif",
@@ -195,19 +195,19 @@ const C = {
 
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500&family=Share+Tech+Mono&display=swap');`;
 
-// â”€â”€â”€ CONSTANTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const DRIVE_TYPES = ["FWD","RWD","AWD"];
 
 const TUNE_MODES = [
   // color = mode accent used across all UI elements for that mode
-  {id:"Race",    icon:"ðŸ", color:"#ffffff", code:"TARMAC",   label:"Track Day",     sub:"Circuit & road"},
-  {id:"Touge",   icon:"â›°", color:"#e5e5e5", code:"MOUNTAIN", label:"Touge Run",     sub:"Tight corners"},
-  {id:"Wangan",  icon:"ðŸŒƒ", color:"#d4d4d4", code:"HIGHWAY",  label:"Wangan",        sub:"High speed"},
-  {id:"Drift",   icon:"ðŸ’¨", color:"#c7c7c7", code:"ANGLE",    label:"Drift Session", sub:"Sideways"},
-  {id:"Drag",    icon:"âš¡", color:"#f5f5f5", code:"STRAIGHT", label:"Drag Run",      sub:"Launch focus"},
-  {id:"Rally",   icon:"ðŸª¨", color:"#a3a3a3", code:"LOOSE",    label:"Rally Stage",   sub:"Gravel & dirt"},
-  {id:"General", icon:"ðŸ”§", color:"#b8b8b8", code:"GENERAL",  label:"All-Round",     sub:"Balanced setup"},
-  {id:"Rain",    icon:"ðŸŒ§", color:"#d0d0d0", code:"WET",      label:"Wet Control",   sub:"Rain & puddles"},
+  {id:"Race",    icon:"🏁", color:"#ffffff", code:"TARMAC",   label:"Track Day",     sub:"Circuit & road"},
+  {id:"Touge",   icon:"⛰", color:"#e5e5e5", code:"MOUNTAIN", label:"Touge Run",     sub:"Tight corners"},
+  {id:"Wangan",  icon:"🌃", color:"#d4d4d4", code:"HIGHWAY",  label:"Wangan",        sub:"High speed"},
+  {id:"Drift",   icon:"💨", color:"#c7c7c7", code:"ANGLE",    label:"Drift Session", sub:"Sideways"},
+  {id:"Drag",    icon:"⚡", color:"#f5f5f5", code:"STRAIGHT", label:"Drag Run",      sub:"Launch focus"},
+  {id:"Rally",   icon:"🪨", color:"#a3a3a3", code:"LOOSE",    label:"Rally Stage",   sub:"Gravel & dirt"},
+  {id:"General", icon:"🔧", color:"#b8b8b8", code:"GENERAL",  label:"All-Round",     sub:"Balanced setup"},
+  {id:"Rain",    icon:"🌧", color:"#d0d0d0", code:"WET",      label:"Wet Control",   sub:"Rain & puddles"},
 ];
 
 const CLASSES = [
@@ -222,10 +222,10 @@ const CLASSES = [
 ];
 
 const RPM_SCALES = [
-  {label:"0â€“4k", max:4000},
-  {label:"0â€“5k", max:5000},
-  {label:"0â€“8k", max:8000},
-  {label:"0â€“10k",max:10000},
+  {label:"0–4k", max:4000},
+  {label:"0–5k", max:5000},
+  {label:"0–8k", max:8000},
+  {label:"0–10k",max:10000},
   {label:"Custom",max:null},
 ];
 
@@ -239,29 +239,29 @@ const INPUT_DEVICES = [
 ];
 
 const PROBLEMS = [
-  {id:"understeer", label:"Understeer",        icon:"â†–", desc:"Car pushes wide",
+  {id:"understeer", label:"Understeer",        icon:"↖", desc:"Car pushes wide",
    subs:[{id:"us_entry",label:"Corner entry"},{id:"us_mid",label:"Mid-corner"},{id:"us_exit",label:"On throttle"},{id:"us_high",label:"High speed only"}]},
-  {id:"oversteer",  label:"Oversteer",          icon:"â†—", desc:"Rear steps out",
+  {id:"oversteer",  label:"Oversteer",          icon:"↗", desc:"Rear steps out",
    subs:[{id:"os_entry",label:"Corner entry"},{id:"os_mid",label:"Mid-corner snap"},{id:"os_exit",label:"On throttle"},{id:"os_hi",label:"High speed"}]},
-  {id:"braking",    label:"Braking instability",icon:"âŠ—", desc:"Dives, locks, pulls",
+  {id:"braking",    label:"Braking instability",icon:"⊗", desc:"Dives, locks, pulls",
    subs:[{id:"br_lock",label:"Front locking"},{id:"br_rear",label:"Rear locking"},{id:"br_dive",label:"Nose dive"},{id:"br_late",label:"Braking too long"}]},
-  {id:"sluggish",   label:"Sluggish / numb",    icon:"â—Ž", desc:"Car won't respond",
+  {id:"sluggish",   label:"Sluggish / numb",    icon:"◎", desc:"Car won't respond",
    subs:[{id:"ur_steer",label:"Steering numb"},{id:"ur_roll",label:"Too much roll"},{id:"ur_trac",label:"Poor traction"},{id:"ur_boost",label:"Turbo lag"}]},
-  {id:"twitchy",    label:"Twitchy / snappy",   icon:"â‰‹", desc:"Nervous, unpredictable",
+  {id:"twitchy",    label:"Twitchy / snappy",   icon:"≋", desc:"Nervous, unpredictable",
    subs:[{id:"tw_str",label:"Nervous on straights"},{id:"tw_bump",label:"Bouncy over bumps"},{id:"tw_snap",label:"Snaps unexpectedly"},{id:"tw_stiff",label:"Too stiff / harsh"}]},
 ];
 
 const TUNE_PAGES = ["Tires","Gearing","Alignment","Suspension","ARB","Damping","Braking","Diff","Aero"];
 
 const AI_PROVIDERS = [
-  {id:"none",   label:"Offline only",   icon:"âš™",  color:"#888899", free:true,  soon:false, key:null,      hint:null,            docs:null},
-  {id:"gemini", label:"Google Gemini",  icon:"âœ¦",  color:"#4285f4", free:true,  soon:false, key:"AIza...", hint:"AIza...",        docs:"https://aistudio.google.com/app/apikey"},
-  {id:"grok",   label:"xAI Grok",       icon:"ð•",  color:"#e7e7e7", free:true,  soon:true,  key:null,      hint:"xai-...",        docs:"https://console.x.ai"},
-  {id:"openai", label:"OpenAI GPT-4o",  icon:"â—ˆ",  color:"#10a37f", free:false, soon:true,  key:null,      hint:"sk-...",         docs:"https://platform.openai.com/api-keys"},
-  {id:"claude", label:"Anthropic Claude",icon:"â—‡", color:"#6c6cff", free:false, soon:true,  key:null,      hint:"sk-ant-api03-...",docs:"https://console.anthropic.com"},
+  {id:"none",   label:"Offline only",   icon:"⚙",  color:"#888899", free:true,  soon:false, key:null,      hint:null,            docs:null},
+  {id:"gemini", label:"Google Gemini",  icon:"✦",  color:"#4285f4", free:true,  soon:false, key:"AIza...", hint:"AIza...",        docs:"https://aistudio.google.com/app/apikey"},
+  {id:"grok",   label:"xAI Grok",       icon:"𝕏",  color:"#e7e7e7", free:true,  soon:true,  key:null,      hint:"xai-...",        docs:"https://console.x.ai"},
+  {id:"openai", label:"OpenAI GPT-4o",  icon:"◈",  color:"#10a37f", free:false, soon:true,  key:null,      hint:"sk-...",         docs:"https://platform.openai.com/api-keys"},
+  {id:"claude", label:"Anthropic Claude",icon:"◇", color:"#6c6cff", free:false, soon:true,  key:null,      hint:"sk-ant-api03-...",docs:"https://console.anthropic.com"},
 ];
 
-// â”€â”€â”€ LOCAL STORAGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── LOCAL STORAGE ────────────────────────────────────────────────────────────
 const SAVES_KEY    = "tl_v1_saves";
 const PROVIDER_KEY = "tl_v1_provider";
 const KEYS_KEY     = "tl_v1_keys";
@@ -322,9 +322,9 @@ const LS = {
   },
 };
 
-// â”€â”€â”€ PHYSICS ENGINE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Corner weight â†’ spring frequency â†’ spring rate
-// f = (1/2Ï€) Ã— sqrt(K/M)  â†’  K = M Ã— (2Ï€f)Â²
+// ─── PHYSICS ENGINE ───────────────────────────────────────────────────────────
+// Corner weight → spring frequency → spring rate
+// f = (1/2π) × sqrt(K/M)  →  K = M × (2πf)²
 function calcTune(s) {
   const {
     tuneId, driveType, surface, inputDevice,
@@ -359,30 +359,30 @@ function calcTune(s) {
   const isSnow   = surface === "Snow";
   const pwr2wt   = (units.weight === "lbs" ? maxTorque * 1.356 : maxTorque) / (wKg / 1000);
 
-  // â”€â”€ PI-based natural frequency (ForzaTune polynomial method)
-  // baseFreq scales with car class: Dâ‰ˆ2.45Hz â†’ Xâ‰ˆ3.8Hz
+  // ── PI-based natural frequency (ForzaTune polynomial method)
+  // baseFreq scales with car class: D≈2.45Hz → X≈3.8Hz
   const piNum   = Math.max(100, Math.min(999, pi||500));
-  // FH6 base frequency â€” FM engine runs ~8% stiffer than FH5 at same PI
-  // Recalibrated from telemetry: Dâ‰ˆ2.65Hz, Aâ‰ˆ3.2Hz, S1â‰ˆ3.6Hz, Xâ‰ˆ4.1Hz
+  // FH6 base frequency — FM engine runs ~8% stiffer than FH5 at same PI
+  // Recalibrated from telemetry: D≈2.65Hz, A≈3.2Hz, S1≈3.6Hz, X≈4.1Hz
   const baseFreq = 7.35e-7 * Math.pow(piNum - 100, 2) + 2.65;
 
-  // Mode multipliers â€” sourced from PHYSICS constants block (top of file)
+  // Mode multipliers — sourced from PHYSICS constants block (top of file)
   const mod  = PHYSICS.freqMult[tuneId] || PHYSICS.freqMult.General;
   const freq = { f: baseFreq * mod.f, r: baseFreq * mod.r };
 
   // Damping: FH6 planted physics mult from PHYSICS constants + feel adjuster
   const dampMod = PHYSICS.horizonDampMult * (1.0 + (feelAggression - 50) / 200);
 
-  // â”€â”€ SPRING RATES
-  // K = M Ã— (2Ï€f)Â²  then convert to display unit
+  // ── SPRING RATES
+  // K = M × (2πf)²  then convert to display unit
   const calcSpring = (cornerMass, f) => {
     const kNm = cornerMass * Math.pow(2 * Math.PI * f, 2);       // N/m
-    // Forza's N/MM scale is ~9x real-world N/mm â€” apply scaling factor
+    // Forza's N/MM scale is ~9x real-world N/mm — apply scaling factor
     // TODO: replace with telemetry-validated nonlinear mapping
     const FORZA_SCALE = 9.0;
-    if (sUnit === "lbs/in") return +(kNm / 175.127).toFixed(1);  // N/m â†’ lbs/in (no scale needed, different unit)
-    if (sUnit === "n/mm")   return +(kNm / 1000 * FORZA_SCALE).toFixed(1);  // N/m â†’ Forza N/mm
-    if (sUnit === "kgf/mm") return +(kNm / (9806.65 * 1000) * FORZA_SCALE).toFixed(2); // N/m â†’ kgf/mm
+    if (sUnit === "lbs/in") return +(kNm / 175.127).toFixed(1);  // N/m → lbs/in (no scale needed, different unit)
+    if (sUnit === "n/mm")   return +(kNm / 1000 * FORZA_SCALE).toFixed(1);  // N/m → Forza N/mm
+    if (sUnit === "kgf/mm") return +(kNm / (9806.65 * 1000) * FORZA_SCALE).toFixed(2); // N/m → kgf/mm
     return +(kNm / 175.127).toFixed(1); // default lbs/in
   };
   let fSpring = calcSpring(cwFL, freq.f);
@@ -393,16 +393,16 @@ function calcTune(s) {
   fSpring = +(fSpring * (1 + balanceMod)).toFixed(1);
   rSpring = +(rSpring * (1 - balanceMod)).toFixed(1);
 
-  // â”€â”€ RIDE HEIGHT
-  // Ride height in cm (native Forza unit) â€” validated against in-game suspension screen
-  // Ride height â€” game minimum is 15cm. Drag nose-down via rear bias not front lowering.
+  // ── RIDE HEIGHT
+  // Ride height in cm (native Forza unit) — validated against in-game suspension screen
+  // Ride height — game minimum is 15cm. Drag nose-down via rear bias not front lowering.
   const fRideCm = isDrift ? 15.5 : isRally ? 20.0 : isSnow ? 22.0 : isDrag ? 15.0 : 15.0;
   const rRideCm = isDrift ? 15.0 : isRally ? 19.0 : isSnow ? 21.0 : isDrag ? 17.0 : 15.0;
   const fRide = fRideCm; // cm
   const rRide = rRideCm; // cm
 
-  // â”€â”€ DAMPING (critical damping ratio method)
-  // Rebound â‰ˆ 0.65â€“0.75 Ã— critical, Bump â‰ˆ 0.5â€“0.6 Ã— critical
+  // ── DAMPING (critical damping ratio method)
+  // Rebound ≈ 0.65–0.75 × critical, Bump ≈ 0.5–0.6 × critical
   // Use physics-scale springs (before Forza scaling) for damping calc
   const fSpringPhys = sUnit === "lbs/in" ? fSpring * 175.127 / 9.0 : fSpring * 1000 / 9.0;
   const rSpringPhys = sUnit === "lbs/in" ? rSpring * 175.127 / 9.0 : rSpring * 1000 / 9.0;
@@ -411,7 +411,7 @@ function calcTune(s) {
   // Damping ratios from PHYSICS constants, scaled by horizonDampMult for FH6
   const rebRatio  = (isDrift ? 0.70 : isRally ? 0.60 : PHYSICS.dampRebound) * PHYSICS.horizonDampMult;
   const bumRatio  = (isDrift ? 0.45 : isRally ? 0.42 : PHYSICS.dampBump)    * PHYSICS.horizonDampMult;
-  // FH6 uses 1â€“20 scale â€” separate front/rear normalisation
+  // FH6 uses 1–20 scale — separate front/rear normalisation
   const mapDampF = (v) => +Math.max(1, Math.min(20, v / critDampF * 10 * dampMod)).toFixed(1);
   const mapDampR = (v) => +Math.max(1, Math.min(20, v / critDampR * 10 * dampMod)).toFixed(1);
   const fRebound = mapDampF(critDampF * rebRatio);
@@ -419,23 +419,23 @@ function calcTune(s) {
   const fBump    = mapDampF(critDampF * bumRatio);
   const rBump    = mapDampR(critDampR * bumRatio);
 
-  // â”€â”€ ARB â€” weight transfer timing method (FH6 FM engine validated)
+  // ── ARB — weight transfer timing method (FH6 FM engine validated)
   // ARB controls roll stiffness and weight transfer rate, NOT roll moment magnitude.
   // Higher ARB = faster weight transfer = more understeer (front) or oversteer (rear).
-  // FH6 meta: AWD = 1/65 (min front, max rear) â€” locks rear, frees front to rotate.
-  // FWD: LOW front, HIGH rear â€” reduces understeer, rotates car on entry.
-  // RWD: moderate front, high rear â€” rotation without snap oversteer.
-  // pwr2wt used to scale RWD rear ARB â€” more power = more rear stability needed.
+  // FH6 meta: AWD = 1/65 (min front, max rear) — locks rear, frees front to rotate.
+  // FWD: LOW front, HIGH rear — reduces understeer, rotates car on entry.
+  // RWD: moderate front, high rear — rotation without snap oversteer.
+  // pwr2wt used to scale RWD rear ARB — more power = more rear stability needed.
   const pwr2wtNorm = Math.min(1, pwr2wt / 800);
 
   let fARB, rARB;
   if (isDrift) {
     // Drift: soft front for easy initiation, moderate rear for angle hold
     // High aggression = more angle = softer front, stiffer rear
-    fARB = 10 + (feelAggression / 100) * 8;   // 10â€“18
-    rARB = 28 + (feelAggression / 100) * 20;  // 28â€“48
+    fARB = 10 + (feelAggression / 100) * 8;   // 10–18
+    rARB = 28 + (feelAggression / 100) * 20;  // 28–48
   } else if (isDrag) {
-    // Drag: balanced ARB â€” no cornering, just launch stability
+    // Drag: balanced ARB — no cornering, just launch stability
     // Slight rear bias to prevent wheelie tendency on RWD/AWD
     fARB = isRWD ? 35 : isAWD ? 30 : 40;
     rARB = isRWD ? 50 : isAWD ? 45 : 40;
@@ -445,26 +445,26 @@ function calcTune(s) {
     fARB = isFWD ? 10 : 8;
     rARB = isFWD ? 18 : isAWD ? 20 : 22;
   } else if (isRain || isSnow) {
-    // Wet/snow: very soft both â€” maximum grip contact patch
+    // Wet/snow: very soft both — maximum grip contact patch
     fARB = isFWD ? 8 : 5;
     rARB = isFWD ? 18 : 12;
   } else {
-    // Race / Touge / Wangan / General â€” core meta
+    // Race / Touge / Wangan / General — core meta
     if (isAWD) {
-      // Moderate AWD baseline â€” forza.guide says start high and soften to 0.55-0.65 balance
+      // Moderate AWD baseline — forza.guide says start high and soften to 0.55-0.65 balance
       // 1/65 meta is valid for top-level builds but too aggressive as a default
       // Starting at 15/55 gives users room to adjust both directions
-      fARB = 12 + Math.round(pwr2wtNorm * 8);  // 12â€“20
-      rARB = 50 + Math.round(pwr2wtNorm * 10); // 50â€“60
+      fARB = 12 + Math.round(pwr2wtNorm * 8);  // 12–20
+      rARB = 50 + Math.round(pwr2wtNorm * 10); // 50–60
     } else if (isFWD) {
       // FWD: LOW front (reduce push), HIGH rear (rotate on entry)
-      // Opposite of what seems intuitive â€” rear ARB transfers weight to outside front
-      fARB = 15 + Math.round(pwr2wtNorm * 10); // 15â€“25
-      rARB = 50 + Math.round(pwr2wtNorm * 10); // 50â€“60
+      // Opposite of what seems intuitive — rear ARB transfers weight to outside front
+      fARB = 15 + Math.round(pwr2wtNorm * 10); // 15–25
+      rARB = 50 + Math.round(pwr2wtNorm * 10); // 50–60
     } else {
       // RWD: moderate front for trail braking, high rear for traction stability
-      fARB = 8  + Math.round(pwr2wtNorm * 14); // 8â€“22
-      rARB = 45 + Math.round(pwr2wtNorm * 18); // 45â€“63
+      fARB = 8  + Math.round(pwr2wtNorm * 14); // 8–22
+      rARB = 45 + Math.round(pwr2wtNorm * 18); // 45–63
     }
   }
   // Feel adjuster: aggression increases rear relative to front
@@ -472,8 +472,8 @@ function calcTune(s) {
   fARB = +Math.max(1, Math.min(65, fARB - arbFeel)).toFixed(1);
   rARB = +Math.max(1, Math.min(65, rARB + arbFeel)).toFixed(1);
 
-  // â”€â”€ ALIGNMENT
-  // Camber: FH6 uses 0 to -2Â° range â€” real-world aggressive camber doesn't work here
+  // ── ALIGNMENT
+  // Camber: FH6 uses 0 to -2° range — real-world aggressive camber doesn't work here
   // Community standard: RWD more front than rear, FWD more rear than front, AWD close together
   let fCamber = isDrag ? 0.0
               : isSnow ? -0.5
@@ -495,18 +495,18 @@ function calcTune(s) {
     fCamber = +(avg - 0.1).toFixed(1);
     rCamber = +(avg + 0.1).toFixed(1);
   }
-  // Toe: max Â±0.3Â°, prefer small front out for agility, rear in for stability
+  // Toe: max ±0.3°, prefer small front out for agility, rear in for stability
   let fToe = isDrag ? 0.0 : isDrift ? 0.2 : isRally ? 0.0 : -0.1; // slight out for rotation
   let rToe = isDrag ? 0.0 : isDrift ? -0.2 : isRally ? 0.1 : 0.1; // slight in for stability
   if (isFWD) { fToe = isDrag?0:-0.1; rToe = isDrag?0:0.2; } // FWD: more rear in
-  // Caster: community consensus is max 7.0Â° for all race modes in FH6
+  // Caster: community consensus is max 7.0° for all race modes in FH6
   // Lower values for drift (prefer 6.5 for angle control) and snow (stability)
   const caster = isSnow ? 5.5
                : isDrift ? 6.5
                : isDrag  ? 6.0
-               : 7.0; // max for all other modes â€” confirmed community standard
+               : 7.0; // max for all other modes — confirmed community standard
 
-  // â”€â”€ TIRE PRESSURE
+  // ── TIRE PRESSURE
   // Tire pressure: per FH6 tuning guide
   // Stock/Street/Sport: 25-28 psi | Rally road: 28-30 | Semi/Slick/Drift: 30-34
   // Off-road/Rally compound: 15-20 psi
@@ -524,7 +524,7 @@ function calcTune(s) {
   fpsi=+fpsi.toFixed(pUnit==="bar"?2:1);
   rpsi=+rpsi.toFixed(pUnit==="bar"?2:1);
 
-  // â”€â”€ BRAKING
+  // ── BRAKING
   // Traction circle: front bias supports trail braking
   let brakeBal = isDrift ? 46 : isDrag ? 54 : isRain||isSnow ? 52 : isRally ? 54 : 56;
   // Weight distribution adjustment: more front weight = more front bias
@@ -533,38 +533,38 @@ function calcTune(s) {
   if (isRWD)  brakeBal -= 3;
   if (isWheel) brakeBal += 2;
   brakeBal = Math.max(40, Math.min(65, brakeBal));
-  // Brake pressure: never drop below 100 per FH6 guide â€” raise for faster response
+  // Brake pressure: never drop below 100 per FH6 guide — raise for faster response
   // Only drift goes below 100 for modulation control
-  // FM engine brakes are stronger â€” 100 baseline still correct but drift can go lower
+  // FM engine brakes are stronger — 100 baseline still correct but drift can go lower
   const brakePressure = isDrift ? 85 : isDrag ? 115 : isRain||isSnow ? 95 : isRally ? 95 : 100;
   const trailRating   = isDrift ? 6 : isDrag ? 3 : isRain ? 7 : isRally ? 6 : isWheel ? 9 : 7;
 
-  // â”€â”€ DIFF
+  // ── DIFF
   // FH6 FM engine: snappier throttle response means diff accel values need care
-  // High accel lock = planted exit but snappy â€” lower than FH5 for same feel
+  // High accel lock = planted exit but snappy — lower than FH5 for same feel
   // Drag: high rear accel for launch, low decel so no engine braking lockup
   // Wheelie tendency (high power RWD): reduce rear accel, raise front ARB slightly
   const pN = pwr2wtNorm;
   const isHighPower = pwr2wt > 600; // high power threshold for wheelie risk
   let fAccel=0,fDecel=0,rAccel=0,rDecel=0,center=0;
   if (isFWD) {
-    // forza.guide: 85% accel / 0% decel â€” high accel, no decel = best FWD rotation
+    // forza.guide: 85% accel / 0% decel — high accel, no decel = best FWD rotation
     fAccel = isDrift?80:isDrag?85:isRally?65:85;
     fDecel = isDrift?0:isDrag?5:isRally?10:0;
   } else if (isRWD) {
     // forza.guide: 55% accel / 15% decel baseline. Up to 90% aggressive builds.
-    rAccel = isDrift?100:isDrag?90:isRally?60:Math.round(55 + pN*20); // 55â€“75%
-    rDecel = isDrift?10:isDrag?5:isRally?20:Math.round(10 + pN*8);    // 10â€“18%
+    rAccel = isDrift?100:isDrag?90:isRally?60:Math.round(55 + pN*20); // 55–75%
+    rDecel = isDrift?10:isDrag?5:isRally?20:Math.round(10 + pN*8);    // 10–18%
   } else {
-    // AWD â€” forza.guide validated: front 85/0, rear 55â€“75/10â€“15, center 70â€“78% rear
+    // AWD — forza.guide validated: front 85/0, rear 55–75/10–15, center 70–78% rear
     fAccel = isDrift?30:isDrag?15:isRally?65:85;
     fDecel = isDrift?0:isDrag?5:isRally?5:0;
-    rAccel = isDrift?85:isDrag?90:isRally?70:Math.round(55 + pN*20); // 55â€“75%
-    rDecel = isDrift?10:isDrag?5:isRally?15:Math.round(10 + pN*5);   // 10â€“15%
-    center = isDrift?50:isDrag?20:isRally?55:Math.round(70 + pN*8);  // 70â€“78% rear
+    rAccel = isDrift?85:isDrag?90:isRally?70:Math.round(55 + pN*20); // 55–75%
+    rDecel = isDrift?10:isDrag?5:isRally?15:Math.round(10 + pN*5);   // 10–15%
+    center = isDrift?50:isDrag?20:isRally?55:Math.round(70 + pN*8);  // 70–78% rear
   }
 
-  // â”€â”€ GEARING (only if includeGearing + RPM data available)
+  // ── GEARING (only if includeGearing + RPM data available)
   // For drag mode: use class-based RPM defaults if user hasn't entered S-mode data
   const dragRpmDefaults = {D:{red:6500,peak:4500},C:{red:7000,peak:5000},B:{red:7500,peak:5200},A:{red:8000,peak:5500},S1:{red:8500,peak:6000},S2:{red:9000,peak:6500},R:{red:9500,peak:7000},X:{red:10000,peak:7500}};
   const dragDefaults = isDrag && dragRpmDefaults[carClass] ? dragRpmDefaults[carClass] : null;
@@ -574,7 +574,7 @@ function calcTune(s) {
   const hasRPM = effectiveRedline > 0 && effectivePeakRpm > 0 && effectiveTopspeed > 0;
   let gearingData = null;
   if (includeGearing && (hasRPM || isDrag)) {
-    // Rear tire rolling circumference â€” rear drives the gearing calculation
+    // Rear tire rolling circumference — rear drives the gearing calculation
     // Front spec stored for display; if rim diameters differ it's a staggered fitment
     const [tw, ta, tr] = (tireWR||"275/35R19").split(/[\/R]/).map(Number);
     const sidewall_mm   = tw * (ta / 100);
@@ -587,10 +587,10 @@ function calcTune(s) {
 
     if (isDrag) {
       // Drag gearing: short final drive for max acceleration off the line
-      // Final drive targets 60mph (96kmh) at redline in 1st â€” launches hard
+      // Final drive targets 60mph (96kmh) at redline in 1st — launches hard
       // Quarter mile ~145km/h peak, half mile ~200km/h, top speed = full topspeed
       const launch_kmh = dragDist==="half" ? 130 : dragDist==="top" ? topKmh : 96;
-      // Gear count cap: community standard â€” quarter=4, half=5, top speed=6
+      // Gear count cap: community standard — quarter=4, half=5, top speed=6
       // Too many gears = too many shifts = lost time
       const maxDragGears = dragDist==="top" ? 6 : dragDist==="half" ? 5 : 4;
       const effectiveGears = Math.min(gears, maxDragGears);
@@ -599,7 +599,7 @@ function calcTune(s) {
 
       // Ratio stack: tight geometric progression, all gears below 1.6
       // 1st gear tall enough to hook up, top gear hits trap speed at redline
-      // 1st gear: launch without wheelspin â€” lower for high power RWD
+      // 1st gear: launch without wheelspin — lower for high power RWD
       const launchMod = isRWD ? 0.72 : isAWD ? 0.80 : 0.85;
       const ratio1 = +(Math.min(2.8, effectiveRedline / effectivePeakRpm * launchMod)).toFixed(2);
       // Top gear: cross trap near redline
@@ -612,10 +612,10 @@ function calcTune(s) {
       const finalDriveRaw = +((effectiveRedline * circumference_m * 3.6) / (topKmh * 60)).toFixed(3);
       finalDrive = +Math.max(2.50, Math.min(6.50, finalDriveRaw)).toFixed(2);
 
-      // Gear ratios: logarithmic spread â€” forza.guide method
+      // Gear ratios: logarithmic spread — forza.guide method
       // 1st gear: safe launch ratio by drivetrain (controllable wheelspin)
       // Top gear: just reaches redline at top speed (= ratioN already set by finalDrive)
-      // Middle gears: geometric progression â€” more spread at bottom, tighter at top
+      // Middle gears: geometric progression — more spread at bottom, tighter at top
       const ratio1 = isAWD ? 2.50 : isFWD ? 2.80 : 2.20; // AWD hooks up, RWD needs shorter 1st
       const ratioN = +((topKmh * 60) / (effectiveRedline * circumference_m * 3.6) * finalDrive).toFixed(2);
       const clampedRatioN = +Math.max(0.75, Math.min(1.10, ratioN)).toFixed(2);
@@ -626,7 +626,7 @@ function calcTune(s) {
     gearingData = { finalDrive, ratios };
   }
 
-  // â”€â”€ FORMAT HELPERS
+  // ── FORMAT HELPERS
   const pStr = v => pUnit==="bar" ? `${v} bar` : `${v} psi`;
   const sStr = v => `${v} ${sUnit}`;
 
@@ -652,27 +652,27 @@ function calcTune(s) {
       {key:"Front Width",    value:tireWF.includes("/")?`${tireWF.replace(/mm$/,"")}`:`${tireWF}mm`},
       {key:"Rear Width",     value:tireWR.includes("/")?tireWR:tireWR+" mm"},
       {key:"Compound",       value:compound},
-    ], tip: isDrift?"Lower rear pressure breaks traction predictably on throttle.":isRain?"Keep pressure low â€” cold wet tarmac needs more contact patch.":"Adjust Â±0.5 psi front if you feel mid-corner push."},
+    ], tip: isDrift?"Lower rear pressure breaks traction predictably on throttle.":isRain?"Keep pressure low — cold wet tarmac needs more contact patch.":"Adjust ±0.5 psi front if you feel mid-corner push."},
 
     Gearing: gearingValues ? {
       values: gearingValues,
-      tip: isDrag?"Keep shifts tight in 1â€“3, longer in 4+ for high speed.":"Space gears to keep engine in powerband through corners.",
+      tip: isDrag?"Keep shifts tight in 1–3, longer in 4+ for high speed.":"Space gears to keep engine in powerband through corners.",
     } : null,
 
     Alignment: { values:[
-      {key:"Front Camber", value:`${fCamber.toFixed(1)}Â°`},
-      {key:"Rear Camber",  value:`${rCamber.toFixed(1)}Â°`},
-      {key:"Front Toe",    value:`${fToe.toFixed(1)}Â°`},
-      {key:"Rear Toe",     value:`${rToe.toFixed(1)}Â°`},
-      {key:"Front Caster", value:`${caster.toFixed(1)}Â°`},
-    ], tip:"Adjust camber in 0.2Â° steps â€” too much causes uneven tire wear and kills straight-line grip."},
+      {key:"Front Camber", value:`${fCamber.toFixed(1)}°`},
+      {key:"Rear Camber",  value:`${rCamber.toFixed(1)}°`},
+      {key:"Front Toe",    value:`${fToe.toFixed(1)}°`},
+      {key:"Rear Toe",     value:`${rToe.toFixed(1)}°`},
+      {key:"Front Caster", value:`${caster.toFixed(1)}°`},
+    ], tip:"Adjust camber in 0.2° steps — too much causes uneven tire wear and kills straight-line grip."},
 
     Suspension: { values:[
       {key:"Front Spring", value:sStr(fSpring)},
       {key:"Rear Spring",  value:sStr(rSpring)},
       {key:"Front Ride Height", value:units.weight==="kg"?`${fRide.toFixed(1)} cm`:`${(fRide/2.54).toFixed(1)} in`},
       {key:"Rear Ride Height",  value:units.weight==="kg"?`${rRide.toFixed(1)} cm`:`${(rRide/2.54).toFixed(1)} in`},
-    ], tip: isRally?"Prioritise ground clearance over aero â€” ride height matters more than spring stiffness on dirt.":"Front equal to or slightly lower than rear for high-speed stability."},
+    ], tip: isRally?"Prioritise ground clearance over aero — ride height matters more than spring stiffness on dirt.":"Front equal to or slightly lower than rear for high-speed stability."},
 
     ARB: { values:[
       {key:"Front ARB", value:fARB.toFixed(1)},
@@ -690,9 +690,9 @@ function calcTune(s) {
       {key:"Brake Balance",     value:`${brakeBal}% F`},
       {key:"Brake Pressure",    value:`${brakePressure}%`},
       {key:"Trail Brake Rating",value:`${trailRating}/10`},
-    ], tip: isWheel?"Trail brake: gradually release as you turn in â€” don't release all at once.":"Under ABS: hold threshold pressure and steer â€” the game manages lockup."},
+    ], tip: isWheel?"Trail brake: gradually release as you turn in — don't release all at once.":"Under ABS: hold threshold pressure and steer — the game manages lockup."},
 
-    Diff: { values: diffValues, tip: isDrift?"High rear accel keeps the slide going. Adjust decel for entry rotation.":isDrag&&isRWD&&isHighPower?"âš  High power RWD drag: if wheelie tendency, raise front ARB 5 points and lower rear ride height 0.5 cm.":isDrag?"Launch tune: high rear accel for grip, low decel to avoid lockup on shifts.":isFWD?"Low front accel reduces torque steer. High rear diff rotates the car on entry.":"Rear accel controls exit traction. Center balance shifts torque character." },
+    Diff: { values: diffValues, tip: isDrift?"High rear accel keeps the slide going. Adjust decel for entry rotation.":isDrag&&isRWD&&isHighPower?"⚠ High power RWD drag: if wheelie tendency, raise front ARB 5 points and lower rear ride height 0.5 cm.":isDrag?"Launch tune: high rear accel for grip, low decel to avoid lockup on shifts.":isFWD?"Low front accel reduces torque steer. High rear diff rotates the car on entry.":"Rear accel controls exit traction. Center balance shifts torque character." },
 
     Aero: hasAero ? { values:[
       {key:"Front Downforce", value:`${aeroF} kg`},
@@ -705,20 +705,20 @@ function calcTune(s) {
 
 
 
-// â”€â”€â”€ KEY VALIDATOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── KEY VALIDATOR ────────────────────────────────────────────────────────────
 async function validateKey(providerId, apiKey) {
   try {
     if(providerId==="gemini") {
-      // Use models list â€” no quota consumed, also tells us what models are available
+      // Use models list — no quota consumed, also tells us what models are available
       const url=`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=20`;
       let r;
       try { r = await fetch(url,{method:"GET"}); }
-      catch(e) { return {ok:false, msg:"Network error â€” check internet connection and try again"}; }
-      if(r.status===400) return {ok:false, msg:"Invalid key â€” check you copied it correctly"};
-      if(r.status===401) return {ok:false, msg:"Key rejected â€” regenerate it at aistudio.google.com"};
-      if(r.status===403) return {ok:false, msg:"Key not authorised â€” enable Gemini API in Google AI Studio"};
-      if(r.status===429) return {ok:true,  msg:"Key valid âœ“ (rate limited right now â€” quota resets midnight UTC)"};
-      if(!r.ok)          return {ok:false, msg:`Error ${r.status} â€” check key and try again`};
+      catch(e) { return {ok:false, msg:"Network error — check internet connection and try again"}; }
+      if(r.status===400) return {ok:false, msg:"Invalid key — check you copied it correctly"};
+      if(r.status===401) return {ok:false, msg:"Key rejected — regenerate it at aistudio.google.com"};
+      if(r.status===403) return {ok:false, msg:"Key not authorised — enable Gemini API in Google AI Studio"};
+      if(r.status===429) return {ok:true,  msg:"Key valid ✓ (rate limited right now — quota resets midnight UTC)"};
+      if(!r.ok)          return {ok:false, msg:`Error ${r.status} — check key and try again`};
       try {
         const d = await r.json();
         const names = (d.models||[])
@@ -732,90 +732,90 @@ async function validateKey(providerId, apiKey) {
         // Test a tiny generation call to detect $0 spending cap
         const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/${bestModel}:generateContent?key=${apiKey}`;
         const testR = await fetch(testUrl,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":apiKey},body:JSON.stringify({contents:[{role:"user",parts:[{text:"Hi"}]}],generationConfig:{maxOutputTokens:1}})});
-        if(testR.status===429) return {ok:false, msg:"âš  Spending cap detected â€” go to aistudio.google.com â†’ Settings â†’ Billing and remove the $0.00 spending cap, then test again"};
-        if(testR.status===403) return {ok:false, msg:"Key not authorised â€” enable Gemini API in Google AI Studio"};
-        if(!testR.ok) return {ok:false, msg:`Test call failed (${testR.status}) â€” check key permissions`};
-        return {ok:true, msg:`Key valid âœ“ â€” ${bestModel} ready`};
-      } catch { return {ok:true, msg:"Key valid âœ“ â€” ready to enhance tunes"}; }
+        if(testR.status===429) return {ok:false, msg:"⚠ Spending cap detected — go to aistudio.google.com → Settings → Billing and remove the $0.00 spending cap, then test again"};
+        if(testR.status===403) return {ok:false, msg:"Key not authorised — enable Gemini API in Google AI Studio"};
+        if(!testR.ok) return {ok:false, msg:`Test call failed (${testR.status}) — check key permissions`};
+        return {ok:true, msg:`Key valid ✓ — ${bestModel} ready`};
+      } catch { return {ok:true, msg:"Key valid ✓ — ready to enhance tunes"}; }
     }
     if(providerId==="grok") {
-      // Use models list endpoint â€” no generation quota consumed
+      // Use models list endpoint — no generation quota consumed
       const r=await fetch("https://api.x.ai/v1/models",{method:"GET",headers:{"Authorization":"Bearer "+apiKey}});
-      if(r.status===401) return {ok:false, msg:"Invalid key â€” check console.x.ai"};
-      if(r.status===429) return {ok:true,  msg:"Key valid âœ“ (rate limited right now)"};
+      if(r.status===401) return {ok:false, msg:"Invalid key — check console.x.ai"};
+      if(r.status===429) return {ok:true,  msg:"Key valid ✓ (rate limited right now)"};
       if(!r.ok)          return {ok:false, msg:`Error ${r.status}`};
-      return {ok:true, msg:"Key valid âœ“ â€” ready to enhance tunes"};
+      return {ok:true, msg:"Key valid ✓ — ready to enhance tunes"};
     }
     if(providerId==="openai") {
-      // Use models list endpoint â€” no tokens consumed
+      // Use models list endpoint — no tokens consumed
       const r=await fetch("https://api.openai.com/v1/models",{method:"GET",headers:{"Authorization":"Bearer "+apiKey}});
-      if(r.status===401) return {ok:false, msg:"Invalid key â€” check platform.openai.com"};
-      if(r.status===429) return {ok:true,  msg:"Key valid âœ“ (rate limited or no credits)"};
+      if(r.status===401) return {ok:false, msg:"Invalid key — check platform.openai.com"};
+      if(r.status===429) return {ok:true,  msg:"Key valid ✓ (rate limited or no credits)"};
       if(!r.ok)          return {ok:false, msg:`Error ${r.status}`};
-      return {ok:true, msg:"Key valid âœ“ â€” ready to enhance tunes"};
+      return {ok:true, msg:"Key valid ✓ — ready to enhance tunes"};
     }
     if(providerId==="claude") {
-      // Use models list endpoint â€” no tokens consumed
+      // Use models list endpoint — no tokens consumed
       const r=await fetch("https://api.anthropic.com/v1/models",{method:"GET",headers:{"x-api-key":apiKey,"anthropic-version":"2023-06-01"}});
-      if(r.status===401) return {ok:false, msg:"Invalid key â€” check console.anthropic.com"};
-      if(r.status===429) return {ok:true,  msg:"Key valid âœ“ (rate limited right now)"};
+      if(r.status===401) return {ok:false, msg:"Invalid key — check console.anthropic.com"};
+      if(r.status===429) return {ok:true,  msg:"Key valid ✓ (rate limited right now)"};
       if(!r.ok)          return {ok:false, msg:`Error ${r.status}`};
-      return {ok:true, msg:"Key valid âœ“ â€” ready to enhance tunes"};
+      return {ok:true, msg:"Key valid ✓ — ready to enhance tunes"};
     }
     return {ok:false, msg:"Unknown provider"};
   } catch(e) {
-    return {ok:false, msg:"Network error â€” check internet connection"};
+    return {ok:false, msg:"Network error — check internet connection"};
   }
 }
 
-// â”€â”€â”€ AI CALLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── AI CALLS ─────────────────────────────────────────────────────────────────
 async function callAI(providerId, apiKey, sys, usr) {
   if (providerId === "gemini") {
-    // Try models in order â€” 2.0-flash is fastest, fall back to 1.5-flash if 404
-    // gemini-2.0-flash deprecated for new API keys â€” use 2.5-flash as primary
+    // Try models in order — 2.0-flash is fastest, fall back to 1.5-flash if 404
+    // gemini-2.0-flash deprecated for new API keys — use 2.5-flash as primary
     const models = [
-      "gemini-2.5-flash",        // primary â€” available to all new keys
+      "gemini-2.5-flash",        // primary — available to all new keys
       "gemini-2.5-flash-lite",   // lighter fallback
       "gemini-flash-latest",     // alias fallback
-      "gemini-2.0-flash",        // legacy â€” kept for older keys
+      "gemini-2.0-flash",        // legacy — kept for older keys
     ];
     let lastErr = null;
     const _aiStart = Date.now();
     for(const model of models) {
-      // Key in header (x-goog-api-key) AND query param â€” Android WebView sometimes strips query strings
+      // Key in header (x-goog-api-key) AND query param — Android WebView sometimes strips query strings
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       let r;
       try { r = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":apiKey},body:JSON.stringify({contents:[{role:"user",parts:[{text:sys+"\n\n"+usr}]}],generationConfig:{temperature:0.4,maxOutputTokens:4096}})}); }
-      catch(netErr) { throw new Error("Network error â€” check internet connection"); }
+      catch(netErr) { throw new Error("Network error — check internet connection"); }
       if(r.status===404) {
         const body = await r.json().catch(()=>({}));
-        console.log(`TuneLab AI: 404 on ${model} â€” ${JSON.stringify(body).slice(0,200)}`);
+        console.log(`LinjeTune AI: 404 on ${model} — ${JSON.stringify(body).slice(0,200)}`);
         lastErr="model_not_found"; continue;
       }
       if(r.status===429) throw new Error("RATE_LIMIT_EXHAUSTED");
-      if(r.status===401||r.status===403) throw new Error("Gemini key invalid or not authorised â€” check AI settings");
+      if(r.status===401||r.status===403) throw new Error("Gemini key invalid or not authorised — check AI settings");
       if(r.status===503) {
-        // Google overloaded â€” retry same model up to 3x with increasing delay
+        // Google overloaded — retry same model up to 3x with increasing delay
         let succeeded = false;
         for(let attempt=1; attempt<=3; attempt++){
           const wait = attempt * 5000;
-          console.log(`TuneLab AI: 503 on ${model} â€” waiting ${wait/1000}s (attempt ${attempt}/3)`);
+          console.log(`LinjeTune AI: 503 on ${model} — waiting ${wait/1000}s (attempt ${attempt}/3)`);
           await new Promise(res=>setTimeout(res,wait));
           const r2 = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":apiKey},body:JSON.stringify({contents:[{role:"user",parts:[{text:sys+"\n\n"+usr}]}],generationConfig:{temperature:0.4,maxOutputTokens:4096}})}).catch(()=>null);
           if(!r2) continue;
-          if(r2.ok){ const d2=await r2.json(); console.log(`TuneLab AI: responded via ${model} after ${attempt} retry`); return d2.candidates?.[0]?.content?.parts?.[0]?.text||""; }
+          if(r2.ok){ const d2=await r2.json(); console.log(`LinjeTune AI: responded via ${model} after ${attempt} retry`); return d2.candidates?.[0]?.content?.parts?.[0]?.text||""; }
           if(r2.status!==503) break;
         }
-        console.log(`TuneLab AI: ${model} still 503 after retries â€” trying next model`);
+        console.log(`LinjeTune AI: ${model} still 503 after retries — trying next model`);
         continue;
       }
-      if(!r.ok) throw new Error(`Gemini ${r.status} â€” ${(await r.json().catch(()=>({}))).error?.message||"unknown error"}`);
+      if(!r.ok) throw new Error(`Gemini ${r.status} — ${(await r.json().catch(()=>({}))).error?.message||"unknown error"}`);
       const d = await r.json();
       const elapsed = Date.now() - _aiStart;
-      console.log(`TuneLab AI: responded via ${model} in ${(elapsed/1000).toFixed(1)}s`);
+      console.log(`LinjeTune AI: responded via ${model} in ${(elapsed/1000).toFixed(1)}s`);
       return d.candidates?.[0]?.content?.parts?.[0]?.text||"";
     }
-    throw new Error("No Gemini model available â€” try a different AI provider or use Manual Copy");
+    throw new Error("No Gemini model available — try a different AI provider or use Manual Copy");
   }
   if (providerId === "grok") {
     const r = await fetch("https://api.x.ai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+apiKey},body:JSON.stringify({model:"grok-3-mini",messages:[{role:"system",content:sys},{role:"user",content:usr}],temperature:0.4,max_tokens:1200})});
@@ -846,16 +846,16 @@ function buildEnhancePrompt(s, tune) {
   return {
     sys: `You are a Forza Horizon 6 tuning expert. Return ONLY a raw JSON object. No markdown, no backticks, no text before or after. Start with { and end with }.
 
-FH6 META KNOWLEDGE â€” apply this when evaluating tunes:
-TIRES: Slick 28â€“32.5psi, Semi-slick 27â€“29.5psi, Street/Rally 24â€“26.5psi, Off-road 15.5â€“21psi. D/C class = stock tires. B = stock/street. A = street/semi-slick. S1/S2 = semi-slick/slick.
-ARB: Start both at max, soften to reach mechanical balance 0.55â€“0.65. Stiffer front = understeer. Stiffer rear = oversteer. Off-road = both near minimum. High-power RWD often needs softer rear.
-SPRINGS: Set at 1/3â€“1/2 slider range. Heavier end gets stiffer spring. Stiffer front = understeer, stiffer rear = oversteer. Off-road = soft both ends.
-DAMPING: Bump should be 30â€“55% of rebound (target ~40%). Heavier springs = stiffer dampers. Softer front damping reduces understeer. Softer rear reduces oversteer.
-DIFF AWD: Front 85%/0%, Rear 55â€“75%/10â€“15%, Center 70â€“80% rear bias. FWD: 85%/0%. RWD: 55â€“75%/10â€“18%.
-GEARING: Final drive so car just hits rev limiter in top gear at end of longest straight. 1st gear for controllable wheelspin at launch. Logarithmic spread â€” more gap between lower gears, less at top.
-ALIGNMENT: Camber 0 to -1.0Â° front/rear as baseline. Caster 6.5â€“7.0Â°. Rear toe-in only for snap oversteer on RWD.
+FH6 META KNOWLEDGE — apply this when evaluating tunes:
+TIRES: Slick 28–32.5psi, Semi-slick 27–29.5psi, Street/Rally 24–26.5psi, Off-road 15.5–21psi. D/C class = stock tires. B = stock/street. A = street/semi-slick. S1/S2 = semi-slick/slick.
+ARB: Start both at max, soften to reach mechanical balance 0.55–0.65. Stiffer front = understeer. Stiffer rear = oversteer. Off-road = both near minimum. High-power RWD often needs softer rear.
+SPRINGS: Set at 1/3–1/2 slider range. Heavier end gets stiffer spring. Stiffer front = understeer, stiffer rear = oversteer. Off-road = soft both ends.
+DAMPING: Bump should be 30–55% of rebound (target ~40%). Heavier springs = stiffer dampers. Softer front damping reduces understeer. Softer rear reduces oversteer.
+DIFF AWD: Front 85%/0%, Rear 55–75%/10–15%, Center 70–80% rear bias. FWD: 85%/0%. RWD: 55–75%/10–18%.
+GEARING: Final drive so car just hits rev limiter in top gear at end of longest straight. 1st gear for controllable wheelspin at launch. Logarithmic spread — more gap between lower gears, less at top.
+ALIGNMENT: Camber 0 to -1.0° front/rear as baseline. Caster 6.5–7.0°. Rear toe-in only for snap oversteer on RWD.
 RIDE HEIGHT: Start at minimum for road. Off-road start at maximum. Raise only if bottoming out.
-AERO: Balance stat 0.40â€“0.45. RWD slight rear bias. FWD/AWD slight front bias. Only matters at high speed.
+AERO: Balance stat 0.40–0.45. RWD slight rear bias. FWD/AWD slight front bias. Only matters at high speed.
 
 Structure:
 {
@@ -866,7 +866,7 @@ Structure:
 
 Rules:
 - notes keys MUST match Section/Key exactly as provided (e.g. "Gearing/Final Drive" not just "Gearing")
-- Each gear in Gearing gets its own specific note â€” do not repeat the same note for every gear
+- Each gear in Gearing gets its own specific note — do not repeat the same note for every gear
 - Where a value seems wrong for the mode or meta, suggest a specific change (e.g. "reduce by 3", "try 28.5 psi")
 - Flag values outside expected FH6 ranges
 - Keep each note under 12 words
@@ -899,44 +899,44 @@ function mergeEnhancement(tune, enhanced) {
   return merged;
 }
 
-// â”€â”€â”€ FORMAT TUNE AS TEXT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── FORMAT TUNE AS TEXT ──────────────────────────────────────────────────────
 function formatTuneText(s, pages) {
   const tm = TUNE_MODES.find(t=>t.id===s.tuneId);
   const out = [
-    `TuneLab â€” ${s.make} ${s.model}`,
+    `LinjeTune — ${s.make} ${s.model}`,
     `${tm?.icon} ${tm?.id} | ${s.carClass} ${s.pi}PI | ${s.driveType}`,
-    `â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€`,
+    `─────────────────────────────`,
   ];
   TUNE_PAGES.forEach(pg => {
     const d = pages[pg]; if(!d) return;
     out.push(`\n${pg}`);
-    // values only â€” no notes/tooltips in shared output
+    // values only — no notes/tooltips in shared output
     (d.values||[]).forEach(r => out.push(`  ${r.key.padEnd(22)} ${r.value}`));
   });
-  out.push(`\nâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€`);
+  out.push(`\n─────────────────────────────`);
   out.push(`Tune inputs`);
   out.push(`  Car:     ${s.make} ${s.model}`);
-  out.push(`  Class:   ${s.carClass} Â· ${s.pi}PI Â· ${s.driveType}`);
-  out.push(`  Mode:    ${s.tuneId} Â· ${s.surface} Â· ${s.compound}`);
-  out.push(`  Weight:  ${s.weight} ${s.units?.weight||"lbs"} Â· ${s.weightDist}% front`);
-  out.push(`\nâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€`);
-  out.push(`Tuned with TuneLab â€” free FH6 tuning calculator`);
+  out.push(`  Class:   ${s.carClass} · ${s.pi}PI · ${s.driveType}`);
+  out.push(`  Mode:    ${s.tuneId} · ${s.surface} · ${s.compound}`);
+  out.push(`  Weight:  ${s.weight} ${s.units?.weight||"lbs"} · ${s.weightDist}% front`);
+  out.push(`\n─────────────────────────────`);
+  out.push(`Tuned with LinjeTune — free FH6 tuning calculator`);
   if(PLAY_STORE) out.push(`Get it: ${PLAY_STORE}`);
   out.push(`Support the dev: ${KOFI_URL}`);
-  out.push(`\nâš  This tune was shared from TuneLab. AI features require your own API key â€” never share your key.`);
+  out.push(`\n⚠ This tune was shared from LinjeTune. AI features require your own API key — never share your key.`);
   return out.join("\n");
 }
 
-// â”€â”€â”€ WIZARD OFFLINE FIXES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── WIZARD OFFLINE FIXES ─────────────────────────────────────────────────────
 const OFFLINE_FIXES = {
-  understeer:{diagnosis:"Front tires losing grip before rears. Usually front spring too stiff, too little front negative camber, or front ARB too high.",fixes:[{setting:"Front ARB",change:"Reduce by 3â€“5",why:"Softer front ARB allows more weight transfer to front tires"},{setting:"Front Camber",change:"Add 0.3Â° more negative",why:"More contact patch under cornering load"},{setting:"Rear ARB",change:"Increase by 2â€“3",why:"Shifts load forward, encouraging rotation"}],tip:"Trail brake deeper into corners â€” releasing mid-corner shifts weight forward and helps rotation."},
-  oversteer:{diagnosis:"Rear tires breaking traction first. Usually rear spring too stiff, too little rear camber, or diff acceleration too aggressive.",fixes:[{setting:"Rear ARB",change:"Reduce by 3â€“5",why:"Softer rear ARB improves rear grip"},{setting:"Rear Accel Diff",change:"Reduce by 10â€“15%",why:"Less locking on acceleration stops rear stepping out"},{setting:"Rear Camber",change:"Add 0.2Â° more negative",why:"More rear contact patch under load"}],tip:"Smooth progressive throttle â€” power oversteer is most controllable with a patient right foot."},
-  braking:{diagnosis:"Improper brake bias or excessive pressure causing lockup or instability under braking.",fixes:[{setting:"Brake Balance",change:"Add 3â€“5% rear",why:"Reducing front bias prevents front lockup"},{setting:"Brake Pressure",change:"Reduce by 10â€“15%",why:"More modulation range, prevents lockup"},{setting:"Front Bump",change:"Increase by 0.5",why:"Reduces nose dive, keeps braking forces stable"}],tip:"Trail brake: hold 20â€“30% brake pressure as you begin to steer, release as you increase angle."},
-  sluggish:{diagnosis:"Car too softly sprung or diff too open, causing slow weight transfer and lazy response.",fixes:[{setting:"Front/Rear ARB",change:"Increase both by 3",why:"Stiffer ARB reduces body roll, faster response"},{setting:"Rear Accel Diff",change:"Increase by 10%",why:"More lock gets power down faster"},{setting:"Front Spring",change:"Increase by 10%",why:"Reduces dive, improves turn-in response"}],tip:"On a controller: try increasing steering sensitivity in game assists â€” car may be responding but input range is too small."},
-  twitchy:{diagnosis:"Excessive stiffness â€” too much ARB, too stiff springs, or damping transmitting inputs directly.",fixes:[{setting:"Front/Rear ARB",change:"Reduce both by 4â€“5",why:"Softer ARB smooths out transitions, reduces snap"},{setting:"Bump Damping",change:"Reduce front/rear by 0.5",why:"Lets car absorb surface irregularities"},{setting:"Rear Toe",change:"Add 0.1Â° toe-in",why:"Mild rear toe-in adds straight-line stability"}],tip:"Check tire pressures first â€” overinflated tires have a smaller contact patch and much less stability."},
+  understeer:{diagnosis:"Front tires losing grip before rears. Usually front spring too stiff, too little front negative camber, or front ARB too high.",fixes:[{setting:"Front ARB",change:"Reduce by 3–5",why:"Softer front ARB allows more weight transfer to front tires"},{setting:"Front Camber",change:"Add 0.3° more negative",why:"More contact patch under cornering load"},{setting:"Rear ARB",change:"Increase by 2–3",why:"Shifts load forward, encouraging rotation"}],tip:"Trail brake deeper into corners — releasing mid-corner shifts weight forward and helps rotation."},
+  oversteer:{diagnosis:"Rear tires breaking traction first. Usually rear spring too stiff, too little rear camber, or diff acceleration too aggressive.",fixes:[{setting:"Rear ARB",change:"Reduce by 3–5",why:"Softer rear ARB improves rear grip"},{setting:"Rear Accel Diff",change:"Reduce by 10–15%",why:"Less locking on acceleration stops rear stepping out"},{setting:"Rear Camber",change:"Add 0.2° more negative",why:"More rear contact patch under load"}],tip:"Smooth progressive throttle — power oversteer is most controllable with a patient right foot."},
+  braking:{diagnosis:"Improper brake bias or excessive pressure causing lockup or instability under braking.",fixes:[{setting:"Brake Balance",change:"Add 3–5% rear",why:"Reducing front bias prevents front lockup"},{setting:"Brake Pressure",change:"Reduce by 10–15%",why:"More modulation range, prevents lockup"},{setting:"Front Bump",change:"Increase by 0.5",why:"Reduces nose dive, keeps braking forces stable"}],tip:"Trail brake: hold 20–30% brake pressure as you begin to steer, release as you increase angle."},
+  sluggish:{diagnosis:"Car too softly sprung or diff too open, causing slow weight transfer and lazy response.",fixes:[{setting:"Front/Rear ARB",change:"Increase both by 3",why:"Stiffer ARB reduces body roll, faster response"},{setting:"Rear Accel Diff",change:"Increase by 10%",why:"More lock gets power down faster"},{setting:"Front Spring",change:"Increase by 10%",why:"Reduces dive, improves turn-in response"}],tip:"On a controller: try increasing steering sensitivity in game assists — car may be responding but input range is too small."},
+  twitchy:{diagnosis:"Excessive stiffness — too much ARB, too stiff springs, or damping transmitting inputs directly.",fixes:[{setting:"Front/Rear ARB",change:"Reduce both by 4–5",why:"Softer ARB smooths out transitions, reduces snap"},{setting:"Bump Damping",change:"Reduce front/rear by 0.5",why:"Lets car absorb surface irregularities"},{setting:"Rear Toe",change:"Add 0.1° toe-in",why:"Mild rear toe-in adds straight-line stability"}],tip:"Check tire pressures first — overinflated tires have a smaller contact patch and much less stability."},
 };
 
-// â”€â”€â”€ UI PRIMITIVES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── UI PRIMITIVES ────────────────────────────────────────────────────────────
 const S = {
   card:   { background:C.card, border:`1px solid ${C.border}`, borderRadius:8 },
   label:  { fontFamily:C.fMono, fontSize:10, color:C.muted, letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8, display:"block" },
@@ -1072,7 +1072,7 @@ function WeightDistSlider({value, onChange, color}) {
   );
 }
 
-// â”€â”€â”€ SCREENS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── SCREENS ──────────────────────────────────────────────────────────────────
 
 function UnitsScreen({onDone}) {
   const [w,setW]   = useState("lbs");
@@ -1085,7 +1085,7 @@ function UnitsScreen({onDone}) {
     <div className="tl-shell" style={{minHeight:"100vh",background:C.bg,color:C.text,margin:"0 auto",fontFamily:C.fBody,padding:"0 0 40px"}}>
       <style>{FONTS + THEME_STYLE + `*{box-sizing:border-box}`}</style>
       <div style={{padding:"calc(env(safe-area-inset-top, 0px) + 32px) 20px 20px"}}>
-        <div style={{fontFamily:C.fCond,fontSize:36,fontWeight:700,color:C.green,letterSpacing:"0.12em",marginBottom:8}}>TuneLab</div>
+        <div style={{fontFamily:C.fCond,fontSize:36,fontWeight:700,color:C.green,letterSpacing:"0.12em",marginBottom:8}}>LinjeTune</div>
         <div style={{fontSize:13,color:C.muted,marginBottom:32}}>Let's set up your units and input device</div>
 
         <div style={{...S.card,padding:"16px 16px",marginBottom:12}}>
@@ -1101,7 +1101,7 @@ function UnitsScreen({onDone}) {
             {INPUT_DEVICES.map(d => (
               <button key={d.id} onClick={()=>setDev(d.id)} style={{...S.btn,justifyContent:"flex-start",padding:"10px 12px",borderRadius:9,border:`1px solid ${dev===d.id?C.accent:C.border}`,background:dev===d.id?C.accentLo:C.surface,color:dev===d.id?C.accent:C.muted,fontFamily:C.fBody,fontSize:13,fontWeight:dev===d.id?600:400}}>
                 {d.label}
-                {dev===d.id && <span style={{marginLeft:"auto",fontSize:11,color:C.accent}}>âœ“ active</span>}
+                {dev===d.id && <span style={{marginLeft:"auto",fontSize:11,color:C.accent}}>✓ active</span>}
               </button>
             ))}
           </div>
@@ -1109,7 +1109,7 @@ function UnitsScreen({onDone}) {
 
         <button onClick={()=>onDone({weight:w,springs:sp,pressure:p,speed:spd},dev)}
           style={{...S.btn,width:"100%",padding:"15px",background:C.accent,borderRadius:12,color:"#fff",fontFamily:C.fBody,fontSize:14,fontWeight:600,letterSpacing:"0.04em"}}>
-          Let's go â†’
+          Let's go →
         </button>
       </div>
     </div>
@@ -1142,22 +1142,22 @@ function AIScreen({onClose}) {
     <div className="tl-shell" style={{position:"fixed",inset:0,background:C.bg,zIndex:400,margin:"0 auto",display:"flex",flexDirection:"column",fontFamily:C.fBody,overflowY:"auto"}}>
       <style>{FONTS+THEME_STYLE}</style>
       <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-        <button onClick={onClose} style={{...S.btn,background:"transparent",color:C.text,fontSize:22}}>â†</button>
+        <button onClick={onClose} style={{...S.btn,background:"transparent",color:C.text,fontSize:22}}>←</button>
         <span style={{fontSize:13,fontWeight:600,color:C.text,letterSpacing:"0.06em"}}>AI PROVIDER</span>
         <button onClick={save} style={{...S.btn,marginLeft:"auto",background:saved?C.green+"22":C.accentLo,border:`1px solid ${saved?C.green:C.accent}55`,borderRadius:8,padding:"6px 14px",fontSize:11,color:saved?C.green:C.accent,fontWeight:600}}>
-          {saved?"âœ“ Saved":"Save"}
+          {saved?"✓ Saved":"Save"}
         </button>
       </div>
       <div style={{padding:"16px 16px 40px"}}>
         <div style={{background:"#39ff8a14",border:"1px solid #39ff8a33",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
           <div style={{fontSize:13,fontWeight:600,color:"#39ff8a",marginBottom:4}}>Your key. Your quota. Always free.</div>
-          <div style={{fontSize:12,color:C.muted,lineHeight:1.6}}>Each provider gives you a <strong style={{color:C.text}}>free personal API key</strong>. TuneLab uses YOUR key â€” your quota is separate from everyone else. Gemini gives 1,500 free uses/day. Takes 2 minutes.</div>
+          <div style={{fontSize:12,color:C.muted,lineHeight:1.6}}>Each provider gives you a <strong style={{color:C.text}}>free personal API key</strong>. LinjeTune uses YOUR key — your quota is separate from everyone else. Gemini gives 1,500 free uses/day. Takes 2 minutes.</div>
         </div>
         <p style={{fontSize:12,color:C.muted,lineHeight:1.6,marginBottom:8}}>
-          TuneLab works fully <strong style={{color:C.text}}>offline</strong> without AI. Connect a provider to unlock expert notes and smarter diagnoses.
+          LinjeTune works fully <strong style={{color:C.text}}>offline</strong> without AI. Connect a provider to unlock expert notes and smarter diagnoses.
         </p>
         <div style={{background:C.gold+"14",border:`1px solid ${C.gold}33`,borderRadius:8,padding:"9px 11px",marginBottom:12,fontFamily:C.fBody,fontSize:11,color:C.gold,lineHeight:1.6}}>
-          ðŸ’¡ <strong>Setup tip:</strong> After creating your Gemini key, check that your Google project has no <strong>$0.00 spending cap</strong> â€” this silently blocks all requests. Remove it or set it to $1â€“2. At ~$0.0001 per tune you won't be charged noticeably.
+          💡 <strong>Setup tip:</strong> After creating your Gemini key, check that your Google project has no <strong>$0.00 spending cap</strong> — this silently blocks all requests. Remove it or set it to $1–2. At ~$0.0001 per tune you won't be charged noticeably.
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
           {AI_PROVIDERS.map(p=>(
@@ -1168,10 +1168,10 @@ function AIScreen({onClose}) {
                 <span style={{fontFamily:C.fBody,fontSize:15,color:provider===p.id?p.color:C.text,fontWeight:600}}>{p.label}</span>
                 {p.free&&!p.soon&&<span style={{marginLeft:4,background:C.green+"22",border:`1px solid ${C.green}44`,borderRadius:8,padding:"1px 6px",fontSize:9,color:C.green}}>FREE</span>}
                 {p.soon&&<span style={{marginLeft:4,background:C.gold+"22",border:`1px solid ${C.gold}44`,borderRadius:8,padding:"1px 6px",fontSize:9,color:C.gold}}>COMING SOON</span>}
-                {provider===p.id&&<span style={{marginLeft:"auto",fontSize:9,color:p.color}}>ACTIVE âœ“</span>}
+                {provider===p.id&&<span style={{marginLeft:"auto",fontSize:9,color:p.color}}>ACTIVE ✓</span>}
               </div>
               <span style={{fontFamily:C.fBody,fontSize:11,color:C.muted,paddingLeft:22}}>
-                {p.id==="none"?"Full tune via formula engine â€” no internet needed.":p.id==="gemini"?"Free tier: 1,500/day â€” no credit card needed.":"Coming soon â€” join Discord to get notified."}
+                {p.id==="none"?"Full tune via formula engine — no internet needed.":p.id==="gemini"?"Free tier: 1,500/day — no credit card needed.":"Coming soon — join Discord to get notified."}
               </span>
             </button>
           ))}
@@ -1180,9 +1180,9 @@ function AIScreen({onClose}) {
           <div style={{...S.card,padding:"14px 14px",marginBottom:12}}>
             {/* Privacy warning */}
             <div style={{background:"#ff444418",border:"1px solid #ff444444",borderRadius:8,padding:"9px 11px",marginBottom:10,display:"flex",gap:8,alignItems:"flex-start"}}>
-              <span style={{fontSize:14,flexShrink:0}}>ðŸ”</span>
+              <span style={{fontSize:14,flexShrink:0}}>🔐</span>
               <div style={{fontFamily:C.fBody,fontSize:11,color:"#ffaaaa",lineHeight:1.6}}>
-                <strong>Keep this key private.</strong> Never share it or screenshot it. Anyone with your key can use your quota. TuneLab stores it only on this device.
+                <strong>Keep this key private.</strong> Never share it or screenshot it. Anyone with your key can use your quota. LinjeTune stores it only on this device.
               </div>
             </div>
             {/* How to get the key */}
@@ -1191,35 +1191,35 @@ function AIScreen({onClose}) {
                 How to get your free key
               </div>
               {prov.id==="gemini"&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>
-                1. Tap <strong style={{color:C.text}}>Get free key â†—</strong> below<br/>
+                1. Tap <strong style={{color:C.text}}>Get free key ↗</strong> below<br/>
                 2. Sign in with Google<br/>
                 3. Tap <strong style={{color:C.text}}>"Create API key"</strong><br/>
                 4. Copy and paste it here<br/>
-                <span style={{color:C.green}}>Free tier: 1,500 requests/day Â· No credit card needed</span>
+                <span style={{color:C.green}}>Free tier: 1,500 requests/day · No credit card needed</span>
               </div>}
               {prov.id==="grok"&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>
-                1. Tap <strong style={{color:C.text}}>Get free key â†—</strong> below<br/>
+                1. Tap <strong style={{color:C.text}}>Get free key ↗</strong> below<br/>
                 2. Sign in with your X account<br/>
                 3. Create an API key in the console<br/>
-                <span style={{color:C.green}}>Free tier available Â· No credit card needed</span>
+                <span style={{color:C.green}}>Free tier available · No credit card needed</span>
               </div>}
               {prov.id==="openai"&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>
-                1. Tap <strong style={{color:C.text}}>Get key â†—</strong> below<br/>
+                1. Tap <strong style={{color:C.text}}>Get key ↗</strong> below<br/>
                 2. Create an OpenAI account<br/>
                 3. Add a small credit ($5 lasts months)<br/>
                 4. Create an API key and paste here<br/>
-                <span style={{color:C.gold}}>~$0.0002 per tune Â· Requires credit card</span>
+                <span style={{color:C.gold}}>~$0.0002 per tune · Requires credit card</span>
               </div>}
               {prov.id==="claude"&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>
-                1. Tap <strong style={{color:C.text}}>Get key â†—</strong> below<br/>
+                1. Tap <strong style={{color:C.text}}>Get key ↗</strong> below<br/>
                 2. Create an Anthropic account<br/>
                 3. Add a small credit ($5 lasts months)<br/>
                 4. Create an API key and paste here<br/>
-                <span style={{color:C.gold}}>~$0.0003 per tune Â· Requires credit card</span>
+                <span style={{color:C.gold}}>~$0.0003 per tune · Requires credit card</span>
               </div>}
               {prov.docs&&<a href={prov.docs} target="_blank" rel="noreferrer"
                 style={{display:"inline-block",marginTop:8,padding:"6px 12px",background:prov.color+"22",border:`1px solid ${prov.color}55`,borderRadius:7,fontSize:11,fontWeight:600,color:prov.color,textDecoration:"none"}}>
-                Get {prov.id==="gemini"?"free ":""}key â†—
+                Get {prov.id==="gemini"?"free ":""}key ↗
               </a>}
             </div>
 
@@ -1229,19 +1229,19 @@ function AIScreen({onClose}) {
                 style={{width:"100%",...S.mono,background:C.surface,border:`1px solid ${valResult[prov.id]?(valResult[prov.id].ok?C.green:C.red):C.border}`,borderRadius:8,padding:"9px 36px 9px 11px",color:C.text,fontSize:12,outline:"none"}}
               />
               <button onClick={()=>setShow(s=>({...s,[prov.id]:!s[prov.id]}))} style={{...S.btn,position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"transparent",fontSize:14,color:C.muted}}>
-                {show[prov.id]?"ðŸ™ˆ":"ðŸ‘"}
+                {show[prov.id]?"🙈":"👁"}
               </button>
             </div>
 
             {valResult[prov.id]&&(
               <div style={{fontSize:11,color:valResult[prov.id].ok?C.green:C.red,marginBottom:8,lineHeight:1.4}}>
-                {valResult[prov.id].ok?"âœ“":"âš "} {valResult[prov.id].msg}
+                {valResult[prov.id].ok?"✓":"⚠"} {valResult[prov.id].msg}
               </div>
             )}
 
             <button onClick={testKey} disabled={!keys[prov.id]||validating}
               style={{...S.btn,width:"100%",padding:"11px",background:keys[prov.id]?prov.color+"22":C.surface,border:`1px solid ${keys[prov.id]?prov.color+"55":C.border}`,borderRadius:9,color:keys[prov.id]?prov.color:C.muted,fontFamily:C.fBody,fontSize:12,fontWeight:600}}>
-              {validating?"Testing keyâ€¦":"Test & save key"}
+              {validating?"Testing key…":"Test & save key"}
             </button>
 
           </div>
@@ -1253,7 +1253,7 @@ function AIScreen({onClose}) {
 
 function SaveDrawer({appState, tunePages, onLoad, onClose}) {
   const [saves,  setSaves]  = useState(()=>LS.get("tl_v1_saves",[]));
-  const [name,   setName]   = useState(`${appState.make} ${appState.model} â€” ${appState.tuneId}`);
+  const [name,   setName]   = useState(`${appState.make} ${appState.model} — ${appState.tuneId}`);
   const [toast,  setToast]  = useState(null);
   const color = TUNE_MODES.find(t=>t.id===appState.tuneId)?.color||C.accent;
 
@@ -1266,7 +1266,7 @@ function SaveDrawer({appState, tunePages, onLoad, onClose}) {
   const doCopy = e => { navigator.clipboard?.writeText(formatTuneText(e.appState,e.tunePages)).then(()=>setToast("Copied!")); };
   const doShare = e => {
     const t=formatTuneText(e.appState,e.tunePages);
-    if(navigator.share){navigator.share({title:"TuneLab Tune",text:t}).catch(()=>{});}
+    if(navigator.share){navigator.share({title:"LinjeTune Tune",text:t}).catch(()=>{});}
     else{navigator.clipboard?.writeText(t).then(()=>setToast("Copied!"));}
   };
 
@@ -1276,14 +1276,14 @@ function SaveDrawer({appState, tunePages, onLoad, onClose}) {
       <div style={{background:C.surface,borderRadius:"16px 16px 0 0",border:`1px solid ${C.border}`,maxHeight:"85vh",display:"flex",flexDirection:"column",fontFamily:C.fBody}}>
         <div style={{padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
           <span style={{fontSize:12,fontWeight:600,color:C.text,letterSpacing:"0.08em"}}>SAVE / LOAD</span>
-          <button onClick={onClose} style={{...S.btn,background:"transparent",fontSize:18,color:C.muted}}>âœ•</button>
+          <button onClick={onClose} style={{...S.btn,background:"transparent",fontSize:18,color:C.muted}}>✕</button>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"14px 16px 24px"}}>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Tune nameâ€¦"
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Tune name…"
             style={{width:"100%",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 11px",color:C.text,fontFamily:C.fBody,fontSize:13,outline:"none",marginBottom:8}}
           />
           <button onClick={doSave} style={{...S.btn,width:"100%",padding:"11px",background:color+"22",border:`1px solid ${color}55`,borderRadius:9,color,fontFamily:C.fBody,fontSize:12,fontWeight:600,marginBottom:16}}>
-            ðŸ’¾ Save current tune
+            💾 Save current tune
           </button>
           {saves.length===0 && <div style={{textAlign:"center",padding:"20px",color:C.dim,fontSize:13}}>No saved tunes yet</div>}
           {saves.map(sv=>{
@@ -1293,9 +1293,9 @@ function SaveDrawer({appState, tunePages, onLoad, onClose}) {
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
                   <div>
                     <div style={{fontSize:15,fontWeight:600,color:C.text}}>{sv.name}</div>
-                    <div style={{fontSize:12,color:C.muted,marginTop:2}}>{sv.appState?.carClass} {sv.appState?.pi}PI Â· {sv.date}</div>
+                    <div style={{fontSize:12,color:C.muted,marginTop:2}}>{sv.appState?.carClass} {sv.appState?.pi}PI · {sv.date}</div>
                   </div>
-                  <button onClick={()=>doDelete(sv.id)} style={{...S.btn,background:"transparent",color:C.dim,fontSize:14}}>âœ•</button>
+                  <button onClick={()=>doDelete(sv.id)} style={{...S.btn,background:"transparent",color:C.dim,fontSize:14}}>✕</button>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5}}>
                   {[{l:"Load",fn:()=>{onLoad(sv);onClose();},c:sc},{l:"Share",fn:()=>doShare(sv),c:C.green},{l:"Copy",fn:()=>doCopy(sv),c:C.muted}].map(b=>(
@@ -1329,7 +1329,7 @@ function Wizard({ctx, onClose}) {
     try {
       if(hasAI){
         const sys=`You are a Forza Horizon 6 expert tuner. FH6 meta: ARB start max then soften to 0.55-0.65 balance; bump 30-55% of rebound; AWD diff front 85/0 rear 55-75/10-15 center 70-80% rear; ride height start minimum road; caster 6.5-7.0 degrees. Return ONLY raw JSON, no markdown.`;
-        const usr=`Issue: "${problem.label}" â€” "${sub.label}"\nCar: ${ctx.make} ${ctx.model} | ${ctx.driveType} | ${ctx.tuneId}\nInput: ${ctx.inputDevice}\nFH6 traction circle physics.\nReturn: {"diagnosis":"1-2 sentences","fixes":[{"setting":"Name","change":"What","why":"Why"},{"setting":"Name","change":"What","why":"Why"},{"setting":"Name","change":"What","why":"Why"}],"tip":"One driving tip"}`;
+        const usr=`Issue: "${problem.label}" — "${sub.label}"\nCar: ${ctx.make} ${ctx.model} | ${ctx.driveType} | ${ctx.tuneId}\nInput: ${ctx.inputDevice}\nFH6 traction circle physics.\nReturn: {"diagnosis":"1-2 sentences","fixes":[{"setting":"Name","change":"What","why":"Why"},{"setting":"Name","change":"What","why":"Why"},{"setting":"Name","change":"What","why":"Why"}],"tip":"One driving tip"}`;
         const raw=await callAI(provider,keys[provider],sys,usr);
         const m=raw.match(/\{[\s\S]*\}/);
         if(!m)throw new Error("parse");
@@ -1351,10 +1351,10 @@ function Wizard({ctx, onClose}) {
     <div className="tl-shell" style={{position:"fixed",inset:0,background:C.bg,zIndex:200,margin:"0 auto",display:"flex",flexDirection:"column",fontFamily:C.fBody}}>
       <style>{FONTS+THEME_STYLE}</style>
       <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-        <button onClick={step==="problem"?onClose:goBack} style={{...S.btn,background:"transparent",color:C.text,fontSize:22}}>â†</button>
+        <button onClick={step==="problem"?onClose:goBack} style={{...S.btn,background:"transparent",color:C.text,fontSize:22}}>←</button>
         <span style={{fontSize:13,fontWeight:600,color:C.text,letterSpacing:"0.06em"}}>TUNING WIZARD</span>
-        <span style={{marginLeft:"auto",fontSize:10,color:hasAI?C.green:C.gold}}>{hasAI?"âœ¦ AI active":"âš™ Offline"}</span>
-        <button onClick={onClose} style={{...S.btn,background:"transparent",color:C.muted,fontSize:18}}>âŒ‚</button>
+        <span style={{marginLeft:"auto",fontSize:10,color:hasAI?C.green:C.gold}}>{hasAI?"✦ AI active":"⚙ Offline"}</span>
+        <button onClick={onClose} style={{...S.btn,background:"transparent",color:C.muted,fontSize:18}}>⌂</button>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"16px 16px 40px"}}>
         {step==="problem"&&(
@@ -1364,7 +1364,7 @@ function Wizard({ctx, onClose}) {
               {PROBLEMS.map((p,i)=>(
                 <div key={p.id} onClick={()=>{setSP(p);setStep("sub");}} style={{padding:"13px 14px",borderBottom:i<PROBLEMS.length-1?`1px solid ${C.border}`:"none",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}>
                   <div><div style={{fontSize:16,color:C.text,fontWeight:500}}>{p.icon} {p.label}</div><div style={{fontSize:13,color:C.muted,marginTop:2}}>{p.desc}</div></div>
-                  <span style={{color:C.dim,fontSize:18}}>â€º</span>
+                  <span style={{color:C.dim,fontSize:18}}>›</span>
                 </div>
               ))}
             </div>
@@ -1378,7 +1378,7 @@ function Wizard({ctx, onClose}) {
               {selP.subs.map((s,i)=>(
                 <div key={s.id} onClick={()=>getFix(selP,s)} style={{padding:"13px 14px",borderBottom:i<selP.subs.length-1?`1px solid ${C.border}`:"none",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}>
                   <span style={{fontSize:13,color:C.text}}>{s.label}</span>
-                  <span style={{color:C.dim,fontSize:18}}>â€º</span>
+                  <span style={{color:C.dim,fontSize:18}}>›</span>
                 </div>
               ))}
             </div>
@@ -1386,7 +1386,7 @@ function Wizard({ctx, onClose}) {
         )}
         {step==="fixing"&&(
           <div style={{textAlign:"center",paddingTop:60}}>
-            <div style={{fontSize:13,color:fixColor,letterSpacing:"0.12em",marginBottom:16}}>{hasAI?"Consulting AIâ€¦":"Checking knowledge baseâ€¦"}</div>
+            <div style={{fontSize:13,color:fixColor,letterSpacing:"0.12em",marginBottom:16}}>{hasAI?"Consulting AI…":"Checking knowledge base…"}</div>
             <div style={{display:"flex",justifyContent:"center",gap:5}}>
               {[0,1,2,3,4].map(i=><div key={i} style={{width:5,height:5,borderRadius:"50%",background:fixColor,animation:`pulse 1.2s ${i*0.18}s infinite`}}/>)}
             </div>
@@ -1394,7 +1394,7 @@ function Wizard({ctx, onClose}) {
         )}
         {step==="result"&&fix&&(
           <>
-            {!hasAI&&<div style={{background:C.gold+"14",border:`1px solid ${C.gold}33`,borderRadius:8,padding:"8px 11px",marginBottom:12,fontSize:11,color:C.gold}}>âš™ Offline analysis â€” connect AI for car-specific diagnosis</div>}
+            {!hasAI&&<div style={{background:C.gold+"14",border:`1px solid ${C.gold}33`,borderRadius:8,padding:"8px 11px",marginBottom:12,fontSize:11,color:C.gold}}>⚙ Offline analysis — connect AI for car-specific diagnosis</div>}
             <div style={{fontSize:10,color:fixColor,letterSpacing:"0.1em",marginBottom:6}}>DIAGNOSIS</div>
             <div style={{...S.card,padding:"12px 13px",marginBottom:12,fontSize:13,color:C.text,lineHeight:1.65}}>{fix.diagnosis}</div>
             <div style={{fontSize:10,color:fixColor,letterSpacing:"0.1em",marginBottom:6}}>FIXES</div>
@@ -1411,10 +1411,10 @@ function Wizard({ctx, onClose}) {
             </div>
             {fix.tip&&<div style={{background:fixColor+"0d",border:`1px solid ${fixColor}33`,borderRadius:10,padding:"10px 13px",marginBottom:14}}>
               <div style={{fontSize:10,color:fixColor,letterSpacing:"0.1em",marginBottom:4}}>DRIVING TIP</div>
-              <div style={{fontSize:13,color:C.text,lineHeight:1.6}}>ðŸ’¡ {fix.tip}</div>
+              <div style={{fontSize:13,color:C.text,lineHeight:1.6}}>💡 {fix.tip}</div>
             </div>}
             <button onClick={()=>{setStep("problem");setSP(null);setFix(null);}} style={{...S.btn,width:"100%",padding:"12px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,color:C.muted,fontFamily:C.fBody,fontSize:12}}>
-              â† Diagnose another issue
+              ← Diagnose another issue
             </button>
           </>
         )}
@@ -1423,7 +1423,7 @@ function Wizard({ctx, onClose}) {
   );
 }
 
-// â”€â”€â”€ OUTPUT SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── OUTPUT SCREEN ────────────────────────────────────────────────────────────
 
 function EnhancingBar({color, icon, label}) {
   const [secs, setSecs] = useState(0);
@@ -1433,7 +1433,7 @@ function EnhancingBar({color, icon, label}) {
   },[]);
   return (
     <div style={{background:color+"18",border:`1px solid ${color}33`,borderRadius:9,padding:"9px 12px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
-      <span style={{fontSize:11,color,animation:"pulse 1.5s infinite"}}>{icon} Enhancing with {label}â€¦</span>
+      <span style={{fontSize:11,color,animation:"pulse 1.5s infinite"}}>{icon} Enhancing with {label}…</span>
       <span style={{fontFamily:C.fMono,fontSize:10,color:color+"99"}}>{secs}s</span>
     </div>
   );
@@ -1442,32 +1442,32 @@ function EnhancingBar({color, icon, label}) {
 class OutputErrorBoundary extends Component {
   constructor(props) { super(props); this.state = {error:null}; }
   static getDerivedStateFromError(e) { return {error:e.message||"Unknown error"}; }
-  componentDidCatch(e, info) { console.error("TuneLab OutputScreen error:", e.message, info.componentStack?.slice(0,200)); }
+  componentDidCatch(e, info) { console.error("LinjeTune OutputScreen error:", e.message, info.componentStack?.slice(0,200)); }
   render() {
     if (this.state.error) return (
       <div style={{minHeight:"100vh",background:"#0a0c0f",color:"#eaf2f7",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,gap:16}}>
-        <div style={{fontSize:32}}>âš </div>
+        <div style={{fontSize:32}}>⚠</div>
         <div style={{fontFamily:"monospace",fontSize:13,color:"#ff4d4d",textAlign:"center",lineHeight:1.6}}>{this.state.error}</div>
-        <button onClick={this.props.onBack} style={{marginTop:8,padding:"10px 24px",background:"transparent",border:"1px solid #00ff85",borderRadius:6,color:"#00ff85",fontFamily:"monospace",fontSize:12,cursor:"pointer"}}>â† Back</button>
+        <button onClick={this.props.onBack} style={{marginTop:8,padding:"10px 24px",background:"transparent",border:"1px solid #00ff85",borderRadius:6,color:"#00ff85",fontFamily:"monospace",fontSize:12,cursor:"pointer"}}>← Back</button>
       </div>
     );
     return this.props.children;
   }
 }
 
-// â”€â”€â”€ HAMBURGER MENU â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── HAMBURGER MENU ──────────────────────────────────────────────────────────
 function HamburgerMenu({onClose, onNav, isOutputScreen, appState}) {
   const items = [
-    {id:"ai",    icon:"âœ¦", label:"AI settings",       sub:"Configure your Gemini key"},
-    ...(isOutputScreen ? [{id:"copyinputs", icon:"ðŸ“‹", label:"Copy tune inputs", sub:"Paste in Discord for bug reports"}] : []),
+    {id:"ai",    icon:"✦", label:"AI settings",       sub:"Configure your Gemini key"},
+    ...(isOutputScreen ? [{id:"copyinputs", icon:"📋", label:"Copy tune inputs", sub:"Paste in Discord for bug reports"}] : []),
     null,
-    {id:"paintlab", icon:"ðŸŽ¨", label:"PaintLab",       sub:"Browse FH6 paint colors Â· v1.0"},
+    {id:"paintlab", icon:"🎨", label:"PaintLab",       sub:"Browse FH6 paint colors · v1.0"},
     null,
-    {id:"settings", icon:"âš™", label:"Settings",       sub:"Units, input device"},
-    {id:"refresh",  icon:"â†»", label:"Refresh car database", sub:"Force fetch latest cars"},
-    {id:"about",    icon:"â„¹", label:"About TuneLab",  sub:"Version, credits, links"},
+    {id:"settings", icon:"⚙", label:"Settings",       sub:"Units, input device"},
+    {id:"refresh",  icon:"↻", label:"Refresh car database", sub:"Force fetch latest cars"},
+    {id:"about",    icon:"ℹ", label:"About LinjeTune",  sub:"Version, credits, links"},
     null,
-    {id:"reset",    icon:"ðŸ—‘", label:"Reset all data", danger:true},
+    {id:"reset",    icon:"🗑", label:"Reset all data", danger:true},
   ];
   return (
     <div style={{position:"fixed",inset:0,zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-start"}}>
@@ -1491,7 +1491,7 @@ function HamburgerMenu({onClose, onNav, isOutputScreen, appState}) {
   );
 }
 
-// â”€â”€â”€ ENHANCE DRAWER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ENHANCE DRAWER ──────────────────────────────────────────────────────────
 function EnhanceDrawer({accentColor, hasAI, prov, onClose, onEnhance}) {
   const [prompt, setPrompt] = useState("");
   const [locks, setLocks] = useState({Tires:false,Compound:false,Aero:false,Gearing:false,Diff:false,Springs:false});
@@ -1501,7 +1501,7 @@ function EnhanceDrawer({accentColor, hasAI, prov, onClose, onEnhance}) {
     <div style={{position:"fixed",inset:0,zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end"}} onClick={onClose}>
       <div style={{background:C.bg,borderTop:`2px solid ${accentColor}30`,borderRadius:"20px 20px 0 0",padding:"16px 14px 32px",maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <div style={{width:36,height:3,background:"#333",borderRadius:2,margin:"0 auto 14px"}}/>
-        <div style={{fontFamily:C.fMono,fontSize:10,color:accentColor,letterSpacing:"0.2em",textTransform:"uppercase",marginBottom:12}}>âœ¦ Enhance tune</div>
+        <div style={{fontFamily:C.fMono,fontSize:10,color:accentColor,letterSpacing:"0.2em",textTransform:"uppercase",marginBottom:12}}>✦ Enhance tune</div>
 
         <div style={{fontFamily:C.fMono,fontSize:9,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}}>What do you want to improve? (optional)</div>
         <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} rows={3}
@@ -1509,11 +1509,11 @@ function EnhanceDrawer({accentColor, hasAI, prov, onClose, onEnhance}) {
           style={{width:"100%",background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:"9px 10px",color:C.text,fontFamily:C.fBody,fontSize:13,outline:"none",marginBottom:12,resize:"none"}}
         />
 
-        <div style={{fontFamily:C.fMono,fontSize:9,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Lock â€” AI won't change these</div>
+        <div style={{fontFamily:C.fMono,fontSize:9,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Lock — AI won't change these</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:14}}>
           {lockKeys.map(k=>(
             <button key={k} onClick={()=>toggleLock(k)} style={{...S.btn,padding:"7px 4px",borderRadius:6,border:`1px solid ${locks[k]?accentColor+"40":C.border}`,background:locks[k]?accentColor+"10":"transparent",textAlign:"center"}}>
-              <span style={{display:"block",fontSize:14,marginBottom:2}}>{locks[k]?"ðŸ”’":"ðŸ”“"}</span>
+              <span style={{display:"block",fontSize:14,marginBottom:2}}>{locks[k]?"🔒":"🔓"}</span>
               <span style={{fontFamily:C.fMono,fontSize:9,color:locks[k]?accentColor:C.muted,letterSpacing:"0.05em"}}>{k}</span>
             </button>
           ))}
@@ -1521,7 +1521,7 @@ function EnhanceDrawer({accentColor, hasAI, prov, onClose, onEnhance}) {
 
         <button onClick={()=>onEnhance(prompt, locks)}
           style={{...S.btn,width:"100%",padding:13,background:`${accentColor}14`,border:`1px solid ${accentColor}44`,borderRadius:6,color:accentColor,fontFamily:C.fMono,fontSize:14,fontWeight:700,letterSpacing:"0.2em",textTransform:"uppercase"}}>
-          âœ¦ Generate
+          ✦ Generate
         </button>
       </div>
     </div>
@@ -1533,7 +1533,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
   const [toast,       setToast]       = useState(null);
   const [overlay,     setOverlay]     = useState(null);
   const [aiEnhancing, setAiEnhancing] = useState(false);
-  // FH6 rewards stable/planted setups â€” default slightly toward stable per Kireth feedback
+  // FH6 rewards stable/planted setups — default slightly toward stable per Kireth feedback
   const [feelBalance,  setFeelBalance]  = useState(40);
   const [feelAggress,  setFeelAggress]  = useState(45);
   const [showPaste,    setShowPaste]    = useState(false);
@@ -1557,7 +1557,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
     }
   },[overlay]);
 
-  // Recalculate tune when feel sliders change â€” preserve AI notes/tips/summary
+  // Recalculate tune when feel sliders change — preserve AI notes/tips/summary
   const recalc = useCallback((bal, agg) => {
     const newTune = calcTune({...appState, feelBalance:bal, feelAggression:agg});
     setTunePages(prev => {
@@ -1583,7 +1583,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
 
   const handleShare = () => {
     const txt = formatTuneText(appState, tunePages);
-    if(navigator.share){navigator.share({title:`TuneLab â€” ${appState.make} ${appState.model}`,text:txt}).catch(()=>{});}
+    if(navigator.share){navigator.share({title:`LinjeTune — ${appState.make} ${appState.model}`,text:txt}).catch(()=>{});}
     else{navigator.clipboard?.writeText(txt).then(()=>setToast("Copied!"));}
   };
 
@@ -1592,7 +1592,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
     try {
       const raw = pasteText.trim();
       const match = raw.match(/\{[\s\S]*\}/);
-      if(!match) throw new Error("No JSON found â€” make sure you copied the full AI response");
+      if(!match) throw new Error("No JSON found — make sure you copied the full AI response");
       const enhanced = JSON.parse(match[0]);
       const merged = {};
       TUNE_PAGES.forEach(pg=>{
@@ -1604,9 +1604,9 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
           tip: ai?.tip || tunePages[pg]?.tip,
         };
       });
-      if(Object.keys(merged).length===0) throw new Error("Couldn't match any tune sections â€” try again");
+      if(Object.keys(merged).length===0) throw new Error("Couldn't match any tune sections — try again");
       setTunePages(prev=>({...prev,...merged}));
-      setToast("âœ¦ AI notes applied from paste!");
+      setToast("✦ AI notes applied from paste!");
       setShowPaste(false);
       setPasteText("");
     } catch(e) {
@@ -1619,29 +1619,29 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
     const fullPrompt = `${sys}\n\n${usr}`;
     if(navigator.clipboard){
       navigator.clipboard.writeText(fullPrompt).then(()=>{
-        setToast("ðŸ“‹ Prompt copied! Paste in Gemini, then use Paste Response â†");
+        setToast("📋 Prompt copied! Paste in Gemini, then use Paste Response ←");
         setTimeout(()=>window.open("https://gemini.google.com/","_blank"),800);
       });
     }
   };
 
   const handleAIEnhance = useCallback(async() => {
-    // Physical lock â€” prevents double-tap and re-render re-triggers
+    // Physical lock — prevents double-tap and re-render re-triggers
     if(aiEnhancing) return;
     if(!hasAI){setOverlay("ai");return;}
     setAiEnhancing(true);
     try {
       const {sys,usr} = buildEnhancePrompt(appState,tunePages);
       const raw = await callAI(prov.id,aiKeys[prov.id],sys,usr);
-      console.log("TuneLab AI raw response:", raw.slice(0,500));
-      // Extract JSON â€” handle markdown fences, leading text, truncation
+      console.log("LinjeTune AI raw response:", raw.slice(0,500));
+      // Extract JSON — handle markdown fences, leading text, truncation
       // Strategy: find first { and last } in the raw response
       const firstBrace = raw.indexOf('{');
       const lastBrace  = raw.lastIndexOf('}');
       const extracted  = firstBrace !== -1 && lastBrace > firstBrace
         ? raw.slice(firstBrace, lastBrace + 1)
         : raw.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
-      console.log("TuneLab AI cleaned:", extracted.slice(0,300));
+      console.log("LinjeTune AI cleaned:", extracted.slice(0,300));
       const match = extracted.match(/\{[\s\S]*\}/);
       if(match){
         let enhanced;
@@ -1654,7 +1654,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
           for(let i=0;i<nOpen-nClose;i++) txt+="}";
           enhanced = JSON.parse(txt);
         }
-        console.log("TuneLab AI parsed keys:", Object.keys(enhanced));
+        console.log("LinjeTune AI parsed keys:", Object.keys(enhanced));
         const merged = mergeEnhancement(tunePages, enhanced);
         setTunePages(merged);
         // Increment usage counter
@@ -1662,16 +1662,16 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
         usage.total = (usage.total||0) + 1;
         usage.byProvider[prov.id] = (usage.byProvider[prov.id]||0) + 1;
         LS.set(USAGE_KEY, usage);
-        setToast(`âœ¦ Enhanced by ${prov.label}`);
+        setToast(`✦ Enhanced by ${prov.label}`);
         console.log('AI enhance success');
       } else {
-        console.log("TuneLab AI: no JSON found in response. Full raw:", raw.slice(0,800));
-        setToast("AI responded but couldn't parse â€” try again");
+        console.log("LinjeTune AI: no JSON found in response. Full raw:", raw.slice(0,800));
+        setToast("AI responded but couldn't parse — try again");
       }
     } catch(e) {
       console.error("AI enhance error:", e);
       if(e.message==="RATE_LIMIT_EXHAUSTED"){
-        setToast("Daily quota hit â€” use Manual Copy below â†“");
+        setToast("Daily quota hit — use Manual Copy below ↓");
       } else {
         setToast(`AI error: ${e.message||"unknown"}`);
       }
@@ -1700,10 +1700,10 @@ User request: ${extraPrompt}` : usr;
         catch { let t=match[0]; const d=(t.match(/[{]/g)||[]).length-(t.match(/[}]/g)||[]).length; for(let i=0;i<d;i++) t+="}"; enhanced=JSON.parse(t); }
         setTunePages(mergeEnhancement(tunePages, enhanced));
         const usage=LS.get(USAGE_KEY,{total:0,byProvider:{}}); usage.total=(usage.total||0)+1; usage.byProvider[prov.id]=(usage.byProvider[prov.id]||0)+1; LS.set(USAGE_KEY,usage);
-        setToast(`âœ¦ Enhanced by ${prov.label}`);
-      } else { setToast("AI responded but couldn't parse â€” try again"); }
+        setToast(`✦ Enhanced by ${prov.label}`);
+      } else { setToast("AI responded but couldn't parse — try again"); }
     } catch(e) {
-      if(e.message==="RATE_LIMIT_EXHAUSTED") setToast("Daily quota hit â€” use Manual Copy below â†“");
+      if(e.message==="RATE_LIMIT_EXHAUSTED") setToast("Daily quota hit — use Manual Copy below ↓");
       else setToast(`AI error: ${e.message||"unknown"}`);
     }
     setAiEnhancing(false);
@@ -1736,7 +1736,7 @@ User request: ${extraPrompt}` : usr;
           else if(id==="settings") setOverlay("settings");
           else if(id==="paintlab"){ setOverlay(null); if(onGoToPaintLab) onGoToPaintLab(); else onBack(); }
           else if(id==="copyinputs"){
-            const txt = `Tune inputs\nCar: ${st.make} ${st.model}\nClass: ${st.carClass} Â· ${st.pi}PI Â· ${st.driveType}\nMode: ${st.tuneId} Â· ${st.surface} Â· ${st.compound}\nWeight: ${st.weight} ${st.units?.weight||"lbs"} Â· ${st.weightDist}% front`;
+            const txt = `Tune inputs\nCar: ${st.make} ${st.model}\nClass: ${st.carClass} · ${st.pi}PI · ${st.driveType}\nMode: ${st.tuneId} · ${st.surface} · ${st.compound}\nWeight: ${st.weight} ${st.units?.weight||"lbs"} · ${st.weightDist}% front`;
             navigator.clipboard?.writeText(txt).catch(()=>{});
             setToast("Tune inputs copied!");
           }
@@ -1756,7 +1756,7 @@ User request: ${extraPrompt}` : usr;
           const lockList = Object.entries(locks).filter(([,v])=>v).map(([k])=>k);
           const lockNote = lockList.length ? `
 
-IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
+IMPORTANT — do NOT change these settings: ${lockList.join(", ")}.` : "";
           const fullPrompt = (customPrompt||"") + lockNote;
           // Patch handleAIEnhance to use custom prompt
           handleAIEnhanceWithPrompt(fullPrompt.trim());
@@ -1771,24 +1771,24 @@ IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
           <div style={{width:"100%",background:C.surface,borderRadius:"16px 16px 0 0",border:`1px solid ${C.border}`,padding:"16px 16px 32px",fontFamily:C.fBody}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
               <span style={{fontSize:13,fontWeight:600,color:C.text,letterSpacing:"0.06em"}}>PASTE AI RESPONSE</span>
-              <button onClick={()=>{setShowPaste(false);setPasteText("");setPasteError("");}} style={{...S.btn,background:"transparent",fontSize:18,color:C.muted}}>âœ•</button>
+              <button onClick={()=>{setShowPaste(false);setPasteText("");setPasteError("");}} style={{...S.btn,background:"transparent",fontSize:18,color:C.muted}}>✕</button>
             </div>
             <div style={{fontSize:12,color:C.muted,lineHeight:1.6,marginBottom:10}}>
-              1. Tap <strong style={{color:C.text}}>ðŸ“‹ Copy prompt</strong> â†’ opens Gemini in browser<br/>
-              2. Paste the prompt â†’ copy Gemini's full response<br/>
-              3. Come back here â†’ paste the response below
+              1. Tap <strong style={{color:C.text}}>📋 Copy prompt</strong> → opens Gemini in browser<br/>
+              2. Paste the prompt → copy Gemini's full response<br/>
+              3. Come back here → paste the response below
             </div>
             <textarea
               value={pasteText}
               onChange={e=>setPasteText(e.target.value)}
-              placeholder='Paste the full JSON response from Gemini hereâ€¦'
+              placeholder='Paste the full JSON response from Gemini here…'
               rows={6}
               style={{width:"100%",background:C.card,border:`1px solid ${pasteError?C.red:C.border}`,borderRadius:9,padding:"10px 11px",color:C.text,fontFamily:C.fMono,fontSize:11,resize:"none",outline:"none",marginBottom:pasteError?6:10}}
             />
-            {pasteError&&<div style={{fontSize:11,color:C.red,marginBottom:8,lineHeight:1.4}}>âš  {pasteError}</div>}
+            {pasteError&&<div style={{fontSize:11,color:C.red,marginBottom:8,lineHeight:1.4}}>⚠ {pasteError}</div>}
             <button onClick={applyPastedResponse} disabled={!pasteText.trim()}
               style={{...S.btn,width:"100%",padding:"13px",background:pasteText.trim()?C.accent:C.card,border:`1px solid ${pasteText.trim()?C.accent:C.border}`,borderRadius:10,color:pasteText.trim()?"#fff":C.muted,fontFamily:C.fBody,fontSize:13,fontWeight:600}}>
-              Apply AI notes â†’
+              Apply AI notes →
             </button>
           </div>
         </div>
@@ -1798,17 +1798,17 @@ IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
       <div className="tl-header" style={{position:"sticky",top:0,zIndex:20,background:C.bg,borderBottom:`1px solid ${C.border}`,padding:"calc(env(safe-area-inset-top, 0px) + 10px) 14px 8px"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
           <button onClick={onBack} style={{...S.btn,background:"transparent",color:accentColor,fontFamily:C.fCond,fontSize:13,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",gap:4}}>
-            â† New Config
+            ← New Config
           </button>
           <div style={{display:"flex",gap:5,alignItems:"center"}}>
-            <button onClick={handleShare} style={{...S.btn,padding:"6px 11px",background:C.green+"22",border:`1px solid ${C.green}44`,borderRadius:8,color:C.green,fontFamily:C.fBody,fontSize:11,fontWeight:600,gap:4}}>â†‘ Share</button>
-            <button onClick={()=>setOverlay("save")} style={{...S.btn,padding:"6px 11px",background:C.accentLo,border:`1px solid ${C.accent}44`,borderRadius:8,color:C.accent,fontFamily:C.fBody,fontSize:11,fontWeight:600,gap:4}}>ðŸ’¾ Save</button>
-            <button onClick={()=>setOverlay("menu")} style={{...S.btn,width:32,height:32,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,fontSize:17,letterSpacing:1}}>â˜°</button>
+            <button onClick={handleShare} style={{...S.btn,padding:"6px 11px",background:C.green+"22",border:`1px solid ${C.green}44`,borderRadius:8,color:C.green,fontFamily:C.fBody,fontSize:11,fontWeight:600,gap:4}}>↑ Share</button>
+            <button onClick={()=>setOverlay("save")} style={{...S.btn,padding:"6px 11px",background:C.accentLo,border:`1px solid ${C.accent}44`,borderRadius:8,color:C.accent,fontFamily:C.fBody,fontSize:11,fontWeight:600,gap:4}}>💾 Save</button>
+            <button onClick={()=>setOverlay("menu")} style={{...S.btn,width:32,height:32,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,fontSize:17,letterSpacing:1}}>☰</button>
           </div>
         </div>
         <div style={{fontSize:14,color:C.muted}}>
           <span style={{color:C.text,fontWeight:500}}>{appState.make} {appState.model}</span>
-          {" "}Â·{" "}{appState.carClass} {appState.pi}PI Â· {appState.driveType} Â·{" "}
+          {" "}·{" "}{appState.carClass} {appState.pi}PI · {appState.driveType} ·{" "}
           <span style={{color}}>{appState.tuneId}</span>
         </div>
       </div>
@@ -1843,7 +1843,7 @@ IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
             padding:"12px 14px",marginBottom:10}}>
             <div style={{fontFamily:C.fMono,fontSize:8,color:C.green,letterSpacing:"0.25em",marginBottom:8,
               display:"flex",alignItems:"center",gap:8}}>
-              âœ¦ ENGINEER BRIEF Â· {prov.label.toUpperCase()}
+              ✦ ENGINEER BRIEF · {prov.label.toUpperCase()}
               <div style={{flex:1,height:1,background:"rgba(0,255,133,0.15)"}}/>
             </div>
             <div style={{fontFamily:C.fBody,fontSize:12,fontWeight:300,color:C.ice2,lineHeight:1.7}}>
@@ -1885,7 +1885,7 @@ IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
               <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
                 {[
                   {label:"Stable",     bal:0,  agg:20,  tip:"Max planted, easy to drive"},
-                  {label:"Balanced",   bal:30, agg:45,  tip:"Default â€” good all-round"},
+                  {label:"Balanced",   bal:30, agg:45,  tip:"Default — good all-round"},
                   {label:"Tail-Happy", bal:65, agg:55,  tip:"More rotation on exit"},
                   {label:"Oversteer",  bal:80, agg:70,  tip:"Rear rotates freely"},
                   {label:"Late Brake", bal:25, agg:60,  tip:"Aggressive braking, stable entry"},
@@ -1914,7 +1914,7 @@ IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
                   <span style={{fontFamily:C.fMono,fontSize:12,color:accentColor,fontWeight:700}}>{feelBalance}%</span>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <button onClick={()=>{const v=Math.max(0,feelBalance-1);setFeelBalance(v);recalc(v,feelAggress);setTunePage("Suspension");}} style={{...S.btn,width:28,height:28,padding:0,borderRadius:5,border:`1px solid ${C.border}`,background:C.surface,color:C.muted,fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>âˆ’</button>
+                  <button onClick={()=>{const v=Math.max(0,feelBalance-1);setFeelBalance(v);recalc(v,feelAggress);setTunePage("Suspension");}} style={{...S.btn,width:28,height:28,padding:0,borderRadius:5,border:`1px solid ${C.border}`,background:C.surface,color:C.muted,fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
                   <input type="range" min={0} max={100} value={feelBalance} onChange={e=>{const v=+e.target.value;setFeelBalance(v);recalc(v,feelAggress);setTunePage("Suspension");}} style={{flex:1,accentColor:color,height:3,cursor:"pointer"}}/>
                   <button onClick={()=>{const v=Math.min(100,feelBalance+1);setFeelBalance(v);recalc(v,feelAggress);setTunePage("Suspension");}} style={{...S.btn,width:28,height:28,padding:0,borderRadius:5,border:`1px solid ${accentColor}30`,background:C.surface,color:accentColor,fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
                 </div>
@@ -1930,7 +1930,7 @@ IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
                   <span style={{fontFamily:C.fMono,fontSize:12,color:accentColor,fontWeight:700}}>{feelAggress}%</span>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <button onClick={()=>{const v=Math.max(0,feelAggress-1);setFeelAggress(v);recalc(feelBalance,v);setTunePage("ARB");}} style={{...S.btn,width:28,height:28,padding:0,borderRadius:5,border:`1px solid ${C.border}`,background:C.surface,color:C.muted,fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>âˆ’</button>
+                  <button onClick={()=>{const v=Math.max(0,feelAggress-1);setFeelAggress(v);recalc(feelBalance,v);setTunePage("ARB");}} style={{...S.btn,width:28,height:28,padding:0,borderRadius:5,border:`1px solid ${C.border}`,background:C.surface,color:C.muted,fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
                   <input type="range" min={0} max={100} value={feelAggress} onChange={e=>{const v=+e.target.value;setFeelAggress(v);recalc(feelBalance,v);setTunePage("ARB");}} style={{flex:1,accentColor:color,height:3,cursor:"pointer"}}/>
                   <button onClick={()=>{const v=Math.min(100,feelAggress+1);setFeelAggress(v);recalc(feelBalance,v);setTunePage("ARB");}} style={{...S.btn,width:28,height:28,padding:0,borderRadius:5,border:`1px solid ${accentColor}30`,background:C.surface,color:accentColor,fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
                 </div>
@@ -1945,7 +1945,7 @@ IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
             {/* Action buttons */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:7}}>
               <button onClick={()=>setOverlay("wizard")} style={{...S.btn,padding:"11px",background:C.card,border:`1px solid ${C.border}`,borderRadius:10,color:C.text,fontFamily:C.fBody,fontSize:12,fontWeight:500,gap:5}}>
-                ðŸ”§ Wizard
+                🔧 Wizard
               </button>
               <button onClick={()=>hasAI&&!aiEnhancing?setOverlay("enhance"):!hasAI?setOverlay("ai"):null} disabled={aiEnhancing}
                 style={{...S.btn,padding:"12px",
@@ -1955,22 +1955,22 @@ IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
                   color:aiEnhancing?C.dim:hasAI?accentColor:C.muted,
                   fontFamily:C.fCond,fontSize:12,fontWeight:700,letterSpacing:"0.15em",textTransform:"uppercase",
                   gap:5,opacity:aiEnhancing?0.5:1,cursor:aiEnhancing?"not-allowed":"pointer"}}>
-                {aiEnhancing?"Enhancingâ€¦":hasAI?"âœ¦ Enhance":"âœ¦ Enhance"}
+                {aiEnhancing?"Enhancing…":hasAI?"✦ Enhance":"✦ Enhance"}
               </button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:7}}>
               <button onClick={handleManualCopy} disabled={aiEnhancing}
                 style={{...S.btn,padding:"9px 6px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:9,color:aiEnhancing?C.dim:C.muted,fontFamily:C.fBody,fontSize:11,gap:3,flexDirection:"column",lineHeight:1.3,opacity:aiEnhancing?0.4:1}}>
-                <span>ðŸ“‹ Copy prompt</span>
-                <span style={{fontSize:9,color:C.dim}}>â†’ paste in browser</span>
+                <span>📋 Copy prompt</span>
+                <span style={{fontSize:9,color:C.dim}}>→ paste in browser</span>
               </button>
               <button onClick={()=>{setShowPaste(true);setPasteError("");}} style={{...S.btn,padding:"9px 6px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:9,color:C.dim,fontFamily:C.fBody,fontSize:11,gap:3,flexDirection:"column",lineHeight:1.3}}>
-                <span>ðŸ“¥ Paste response</span>
-                <span style={{fontSize:9,color:C.dim}}>â† apply AI notes</span>
+                <span>📥 Paste response</span>
+                <span style={{fontSize:9,color:C.dim}}>← apply AI notes</span>
               </button>
             </div>
             <button onClick={onNewTune} style={{...S.btn,width:"100%",padding:"11px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,color:C.muted,fontFamily:C.fBody,fontSize:12}}>
-              â†º New tune
+              ↺ New tune
             </button>
             </div>
           </>
@@ -1983,7 +1983,7 @@ IMPORTANT â€” do NOT change these settings: ${lockList.join(", ")}.` : "";
 }
 
 
-// â”€â”€â”€ ABOUT / SETTINGS SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ABOUT / SETTINGS SCREEN ──────────────────────────────────────────────────
 function SettingsScreen({units, device, onSave, onClose}) {
   const [w,   setW]   = useState(units?.weight  || "lbs");
   const [sp,  setSp]  = useState(units?.springs || "lbs/in");
@@ -1995,7 +1995,7 @@ function SettingsScreen({units, device, onSave, onClose}) {
     <div className="tl-shell" style={{position:"fixed",inset:0,background:C.bg,zIndex:400,margin:"0 auto",fontFamily:C.fBody,display:"flex",flexDirection:"column",overflowY:"auto"}}>
       <style>{FONTS+THEME_STYLE}</style>
       <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"calc(env(safe-area-inset-top,0px) + 16px) 20px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-        <button onClick={onClose} style={{...S.btn,background:"transparent",color:C.green,fontFamily:C.fCond,fontSize:13,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",gap:4,padding:0}}>â† Back</button>
+        <button onClick={onClose} style={{...S.btn,background:"transparent",color:C.green,fontFamily:C.fCond,fontSize:13,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",gap:4,padding:0}}>← Back</button>
         <span style={{fontFamily:C.fMono,fontSize:10,color:C.muted,letterSpacing:"0.2em",textTransform:"uppercase"}}>Settings</span>
         <button onClick={()=>onSave({weight:w,springs:sp,pressure:p,speed:spd},dev)}
           style={{...S.btn,padding:"7px 16px",background:C.accentLo,border:`1px solid ${C.accent}44`,borderRadius:6,color:C.accent,fontFamily:C.fCond,fontSize:12,fontWeight:700,letterSpacing:"0.15em",textTransform:"uppercase"}}>Save</button>
@@ -2020,7 +2020,7 @@ function SettingsScreen({units, device, onSave, onClose}) {
                 color:dev===d.id?C.accent:C.muted,
                 fontFamily:C.fBody,fontSize:14,fontWeight:dev===d.id?600:400}}>
               {d.label}
-              {dev===d.id&&<span style={{marginLeft:"auto",fontSize:11,color:C.accent}}>âœ“</span>}
+              {dev===d.id&&<span style={{marginLeft:"auto",fontSize:11,color:C.accent}}>✓</span>}
             </button>
           ))}
         </div>
@@ -2034,23 +2034,23 @@ function AboutScreen({onClose}) {
     <div className="tl-shell" style={{position:"fixed",inset:0,background:C.bg,zIndex:400,margin:"0 auto",fontFamily:C.fBody,display:"flex",flexDirection:"column",overflowY:"auto"}}>
       <style>{FONTS+THEME_STYLE}</style>
       <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"calc(env(safe-area-inset-top,0px) + 16px) 20px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-        <button onClick={onClose} style={{...S.btn,background:"transparent",color:C.green,fontFamily:C.fCond,fontSize:14,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",gap:3,padding:0}}>â† Back</button>
+        <button onClick={onClose} style={{...S.btn,background:"transparent",color:C.green,fontFamily:C.fCond,fontSize:14,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",gap:3,padding:0}}>← Back</button>
         <span style={{fontFamily:C.fMono,fontSize:11,color:C.muted,letterSpacing:"0.15em"}}>ABOUT & SETTINGS</span>
         <div style={{width:60}}/>
       </div>
       <div style={{padding:"20px",display:"flex",flexDirection:"column",gap:12}}>
         <div style={{...S.card,padding:"24px 20px",textAlign:"center"}}>
-          <div style={{fontFamily:C.fCond,fontSize:38,fontWeight:700,color:C.green,letterSpacing:"0.12em",marginBottom:8}}>TuneLab</div>
+          <div style={{fontFamily:C.fCond,fontSize:38,fontWeight:700,color:C.green,letterSpacing:"0.12em",marginBottom:8}}>LinjeTune</div>
           <div style={{fontFamily:C.fBody,fontSize:16,fontWeight:500,color:C.text,marginBottom:10}}>AI-assisted Forza Horizon 6 tuning</div>
-          <div style={{fontSize:13,color:C.muted,lineHeight:1.8}}>v{VERSION} Â· Free forever Â· No ads Â· No paywall</div>
-          <div style={{fontSize:13,color:C.muted,lineHeight:1.8,marginTop:2}}>Physics: FH5-baseline Â· Updated post-FH6 launch</div>
+          <div style={{fontSize:13,color:C.muted,lineHeight:1.8}}>v{VERSION} · Free forever · No ads · No paywall</div>
+          <div style={{fontSize:13,color:C.muted,lineHeight:1.8,marginTop:2}}>Physics: FH5-baseline · Updated post-FH6 launch</div>
         </div>
 
         {[
-          {icon:"â˜•",title:"Buy me a coffee",sub:"Ko-fi â€” free forever, tips appreciated",url:KOFI_URL},
-          {icon:"ðŸ’¬",title:"Discord server",sub:"Share tunes, get help, vote on features",url:DISCORD_URL},
-          {icon:"ðŸ™",title:"GitHub",sub:"Open source â€” bugs, features, source code",url:GITHUB_URL},
-          {icon:"ðŸ”’",title:"Privacy policy",sub:"What data we store and why",url:"https://github.com/super-android/tunelab/blob/main/privacy.md"},
+          {icon:"☕",title:"Buy me a coffee",sub:"Ko-fi — free forever, tips appreciated",url:KOFI_URL},
+          {icon:"💬",title:"Discord server",sub:"Share tunes, get help, vote on features",url:DISCORD_URL},
+          {icon:"🐙",title:"GitHub",sub:"Open source — bugs, features, source code",url:GITHUB_URL},
+          {icon:"🔒",title:"Privacy policy",sub:"What data we store and why",url:"https://github.com/super-android/tunelab/blob/main/privacy.md"},
         ].map(item=>(
           <a key={item.title} href={item.url} target="_blank" rel="noopener noreferrer"
             style={{...S.card,padding:"14px 16px",display:"flex",alignItems:"center",gap:14,textDecoration:"none",cursor:"pointer"}}>
@@ -2059,7 +2059,7 @@ function AboutScreen({onClose}) {
               <div style={{fontFamily:C.fBody,fontSize:15,fontWeight:500,color:C.text,marginBottom:3}}>{item.title}</div>
               <div style={{fontFamily:C.fBody,fontSize:13,color:C.muted}}>{item.sub}</div>
             </div>
-            <span style={{color:C.dim,fontSize:14,flexShrink:0}}>â†—</span>
+            <span style={{color:C.dim,fontSize:14,flexShrink:0}}>↗</span>
           </a>
         ))}
 
@@ -2067,7 +2067,7 @@ function AboutScreen({onClose}) {
           <div style={{fontFamily:C.fMono,fontSize:9,color:C.muted,letterSpacing:"0.2em",marginBottom:10}}>SEND FEEDBACK</div>
           <a href={`${GITHUB_URL}/issues`} target="_blank" rel="noopener noreferrer"
             style={{...S.btn,width:"100%",padding:"11px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,fontFamily:C.fBody,fontSize:14,textDecoration:"none",gap:6}}>
-            ðŸ› Report bug / request feature
+            🐛 Report bug / request feature
           </a>
         </div>
 
@@ -2080,7 +2080,7 @@ function AboutScreen({onClose}) {
             localStorage.removeItem("tl_v1_cardb_version");
             window.location.reload();
           }} style={{...S.btn,width:"100%",padding:"11px",background:`${C.green}10`,border:`1px solid ${C.green}30`,borderRadius:8,color:C.green,fontFamily:C.fBody,fontSize:14,gap:6}}>
-            â†» Refresh car database
+            ↻ Refresh car database
           </button>
         </div>
 
@@ -2089,19 +2089,19 @@ function AboutScreen({onClose}) {
           <div style={{fontFamily:C.fBody,fontSize:13,color:C.muted,marginBottom:12,lineHeight:1.6}}>Wipes all saved tunes, AI keys, unit preferences, and resets the app to first launch. Cannot be undone.</div>
           <button onClick={()=>{if(window.confirm("Reset all data? This cannot be undone.")){Object.keys(localStorage).filter(k=>k.startsWith("tl_")).forEach(k=>localStorage.removeItem(k));window.location.reload();}}}
             style={{...S.btn,width:"100%",padding:"11px",background:"transparent",border:"1px solid rgba(255,77,77,0.3)",borderRadius:8,color:"#ff4d4d",fontFamily:C.fBody,fontSize:14,gap:6}}>
-            ðŸ—‘ Reset all data
+            🗑 Reset all data
           </button>
         </div>
 
         <div style={{textAlign:"center",padding:"8px 0 16px"}}>
           <div style={{fontFamily:C.fBody,fontSize:13,color:C.muted,marginBottom:6}}>With thanks to</div>
           <div style={{fontFamily:C.fCond,fontSize:20,fontWeight:700,color:C.text,letterSpacing:"0.08em"}}>Kireth</div>
-          <div style={{fontFamily:C.fBody,fontSize:12,color:C.dim,marginTop:4}}>Early FH6 physics feedback Â· youtube.com/@Kireth</div>
+          <div style={{fontFamily:C.fBody,fontSize:12,color:C.dim,marginTop:4}}>Early FH6 physics feedback · youtube.com/@Kireth</div>
         </div>
 
         <div style={{textAlign:"center",padding:"0 0 20px"}}>
-          <div style={{fontFamily:C.fBody,fontSize:11,color:C.dim,lineHeight:1.7}}>TuneLab is not affiliated with Xbox, Turn 10, or Playground Games.</div>
-          <div style={{fontFamily:C.fBody,fontSize:11,color:C.dim,lineHeight:1.7}}>Forza HorizonÂ® is a registered trademark of Microsoft Corporation.</div>
+          <div style={{fontFamily:C.fBody,fontSize:11,color:C.dim,lineHeight:1.7}}>LinjeTune is not affiliated with Xbox, Turn 10, or Playground Games.</div>
+          <div style={{fontFamily:C.fBody,fontSize:11,color:C.dim,lineHeight:1.7}}>Forza Horizon® is a registered trademark of Microsoft Corporation.</div>
         </div>
       </div>
     </div>
@@ -2109,12 +2109,12 @@ function AboutScreen({onClose}) {
 }
 
 
-// â”€â”€â”€ CAR DATABASE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── CAR DATABASE ─────────────────────────────────────────────────────────
 // drive: FWD/RWD/AWD | cls: D/C/B/A/S1/S2/X/R | weight: lbs (0=unknown) | ev: true/false
-// Generated from official FH6 car list â€” weight/PI to be filled post-launch
+// Generated from official FH6 car list — weight/PI to be filled post-launch
 
 const CAR_DB_SEED = [
-  // Seed data â€” app fetches full list from GitHub on launch
+  // Seed data — app fetches full list from GitHub on launch
   {make:"Nissan",model:"GT-R Black Edition (R35)",year:"2012",drive:"AWD",cls:"S1",weight:3900,pi:703,ev:false},
   {make:"Toyota",model:"Sprinter Trueno GT Apex",year:"1985",drive:"RWD",cls:"D",weight:2095,pi:376,ev:false},
   {make:"Subaru",model:"Impreza WRX STI",year:"2004",drive:"AWD",cls:"B",weight:3086,pi:552,ev:false},
@@ -2228,16 +2228,16 @@ const CAR_DB = {
   "Alumicraft": ["Class 10 Race Car '15", "#122 Class 1 Buggy '21", "#6165 Trick Truck '22"],
   "Ariel": ["Atom 500 V8 '13", "Nomad '16"],
   "Aston Martin": ["DB5 '64", "DB11 '17", "Vulcan AMR Pro '17", "DBS Superleggera '19", "Valhalla Concept Car '19", "Vantage '19", "DBX '21", "Valkyrie AMR Pro '22", "Valkyrie '23"],
-  "Audi": ["Sport quattro '83", "#2 Sport quattro S1 '86", "RS 4 Avant '01", "RS 6 '03", "RS 4 '06", "RS 6 '09", "R8 LMS '09", "TT RS CoupÃ© '10", "RS 3 Sportback '11", "RS 5 CoupÃ© '11", "R8 CoupÃ© V10 plus '13", "RS 4 Avant '13", "RS 7 Sportback '13", "RS 6 Avant '15", "S1 '15", "R8 V10 plus '16", "RS 4 Avant '18", "R8 V10 Performance '20", "RS 3 Sedan '20", "RS 6 Avant '21", "RS 7 Sportback '21", "RS e-tron GT '21"],
+  "Audi": ["Sport quattro '83", "#2 Sport quattro S1 '86", "RS 4 Avant '01", "RS 6 '03", "RS 4 '06", "RS 6 '09", "R8 LMS '09", "TT RS Coupé '10", "RS 3 Sportback '11", "RS 5 Coupé '11", "R8 Coupé V10 plus '13", "RS 4 Avant '13", "RS 7 Sportback '13", "RS 6 Avant '15", "S1 '15", "R8 V10 plus '16", "RS 4 Avant '18", "R8 V10 Performance '20", "RS 3 Sedan '20", "RS 6 Avant '21", "RS 7 Sportback '21", "RS e-tron GT '21"],
   "Autozam": ["AZ-1 '93"],
   "BAC": ["Mono '14"],
-  "BMW": ["Isetta 300 Export '57", "2002 Turbo '73", "M1 '81", "M3 '88", "M5 '88", "850CSi '95", "M5 '95", "M3 '97", "M5 '03", "M3 '05", "M3 '08", "Z4 M CoupÃ© '08", "M5 '09", "M3 GTS '10", "X5 M '11", "M5 '12", "M4 CoupÃ© '14", "i8 '15", "M4 GTS '16", "Z4 Roadster '19", "M2 Competition CoupÃ© '20", "M8 Competition Coupe '20", "M4 Competition CoupÃ© '21", "M4 Competition CoupÃ© 'Welcome Pack' '21", "M5 CS '22", "iX xDrive50 '22", "M2 '23", "M2 Forza Edition '23", "X6 M Competition '24"],
+  "BMW": ["Isetta 300 Export '57", "2002 Turbo '73", "M1 '81", "M3 '88", "M5 '88", "850CSi '95", "M5 '95", "M3 '97", "M5 '03", "M3 '05", "M3 '08", "Z4 M Coupé '08", "M5 '09", "M3 GTS '10", "X5 M '11", "M5 '12", "M4 Coupé '14", "i8 '15", "M4 GTS '16", "Z4 Roadster '19", "M2 Competition Coupé '20", "M8 Competition Coupe '20", "M4 Competition Coupé '21", "M4 Competition Coupé 'Welcome Pack' '21", "M5 CS '22", "iX xDrive50 '22", "M2 '23", "M2 Forza Edition '23", "X6 M Competition '24"],
   "Bentley": ["Bentayga '16", "Continental GT Convertible '21"],
   "Buick": ["Regal GNX '87"],
   "Cadillac": ["ATS-V '16", "CTS-V Sedan '16", "CT4-V Blackwing '22", "CT5-V Blackwing '22"],
   "Can-Am": ["Maverick X RS Turbo R '18"],
   "Casey Currie": ["#4402 Ultra 4 'Trophy Jeep' '19"],
-  "Chevrolet": ["Corvette '53", "150 Utility Sedan '55", "Bel Air '57", "Corvette '60", "Impala Super Sport 409 '64", "Corvette Stingray 427 '67", "Camaro Super Sport Coupe '69", "Nova Super Sport 396 '69", "Chevelle Super Sport 454 '70", "El Camino Super Sport 454 '70", "K10 Custom '72", "Camaro Z28 '79", "Monte Carlo Super Sport '88", "Corvette ZR-1 '95", "Impala Super Sport '96", "Corvette Z06 '02", "Corvette ZR1 '09", "Camaro Z/28 '15", "Corvette Z06 '15", "Camaro ZL1 '17", "Camaro ZL1 1LE '18", "Corvette ZR1 '19", "Corvette Stingray CoupÃ© '20", "Silverado LT Trail Boss '20", "Corvette Z06 '23", "Corvette E-Ray '24"],
+  "Chevrolet": ["Corvette '53", "150 Utility Sedan '55", "Bel Air '57", "Corvette '60", "Impala Super Sport 409 '64", "Corvette Stingray 427 '67", "Camaro Super Sport Coupe '69", "Nova Super Sport 396 '69", "Chevelle Super Sport 454 '70", "El Camino Super Sport 454 '70", "K10 Custom '72", "Camaro Z28 '79", "Monte Carlo Super Sport '88", "Corvette ZR-1 '95", "Impala Super Sport '96", "Corvette Z06 '02", "Corvette ZR1 '09", "Camaro Z/28 '15", "Corvette Z06 '15", "Camaro ZL1 '17", "Camaro ZL1 1LE '18", "Corvette ZR1 '19", "Corvette Stingray Coupé '20", "Silverado LT Trail Boss '20", "Corvette Z06 '23", "Corvette E-Ray '24"],
   "Datsun": ["510 '70"],
   "DeBerti": ["Wrangler Unlimited '13", "Chevrolet Silverado 1500 Drift Truck '18", "Ford Super Duty F-250 Lariat 'Transformer' '19", "Toyota Tacoma TRD 'The Performance Truck' '19"],
   "DeLorean": ["DMC-12 '82"],
@@ -2259,7 +2259,7 @@ const CAR_DB = {
   "Jimco": ["#240 Fastball Racing Spec Trophy Truck '19", "#179 Hammerhead Class 1 '20"],
   "KTM": ["X-Bow GT4 '18"],
   "Koenigsegg": ["CCGT '08", "Agera '11", "One:1 '15", "Regera '16", "Jesko '20"],
-  "Lamborghini": ["Miura P400 '67", "Countach LP5000 QV '88", "Diablo SV '97", "Diablo GTR '99", "MurciÃ©lago LP 670-4 SV '10", "Aventador LP 700-4 '12", "Gallardo LP 570-4 Spyder Performante '12", "Veneno '13", "HuracÃ¡n LP 610-4 '14", "Centenario LP 770-4 '16", "Aventador SVJ '18", "Urus '19", "Essenza SCV12 '20", "HuracÃ¡n STO '20", "Countach LPI 800-4 '21", "HuracÃ¡n Sterrato '22", "HuracÃ¡n Tecnica '22", "Revuelto '24"],
+  "Lamborghini": ["Miura P400 '67", "Countach LP5000 QV '88", "Diablo SV '97", "Diablo GTR '99", "Murciélago LP 670-4 SV '10", "Aventador LP 700-4 '12", "Gallardo LP 570-4 Spyder Performante '12", "Veneno '13", "Huracán LP 610-4 '14", "Centenario LP 770-4 '16", "Aventador SVJ '18", "Urus '19", "Essenza SCV12 '20", "Huracán STO '20", "Countach LPI 800-4 '21", "Huracán Sterrato '22", "Huracán Tecnica '22", "Revuelto '24"],
   "Lancia": ["Stratos HF Stradale '74", "Delta S4 '86", "Delta HF Integrale Evo '92"],
   "Land Rover": ["Range Rover Sport SVR '15", "Defender 110 X '20"],
   "Lexus": ["LFA '10", "LFA Forza Edition '10", "RC F '15", "LC 500 '21"],
@@ -2270,9 +2270,9 @@ const CAR_DB = {
   "MINI": ["Cooper S '65", "John Cooper Works GP '12", "X-Raid John Cooper Works Buggy '18", "John Cooper Works GP '21"],
   "Maserati": ["Ghibli Cup '97", "MC20 '22"],
   "Mazda": ["Cosmo 110S Series II '72", "RX-3 '73", "RX-3 Forza Edition '73", "RX-7 GSL-SE '85", "Savanna RX-7 '90", "MX-5 Miata '90", "#55 Mazda 787B '91", "RX-7 Type R '92", "MX-5 Miata '94", "MX-5 Miata Forza Edition '94", "Mazdaspeed MX-5 '05", "Furai '08", "Mazdaspeed 3 '10", "RX-8 R3 '11", "MX-5 '13", "MX-5 '16", "MX-5 Cup '17", "MX-5 Miata RF '22"],
-  "McLaren": ["F1 '93", "F1 GT '97", "12C CoupÃ© '11", "P1 '13", "570S CoupÃ© '15", "600LT CoupÃ© '18", "Speedtail '19", "620R '21", "765LT '21", "Sabre '21", "Artura '23"],
-  "Mercedes-AMG": ["C 63 S CoupÃ© '16", "E 63 S '18", "GT 4-Door CoupÃ© '18", "GT Black Series '21", "GT Black Series 'Welcome Pack' '21", "SL 63 '21"],
-  "Mercedes-Benz": ["300 SL CoupÃ© '54", "AMG Hammer Coupe '87", "190E 2.5-16 Evolution II '90", "190E 2.5-16 Evolution II Forza Edition '90", "SL 65 AMG Black Series '09", "C 63 AMG CoupÃ© Black Series '12", "A 45 AMG '13", "G 65 AMG '13", "G 65 AMG 6x6 '14", "Unimog U5023 '14", "X-Class '18", "SLC 43 Final Edition '20"],
+  "McLaren": ["F1 '93", "F1 GT '97", "12C Coupé '11", "P1 '13", "570S Coupé '15", "600LT Coupé '18", "Speedtail '19", "620R '21", "765LT '21", "Sabre '21", "Artura '23"],
+  "Mercedes-AMG": ["C 63 S Coupé '16", "E 63 S '18", "GT 4-Door Coupé '18", "GT Black Series '21", "GT Black Series 'Welcome Pack' '21", "SL 63 '21"],
+  "Mercedes-Benz": ["300 SL Coupé '54", "AMG Hammer Coupe '87", "190E 2.5-16 Evolution II '90", "190E 2.5-16 Evolution II Forza Edition '90", "SL 65 AMG Black Series '09", "C 63 AMG Coupé Black Series '12", "A 45 AMG '13", "G 65 AMG '13", "G 65 AMG 6x6 '14", "Unimog U5023 '14", "X-Class '18", "SLC 43 Final Edition '20"],
   "Meyers": ["Manx '71", "Manx 2.0 EV '23"],
   "Mitsubishi": ["#269 Minicab Time Attack '90", "Galant VR-4 '92", "Eclipse GSX '95", "Lancer Evolution III GSR '95", "Montero Exceed 2800 TD '95", "GTO '97", "Montero Evolution '97", "Lancer Evolution VI GSR TM Edition '01", "Lancer Evolution VIII MR '04", "Lancer Evolution VIII MR 'Welcome Pack' '04", "#1 Sierra Lancer Evolution Time Attack '05", "Lancer Evolution IX MR '06", "Lancer Evolution X GSR '08"],
   "Nissan": ["Fairlady Z 432 '69", "Skyline 2000GT-R '71", "Skyline H/T 2000GT-R '73", "#11 Tomica Skyline Turbo Super Silhouette '83", "Safari Turbo '85", "Be-1 '87", "Skyline GTS-R (HR31) '87", "PAO '89", "S-Cargo '89", "S-Cargo Forza Edition '89", "Silvia K's '89", "Pulsar GTI-R '90", "Figaro '91", "Skyline GT-R '92", "#32 Skyline WTAC 'Xtreme GTR' '93", "240SX '93", "Skyline GT-R V-Spec '93", "Fairlady Z Version S Twin Turbo '94", "Silvia K's '94", "Gloria Gran Turismo '95", "Nismo GT-R LM '95", "Skyline GT-R V-Spec '97", "Stagea RS Four V '97", "#23 Pennzoil Nismo Skyline GT-R '98", "Silvia K's Aero '98", "#36 Silvia WTAC '00", "Skyline GT-R V-Spec II '00", "Silvia Spec-R '02", "Fairlady Z '03", "370Z '10", "GT-R Black Edition (R35) '12", "GT-R Black Edition (R35) Forza Edition '12", "GT-R Black Edition (R35) Touge Edition '12", "GT-R (R35) '17", "370Z NISMO '19", "GT-R NISMO (R35) '20", "GT-R NISMO '24", "Z NISMO '24"],
@@ -2290,12 +2290,12 @@ const CAR_DB = {
   "Radical": ["RXC Turbo '15"],
   "Ram": ["1500 TRX '24"],
   "Reliant": ["Supervan III '72"],
-  "Renault": ["8 Gordini '67", "5 Turbo '80", "Clio Williams '93", "Megane R26.R '08", "Megane RS 250 '10", "MÃ©gane R.S. '18"],
+  "Renault": ["8 Gordini '67", "5 Turbo '80", "Clio Williams '93", "Megane R26.R '08", "Megane RS 250 '10", "Mégane R.S. '18"],
   "Rivian": ["R1T '22"],
   "SIERRA Cars": ["#23 Yokohama Alpha '20", "700R '21", "RX3 '21"],
   "Saleen": ["S7 LM '17"],
   "Schuppan": ["962CR '93"],
-  "Shelby": ["Cobra 427 S/C '65", "Cobra Daytona CoupÃ© '65"],
+  "Shelby": ["Cobra 427 S/C '65", "Cobra Daytona Coupé '65"],
   "Subaru": ["BRAT GL '80", "Legacy RS '90", "Vivio RX-R '94", "Vivio RX-R Forza Edition '94", "SVX '96", "Impreza 22B-STi Version '98", "Impreza WRX STi '04", "Impreza WRX STi '05", "Legacy B4 2.0 GT '05", "Impreza WRX STI '08", "WRX STI '11", "BRZ '13", "WRX STI '15", "WRX STI ARX Supercar '18", "STI S209 '19", "BRZ '22", "BRZ Forza Edition '22", "WRX '22"],
   "TVR": ["Sagaris '05", "Griffith '18"],
   "Toyota": ["Sports 800 '65", "Sports 800 Fanta Edition '65", "2000GT '69", "Corolla SR5 '74", "FJ40 '79", "Sprinter Trueno GT Apex '85", "Sprinter Trueno GT Apex Forza Edition '85", "Sprinter Trueno GT Apex Touge Edition '85", "MR2 SC '89", "Chaser GT Twin Turbo '91", "Sera '91", "Celica GT-Four RC ST185 '92", "Supra 2.0 GT '92", "#1 Baja T100 Truck '93", "Celica GT-Four ST205 '94", "J&J Motorsport Supra WTAC '95", "MR2 GT '95", "Chaser 2.5 Tourer V '97", "Soarer 2.5 GT-T '97", "Supra RZ '98", "Celica Sport Specialty II '03", "Crown Super Deluxe Taxi '05", "86 '13", "86 'Stories' '13", "Land Cruiser Arctic Trucks AT37 '16", "JPN Taxi '17", "4Runner TRD Pro '19", "Tacoma TRD Pro '19", "Tacoma TRD Pro Forza Edition '19", "GR Supra '20", "GR Yaris '21", "GR86 '22", "Camry TRD '23", "Land Cruiser '25"],
@@ -2305,18 +2305,18 @@ const CAR_DB = {
   "Zenvo": ["TSR-S '19"],
 };
 
-// â”€â”€â”€ MAIN APP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
-// â”€â”€â”€ PAINTLAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── PAINTLAB ────────────────────────────────────────────────────────────────
 
-// â”€â”€â”€ THEME (matches TuneLab exactly) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-
+// ─── THEME (matches LinjeTune exactly) ─────────────────────────────────────────
 
 
-// â”€â”€â”€ DATA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Pre-converted: hue/sat/bri â†’ approximate RGB swatch, plus original Forza values
-// Full 10 936-entry dataset â€” Vehicle Colours + Wheel Colours
+
+
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+// Pre-converted: hue/sat/bri → approximate RGB swatch, plus original Forza values
+// Full 10 936-entry dataset — Vehicle Colours + Wheel Colours
 
 // Inline a curated representative sample here.
 // In production, replace RAW with the full import from colors.json
@@ -2330,7 +2330,7 @@ function isLight(hex) {
   return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.82;
 }
 
-// â”€â”€â”€ MAIN APP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function hexToForzaHSB(hex) {
   // Convert hex to standard HSB (0-360, 0-100, 0-100)
   const r = parseInt(hex.slice(1,3),16)/255;
@@ -2361,7 +2361,7 @@ function hexToForzaHSB(hex) {
   };
 }
 
-// â”€â”€â”€ CANVAS COLOR PICKER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── CANVAS COLOR PICKER ──────────────────────────────────────────────────────
 function hsvToHex(h, s, v) {
   const f = n => { const k=(n+h/60)%6; return v-v*s*Math.max(0,Math.min(k,4-k,1)); };
   const r=Math.round(f(5)*255),g=Math.round(f(3)*255),b=Math.round(f(1)*255);
@@ -2495,7 +2495,7 @@ function InlineColorBuilder({accentColor, favs, setFavs}) {
     const lbl=name.trim()||"Custom Color";
     const lines=[lbl,"","COLOR 1",`  Hue:        ${hsb1.h}`,`  Saturation: ${hsb1.s}`,`  Brightness: ${hsb1.v}`];
     if(hsb2) lines.push("","COLOR 2",`  Hue:        ${hsb2.h}`,`  Saturation: ${hsb2.s}`,`  Brightness: ${hsb2.v}`);
-    lines.push("","\u26a0 Approximate â€” fine-tune in game.");
+    lines.push("","\u26a0 Approximate — fine-tune in game.");
     navigator.clipboard?.writeText(lines.join("\n"));
     setCopied(true); setTimeout(()=>setCopied(false),2000);
   };
@@ -2601,7 +2601,7 @@ function InlineColorBuilder({accentColor, favs, setFavs}) {
           </div>
         </div>
       )}
-      <div style={{fontFamily:C.fMono,fontSize:8,color:C.dim,letterSpacing:"0.08em",marginTop:6}}>{"Approximate conversion Â· fine-tune in game Â· name required to save"}</div>
+      <div style={{fontFamily:C.fMono,fontSize:8,color:C.dim,letterSpacing:"0.08em",marginTop:6}}>{"Approximate conversion · fine-tune in game · name required to save"}</div>
     </div>
   );
 }
@@ -2655,7 +2655,7 @@ function ForzaColorsInner({accentColor, onCountChange}) {
     setRenamingFav(null);
   };
 
-  // derive sorted make list â€” filtered by current sheet (not Favs)
+  // derive sorted make list — filtered by current sheet (not Favs)
   const makes = useMemo(() => {
     const s = [...new Set(RAW.filter(d => sheet === "All" || sheet === "Favs" || d.sh === sheet).map(d => d.m))].sort();
     return ["All Makes", ...s];
@@ -2715,7 +2715,7 @@ function ForzaColorsInner({accentColor, onCountChange}) {
 
   const copyValues = (entry) => {
     const lines = [
-      `${entry.m} â€” ${entry.n}`,
+      `${entry.m} — ${entry.n}`,
       `Type: ${entry.t}`,
       ``,
       `COLOR 1`,
@@ -2736,14 +2736,14 @@ function ForzaColorsInner({accentColor, onCountChange}) {
 
   return (
     <div style={{ background: "transparent", width:"100%", margin: "0 auto", display: "flex", flexDirection: "column", fontFamily: C.fBody, minHeight: "100%" }}>
-      {/* â”€â”€ HEADER */}
+      {/* ── HEADER */}
       <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "14px 16px 12px", flexShrink: 0 }}>
 
 
         {/* Top action row: search + builder + favs */}
         <div style={{display:"flex",gap:6,marginBottom:8}}>
           <div style={{flex:1}}><SearchBar value={search} onChange={v => setSearch(v)} /></div>
-          <button onClick={()=>setShowBuilder(b=>!b)} title="Custom color builder" style={{...S.btn,width:36,height:38,borderRadius:4,border:`1px solid ${showBuilder?accentColor||C.accent:C.border}`,background:showBuilder?`${accentColor||C.accent}15`:C.surface,color:showBuilder?accentColor||C.accent:C.muted,fontSize:16,flexShrink:0}}>ðŸŽ¨</button>
+          <button onClick={()=>setShowBuilder(b=>!b)} title="Custom color builder" style={{...S.btn,width:36,height:38,borderRadius:4,border:`1px solid ${showBuilder?accentColor||C.accent:C.border}`,background:showBuilder?`${accentColor||C.accent}15`:C.surface,color:showBuilder?accentColor||C.accent:C.muted,fontSize:16,flexShrink:0}}>🎨</button>
         </div>
 
         {/* Sheet toggle */}
@@ -2767,7 +2767,7 @@ function ForzaColorsInner({accentColor, onCountChange}) {
           })}
         </div>
 
-        {/* Make/cat dropdowns â€” hidden on Favs tab */}
+        {/* Make/cat dropdowns — hidden on Favs tab */}
         {!isFavSheet && <div style={{ display: "flex", gap: 8 }}>
           <div style={{ flex: 1, position: "relative" }}>
             <span style={{ ...S.label, marginBottom: 3 }}>Make</span>
@@ -2791,7 +2791,7 @@ function ForzaColorsInner({accentColor, onCountChange}) {
           </div>
         </div>}
 
-        {/* Active filter pills â€” hidden on Favs tab */}
+        {/* Active filter pills — hidden on Favs tab */}
         {(!isFavSheet && (make !== "All Makes" || cat !== "All Colors" || search)) ? (
           <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
             {make !== "All Makes" && <FilterPill label={make} onClear={() => setMake("All Makes")} />}
@@ -2804,19 +2804,19 @@ function ForzaColorsInner({accentColor, onCountChange}) {
         ) : null}
       </div>
 
-      {/* â”€â”€ INLINE BUILDER PANEL */}
+      {/* ── INLINE BUILDER PANEL */}
       {showBuilder && (
         <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:"14px 16px",flexShrink:0}}>
           <InlineColorBuilder accentColor={accentColor} favs={favs} setFavs={setFavs}/>
         </div>
       )}
 
-      {/* â”€â”€ LIST */}
+      {/* ── LIST */}
       <div ref={listRef} onScroll={handleScroll} style={{ flex: 1, overflowY: "auto" }}>
         {filtered.length === 0 ? (
           <div style={{ padding: 40, textAlign: "center" }}>
             <div style={{ fontFamily: C.fMono, fontSize: 10, color: C.muted, letterSpacing: "0.15em", marginBottom: 8 }}>{isFavSheet?"NO FAVORITES YET":"NO RESULTS"}</div>
-            <div style={{ fontFamily: C.fBody, fontSize: 13, color: C.dim }}>{isFavSheet?"Tap â™¥ on any color to save it here":"Try a different filter or search term"}</div>
+            <div style={{ fontFamily: C.fBody, fontSize: 13, color: C.dim }}>{isFavSheet?"Tap ♥ on any color to save it here":"Try a different filter or search term"}</div>
           </div>
         ) : (
           <div style={{paddingTop:paddingTop,paddingBottom:paddingBottom}}>
@@ -2827,7 +2827,7 @@ function ForzaColorsInner({accentColor, onCountChange}) {
               favNick={getFavNick(entry)}
               onCopyHSB={()=>{
                 const e=entry;
-                const lines=[`${e.m} â€” ${e.n}`,"",`COLOR 1`,`  Hue:        ${e.c1[0]}`,`  Saturation: ${e.c1[1]}`,`  Brightness: ${e.c1[2]}`];
+                const lines=[`${e.m} — ${e.n}`,"",`COLOR 1`,`  Hue:        ${e.c1[0]}`,`  Saturation: ${e.c1[1]}`,`  Brightness: ${e.c1[2]}`];
                 if(e.c2){lines.push("",`COLOR 2`,`  Hue:        ${e.c2[0]}`,`  Saturation: ${e.c2[1]}`,`  Brightness: ${e.c2[2]}`);}
                 navigator.clipboard?.writeText(lines.join("\n"));
               }}
@@ -2853,7 +2853,7 @@ function ForzaColorsInner({accentColor, onCountChange}) {
   );
 }
 
-// â”€â”€â”€ COLOR ROW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COLOR ROW ────────────────────────────────────────────────────────────────
 function ColorRow({ entry, onPress, isFav, onToggleFav, onCopyHSB, favNick, onRename }) {
   const isTwoTone = !!entry.r2 && entry.r2 !== entry.r1;
   return (
@@ -2887,19 +2887,19 @@ function ColorRow({ entry, onPress, isFav, onToggleFav, onCopyHSB, favNick, onRe
       </div>
 
       {/* Arrow */}
-      <span style={{ color: C.dim, fontSize: 18, marginLeft: 8 }}>â€º</span>
+      <span style={{ color: C.dim, fontSize: 18, marginLeft: 8 }}>›</span>
       </button>
       {/* Side actions */}
       <div style={{display:"flex",flexDirection:"column",justifyContent:"center",gap:4,padding:"8px 10px 8px 0",flexShrink:0}}>
-        <button onClick={e=>{e.stopPropagation();onToggleFav&&onToggleFav();}} title={isFav?"Remove favorite":"Save favorite"} style={{...S.btn,width:28,height:28,borderRadius:5,border:`1px solid ${isFav?"#e05544":C.border}`,background:isFav?"#e0554422":"transparent",color:isFav?"#ff4466":C.dim,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>â™¥</button>
-        {onRename && <button onClick={e=>{e.stopPropagation();onRename();}} title="Rename" style={{...S.btn,width:28,height:28,borderRadius:5,border:`1px solid ${C.border}`,background:"transparent",color:C.dim,fontSize:11,fontFamily:C.fMono,display:"flex",alignItems:"center",justifyContent:"center"}}>âœŽ</button>}
+        <button onClick={e=>{e.stopPropagation();onToggleFav&&onToggleFav();}} title={isFav?"Remove favorite":"Save favorite"} style={{...S.btn,width:28,height:28,borderRadius:5,border:`1px solid ${isFav?"#e05544":C.border}`,background:isFav?"#e0554422":"transparent",color:isFav?"#ff4466":C.dim,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>♥</button>
+        {onRename && <button onClick={e=>{e.stopPropagation();onRename();}} title="Rename" style={{...S.btn,width:28,height:28,borderRadius:5,border:`1px solid ${C.border}`,background:"transparent",color:C.dim,fontSize:11,fontFamily:C.fMono,display:"flex",alignItems:"center",justifyContent:"center"}}>✎</button>}
         <button onClick={e=>{e.stopPropagation();onCopyHSB&&onCopyHSB();}} title="Copy HSB values" style={{...S.btn,width:28,height:28,borderRadius:5,border:`1px solid ${C.border}`,background:"transparent",color:C.dim,fontSize:11,fontFamily:C.fMono,display:"flex",alignItems:"center",justifyContent:"center",letterSpacing:"-0.05em"}}>HSB</button>
       </div>
     </div>
   );
 }
 
-// â”€â”€â”€ DETAIL SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── DETAIL SCREEN ────────────────────────────────────────────────────────────
 function DetailScreen({ entry, onBack, onCopy, copied, isFav, onToggleFav }) {
   const isTwoTone = !!entry.r2 && entry.r2 !== entry.r1;
 
@@ -2909,14 +2909,14 @@ function DetailScreen({ entry, onBack, onCopy, copied, isFav, onToggleFav }) {
 
       {/* Header */}
       <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ ...S.btn, color: C.text, fontSize: 22, padding: 0 }}>â†</button>
+        <button onClick={onBack} style={{ ...S.btn, color: C.text, fontSize: 22, padding: 0 }}>←</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: C.fCond, fontSize: 18, fontWeight: 700, color: C.text, letterSpacing: "0.04em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {entry.n}
           </div>
-          <div style={{ fontFamily: C.fBody, fontSize: 12, color: C.muted }}>{entry.m} Â· {entry.t}</div>
+          <div style={{ fontFamily: C.fBody, fontSize: 12, color: C.muted }}>{entry.m} · {entry.t}</div>
         </div>
-        <button onClick={()=>onToggleFav&&onToggleFav()} style={{...S.btn,width:34,height:34,borderRadius:6,border:`1px solid ${isFav?"#e05544":C.border}`,background:isFav?"#e0554422":"transparent",color:isFav?"#ff4466":C.dim,fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>â™¥</button>
+        <button onClick={()=>onToggleFav&&onToggleFav()} style={{...S.btn,width:34,height:34,borderRadius:6,border:`1px solid ${isFav?"#e05544":C.border}`,background:isFav?"#e0554422":"transparent",color:isFav?"#ff4466":C.dim,fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>♥</button>
         <button onClick={() => onCopy(entry)} style={{
           ...S.btn, background: copied ? C.green + "22" : C.accentLo,
           border: `1px solid ${copied ? C.green : C.accent}55`,
@@ -2924,7 +2924,7 @@ function DetailScreen({ entry, onBack, onCopy, copied, isFav, onToggleFav }) {
           fontFamily: C.fMono, fontSize: 10, letterSpacing: "0.12em",
           color: copied ? C.green : C.accent,
         }}>
-          {copied ? "COPIED âœ“" : "COPY"}
+          {copied ? "COPIED ✓" : "COPY"}
         </button>
       </div>
 
@@ -2968,9 +2968,9 @@ function DetailScreen({ entry, onBack, onCopy, copied, isFav, onToggleFav }) {
         <div style={{ ...S.card, marginTop: 16, padding: "12px 14px" }}>
           <div style={{ fontFamily: C.fMono, fontSize: 9, color: C.muted, letterSpacing: "0.15em", marginBottom: 10 }}>HOW TO ENTER IN-GAME</div>
           <div style={{ fontFamily: C.fBody, fontSize: 12, color: C.muted, lineHeight: 1.8 }}>
-            <span style={{ color: C.ice2 }}>Each value has a direction (L/R)</span> â€” this is which side of center the dial sits on.<br />
-            <span style={{ color: C.ice2 }}>L = Left of center &nbsp;Â·&nbsp; R = Right of center</span><br />
-            Count notches carefully â€” small values like <span style={{ fontFamily: C.fMono, color: C.accent }}>0.02</span> are only 1â€“2 clicks from center.
+            <span style={{ color: C.ice2 }}>Each value has a direction (L/R)</span> — this is which side of center the dial sits on.<br />
+            <span style={{ color: C.ice2 }}>L = Left of center &nbsp;·&nbsp; R = Right of center</span><br />
+            Count notches carefully — small values like <span style={{ fontFamily: C.fMono, color: C.accent }}>0.02</span> are only 1–2 clicks from center.
           </div>
         </div>
       </div>
@@ -2978,7 +2978,7 @@ function DetailScreen({ entry, onBack, onCopy, copied, isFav, onToggleFav }) {
   );
 }
 
-// â”€â”€â”€ COLOR BLOCK (hue / sat / bri values) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COLOR BLOCK (hue / sat / bri values) ─────────────────────────────────────
 function ColorBlock({ label, color, vals, accentColor }) {
   if (!vals) return null;
   const rows = [
@@ -3003,7 +3003,7 @@ function ColorBlock({ label, color, vals, accentColor }) {
       {/* Value rows */}
       {rows.map(({ key, val }) => {
         const dir = getDir(val);
-        const numPart = val ? val.split(" ")[0] : "â€”";
+        const numPart = val ? val.split(" ")[0] : "—";
         return (
           <div key={key} style={{ display: "flex", alignItems: "center", padding: "11px 12px", borderBottom: `1px solid ${C.border + "66"}` }}>
             <span style={{ fontFamily: C.fMono, fontSize: 10, color: C.muted, letterSpacing: "0.12em", width: 90, flexShrink: 0 }}>{key}</span>
@@ -3024,14 +3024,14 @@ function ColorBlock({ label, color, vals, accentColor }) {
   );
 }
 
-// â”€â”€â”€ SMALL COMPONENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── SMALL COMPONENTS ─────────────────────────────────────────────────────────
 function SearchBar({ value, onChange }) {
   const [focus, setFocus] = useState(false);
   return (
     <div style={{ position: "relative" }}>
-      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.muted, fontSize: 14, pointerEvents: "none" }}>âŒ•</span>
+      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.muted, fontSize: 14, pointerEvents: "none" }}>⌕</span>
       <input
-        type="text" value={value} placeholder="Search make, color, paint typeâ€¦"
+        type="text" value={value} placeholder="Search make, color, paint type…"
         onChange={e => onChange(e.target.value)}
         onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
         style={{
@@ -3074,22 +3074,22 @@ function PaintLabScreen({onBack, accentColor: paintAccent}) {
     try { const c=localStorage.getItem("tl_v1_colors_cache"); return c?JSON.parse(c).length:null; } catch{return null;}
   });
   const menuItems = [
-    {id:"back",     icon:"â†", label:"Back to TuneLab", sub:"Return to tuning"},
+    {id:"back",     icon:"←", label:"Back to LinjeTune", sub:"Return to tuning"},
     null,
-    {id:"about",    icon:"â„¹", label:"About PaintLab",  sub:"Color data credits"},
+    {id:"about",    icon:"ℹ", label:"About PaintLab",  sub:"Color data credits"},
   ];
   return (
     <div className="tl-shell" style={{minHeight:"100vh",background:C.bg,color:C.text,margin:"0 auto",fontFamily:C.fBody,display:"flex",flexDirection:"column"}}>
       <style>{FONTS+THEME_STYLE}</style>
 
-      {/* Shared nav header â€” mirrors TuneLab */}
+      {/* Shared nav header — mirrors LinjeTune */}
       <div style={{position:"sticky",top:0,zIndex:20,background:C.bg,borderBottom:`1px solid ${C.border}`,padding:"calc(env(safe-area-inset-top,0px) + 10px) 14px 8px"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontFamily:C.fCond,fontSize:22,fontWeight:700,color:C.text,letterSpacing:"0.12em",lineHeight:1}}><span style={{color:paintAccent||C.green}}>Paint</span>Lab</div>
-            <div style={{fontFamily:C.fMono,fontSize:8,color:C.green,letterSpacing:"0.08em",marginTop:2}}>â— {(colorCount||"...").toLocaleString()} colors</div>
+            <div style={{fontFamily:C.fMono,fontSize:8,color:C.green,letterSpacing:"0.08em",marginTop:2}}>● {(colorCount||"...").toLocaleString()} colors</div>
           </div>
-          <button onClick={()=>setOverlay("menu")} style={{...S.btn,width:32,height:32,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,fontSize:17,letterSpacing:1,flexShrink:0}}>â˜°</button>
+          <button onClick={()=>setOverlay("menu")} style={{...S.btn,width:32,height:32,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,fontSize:17,letterSpacing:1,flexShrink:0}}>☰</button>
         </div>
       </div>
 
@@ -3125,7 +3125,7 @@ function PaintLabScreen({onBack, accentColor: paintAccent}) {
             <div style={{width:36,height:3,background:"#333",borderRadius:2,margin:"0 auto 16px"}}/>
             <div style={{fontFamily:C.fMono,fontSize:10,color:C.green,letterSpacing:"0.2em",textTransform:"uppercase",marginBottom:12}}>About PaintLab</div>
             <div style={{fontSize:13,color:C.muted,lineHeight:1.7,marginBottom:12}}>
-              Color data sourced from the FH6 community color spreadsheet. Hex values shown are approximate conversions of Forza's internal HSB color space â€” actual in-game appearance may vary.
+              Color data sourced from the FH6 community color spreadsheet. Hex values shown are approximate conversions of Forza's internal HSB color space — actual in-game appearance may vary.
             </div>
             <div style={{fontSize:13,color:C.muted,lineHeight:1.7}}>
               Two-tone colors show both layers. Wheel colors are listed separately from vehicle colors.
@@ -3151,7 +3151,7 @@ class PaintLabErrorBoundary extends Component {
       <div style={{padding:40,background:"#080a0f",minHeight:"100vh",color:"#e0e0e0"}}>
         <div style={{fontFamily:"monospace",fontSize:11,color:"#ff4466",marginBottom:16}}>PAINTLAB ERROR</div>
         <div style={{fontFamily:"monospace",fontSize:11,color:"#888",whiteSpace:"pre-wrap",wordBreak:"break-all"}}>{this.state.error}</div>
-        <button onClick={this.props.onBack} style={{marginTop:24,padding:"10px 20px",background:"transparent",border:"1px solid #333",color:"#888",borderRadius:6,fontFamily:"monospace",fontSize:11}}>â† Back</button>
+        <button onClick={this.props.onBack} style={{marginTop:24,padding:"10px 20px",background:"transparent",border:"1px solid #333",color:"#888",borderRadius:6,fontFamily:"monospace",fontSize:11}}>← Back</button>
       </div>
     );
     return this.props.children;
@@ -3214,7 +3214,7 @@ export default function ForzaTuner() {
   const [showPaste,    setShowPaste]    = useState(false);
   const [pasteError,   setPasteError]   = useState("");
 
-  // Remote car DB â€” fetches latest cars.json from GitHub on launch
+  // Remote car DB — fetches latest cars.json from GitHub on launch
   // Falls back to hardcoded CAR_DB_FULL if offline or fetch fails
   const [remoteCarDB, setRemoteCarDB] = useState(null);
   const [showOnboard, setShowOnboard] = useState(()=>!LS.get("tl_seen_intro", false));
@@ -3305,13 +3305,13 @@ const searchResults = carSearch.length > 0
         .slice(0, 8)
         .map(c => ({ make: c.make, model: c.year ? `${c.model} '${c.year.slice(-2)}` : c.model }));
 
-  // â”€â”€ ONBOARDING OVERLAY (first launch only)
+  // ── ONBOARDING OVERLAY (first launch only)
   if(showOnboard) return (
     <div className="tl-shell" style={{minHeight:"100vh",background:C.bg,color:C.text,margin:"0 auto",fontFamily:C.fBody,display:"flex",flexDirection:"column"}}>
       <style>{FONTS+THEME_STYLE}</style>
       <div style={{padding:"52px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <div style={{fontFamily:C.fCond,fontSize:28,fontWeight:700,letterSpacing:"0.12em",color:C.text}}><span style={{color:C.green}}>Tune</span>Lab</div>
-        <div style={{fontFamily:C.fMono,fontSize:9,color:C.dim,letterSpacing:"0.15em",marginTop:4}}>FH6 Â· FREE FOREVER Â· NO ADS</div>
+        <div style={{fontFamily:C.fCond,fontSize:28,fontWeight:700,letterSpacing:"0.12em",color:C.text}}><span style={{color:C.green}}>Linje</span>Tune</div>
+        <div style={{fontFamily:C.fMono,fontSize:9,color:C.dim,letterSpacing:"0.15em",marginTop:4}}>FH6 · FREE FOREVER · NO ADS</div>
       </div>
       <div style={{flex:1,padding:"20px",overflowY:"auto"}}>
 
@@ -3321,7 +3321,7 @@ const searchResults = carSearch.length > 0
           <div style={{fontSize:15,fontWeight:600,color:C.text,marginBottom:4}}>Pick your units</div>
           <div style={{fontSize:12,color:"#888",lineHeight:1.6,marginBottom:10}}>Match what you use in-game. You can change this later in Settings.</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {[{label:"Imperial",sub:"lbs Â· psi Â· mph",vals:{weight:"lbs",pressure:"psi",springs:"lbs/in",speed:"mph"}},{label:"Metric",sub:"kg Â· bar Â· km/h",vals:{weight:"kg",pressure:"bar",springs:"n/mm",speed:"km/h"}}].map(u=>{
+            {[{label:"Imperial",sub:"lbs · psi · mph",vals:{weight:"lbs",pressure:"psi",springs:"lbs/in",speed:"mph"}},{label:"Metric",sub:"kg · bar · km/h",vals:{weight:"kg",pressure:"bar",springs:"n/mm",speed:"km/h"}}].map(u=>{
               const sel = units.speed===u.vals.speed;
               return <button key={u.label} onClick={()=>setUnits(u.vals)} style={{background:sel?`${C.green}10`:"transparent",border:`2px solid ${sel?C.green:C.border}`,borderRadius:8,padding:"10px",textAlign:"left",cursor:"pointer"}}>
                 <div style={{fontFamily:C.fMono,fontSize:12,fontWeight:700,color:sel?C.green:C.text,marginBottom:3}}>{u.label}</div>
@@ -3336,7 +3336,7 @@ const searchResults = carSearch.length > 0
         <div style={{marginBottom:20}}>
           <div style={{fontFamily:C.fMono,fontSize:9,color:C.green,letterSpacing:"0.2em",marginBottom:6}}>STEP 02 OF 04</div>
           <div style={{fontSize:15,fontWeight:600,color:C.text,marginBottom:4}}>Find your car's stats in-game</div>
-          <div style={{fontSize:12,color:"#888",lineHeight:1.6}}>Go to <b style={{color:C.text}}>My Cars â†’ Upgrade</b> and note your car's <b style={{color:C.text}}>PI rating, weight, and drivetrain</b> (AWD/RWD/FWD). That's all you need to get started.</div>
+          <div style={{fontSize:12,color:"#888",lineHeight:1.6}}>Go to <b style={{color:C.text}}>My Cars → Upgrade</b> and note your car's <b style={{color:C.text}}>PI rating, weight, and drivetrain</b> (AWD/RWD/FWD). That's all you need to get started.</div>
         </div>
         <div style={{height:1,background:C.border,marginBottom:20}}/>
 
@@ -3346,7 +3346,7 @@ const searchResults = carSearch.length > 0
           <div style={{fontSize:15,fontWeight:600,color:C.text,marginBottom:4}}>Quick or Full tune?</div>
           <div style={{fontSize:12,color:"#888",lineHeight:1.6,marginBottom:10}}>Tap to select. You can switch anytime.</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {[{id:"D",name:"âš¡ Quick",desc:"Just PI, weight, drivetrain. Fast and clean.",rec:true},{id:"S",name:"âš™ Full",desc:"Add RPM, tire sizes, aero. More precise.",rec:false}].map(m=>(
+            {[{id:"D",name:"⚡ Quick",desc:"Just PI, weight, drivetrain. Fast and clean.",rec:true},{id:"S",name:"⚙ Full",desc:"Add RPM, tire sizes, aero. More precise.",rec:false}].map(m=>(
               <button key={m.id} onClick={()=>setMode(m.id)} style={{background:mode===m.id?`${C.green}10`:"transparent",border:`2px solid ${mode===m.id?C.green:C.border}`,borderRadius:8,padding:10,textAlign:"left",cursor:"pointer"}}>
                 <div style={{fontFamily:C.fMono,fontSize:11,fontWeight:700,letterSpacing:"0.1em",marginBottom:4,color:mode===m.id?C.green:"#888"}}>{m.name}</div>
                 <div style={{fontSize:10,color:"#666",lineHeight:1.5}}>{m.desc}</div>
@@ -3361,14 +3361,14 @@ const searchResults = carSearch.length > 0
         <div style={{marginBottom:20}}>
           <div style={{fontFamily:C.fMono,fontSize:9,color:C.green,letterSpacing:"0.2em",marginBottom:6}}>STEP 04 OF 04</div>
           <div style={{fontSize:15,fontWeight:600,color:C.text,marginBottom:4}}>Tune to your style</div>
-          <div style={{fontSize:12,color:"#888",lineHeight:1.6}}>After generating, use the <b style={{color:C.text}}>Feel Adjuster</b> to shift between stable/tail-happy and planted/aggressive. FH6 rewards stable â€” start there.</div>
+          <div style={{fontSize:12,color:"#888",lineHeight:1.6}}>After generating, use the <b style={{color:C.text}}>Feel Adjuster</b> to shift between stable/tail-happy and planted/aggressive. FH6 rewards stable — start there.</div>
         </div>
 
       </div>
       <div style={{padding:"16px 20px 32px",borderTop:`1px solid ${C.border}`}}>
         <button onClick={()=>{LS.set("tl_seen_intro",true);setShowOnboard(false);}}
           style={{width:"100%",padding:14,background:`${C.green}14`,border:`1px solid ${C.green}44`,borderRadius:8,color:C.green,fontFamily:C.fMono,fontSize:14,fontWeight:700,letterSpacing:"0.2em",textTransform:"uppercase",cursor:"pointer",marginBottom:8}}>
-          Get started â†’
+          Get started →
         </button>
         <button onClick={()=>{LS.set("tl_seen_intro",true);setShowOnboard(false);}}
           style={{width:"100%",padding:8,background:"transparent",border:"none",color:"#444",fontSize:12,cursor:"pointer"}}>
@@ -3389,8 +3389,8 @@ const searchResults = carSearch.length > 0
   if (screen==="output" && Object.keys(tunePages).filter(k=>k!=='_summary'&&tunePages[k]).length === 0) return (
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
       <style>{FONTS+THEME_STYLE}</style>
-      <div style={{fontFamily:C.fMono,fontSize:11,color:C.muted,letterSpacing:"0.2em"}}>CALCULATINGâ€¦</div>
-      <button onClick={()=>setScreen("main")} style={{fontFamily:C.fCond,fontSize:12,color:C.muted,background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,padding:"8px 16px",cursor:"pointer"}}>â† Back</button>
+      <div style={{fontFamily:C.fMono,fontSize:11,color:C.muted,letterSpacing:"0.2em"}}>CALCULATING…</div>
+      <button onClick={()=>setScreen("main")} style={{fontFamily:C.fCond,fontSize:12,color:C.muted,background:"transparent",border:`1px solid ${C.border}`,borderRadius:4,padding:"8px 16px",cursor:"pointer"}}>← Back</button>
     </div>
   );
 
@@ -3416,7 +3416,7 @@ const searchResults = carSearch.length > 0
     </OutputErrorBoundary>
   );
 
-  // â”€â”€ MAIN INPUT SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── MAIN INPUT SCREEN ──────────────────────────────────────────────────────
   const color       = TUNE_MODES.find(t=>t.id===tuneId)?.color||C.accent;
   const accentColor = color;
   const BRIGHT      = ["Touge","Drag"];
@@ -3450,21 +3450,21 @@ const searchResults = carSearch.length > 0
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {/* Logo */}
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:C.fCond,fontSize:22,fontWeight:700,color:C.text,letterSpacing:"0.12em",lineHeight:1}}><span style={{color:accentColor}}>Tune</span>Lab</div>
+            <div style={{fontFamily:C.fCond,fontSize:22,fontWeight:700,color:C.text,letterSpacing:"0.12em",lineHeight:1}}><span style={{color:accentColor}}>Linje</span>Tune</div>
             <div style={{fontFamily:C.fMono,fontSize:8,color:C.green,letterSpacing:"0.08em",marginTop:2}}>
-              {carFetchMeta?`â— ${carFetchMeta.count} cars Â· fetched ${Math.round((Date.now()-carFetchMeta.time)/60000)<1?"just now":Math.round((Date.now()-carFetchMeta.time)/60000)+"m ago"}`:"â—‹ offline Â· cached cars"}
+              {carFetchMeta?`● ${carFetchMeta.count} cars · fetched ${Math.round((Date.now()-carFetchMeta.time)/60000)<1?"just now":Math.round((Date.now()-carFetchMeta.time)/60000)+"m ago"}`:"○ offline · cached cars"}
             </div>
           </div>
           {/* Quick/Full toggle */}
           <div style={{display:"flex",background:C.surface,borderRadius:8,border:`1px solid ${C.border}`,overflow:"hidden",flexShrink:0}}>
-            {[{id:"D",label:"âš¡ Quick"},{id:"S",label:"âš™ Full"}].map(m=>(
+            {[{id:"D",label:"⚡ Quick"},{id:"S",label:"⚙ Full"}].map(m=>(
               <button key={m.id} onClick={()=>setMode(m.id)} style={{...S.btn,padding:"6px 11px",background:mode===m.id?`${accentColor}20`:"transparent",color:mode===m.id?accentColor:C.muted,fontFamily:C.fMono,fontSize:10,fontWeight:mode===m.id?700:400,letterSpacing:"0.05em",transition:"all 0.15s"}}>
                 {m.label}
               </button>
             ))}
           </div>
           {/* Hamburger */}
-          <button onClick={()=>setOverlay("menu")} style={{...S.btn,width:32,height:32,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,fontSize:17,letterSpacing:1,flexShrink:0}}>â˜°</button>
+          <button onClick={()=>setOverlay("menu")} style={{...S.btn,width:32,height:32,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,fontSize:17,letterSpacing:1,flexShrink:0}}>☰</button>
         </div>
       </div>
 
@@ -3473,7 +3473,7 @@ const searchResults = carSearch.length > 0
 
 {/* Car search */}
         <div style={{marginBottom:10,position:"relative"}}>
-          {/* Manufacturer dropdown + search â€” two-step like ForzaDroid */}
+          {/* Manufacturer dropdown + search — two-step like ForzaDroid */}
           <div style={{display:"flex",gap:6,marginBottom:6}}>
             <select value={make} onChange={e=>{
               const newMake = e.target.value;
@@ -3497,10 +3497,10 @@ const searchResults = carSearch.length > 0
               border:`1px solid ${showSearch?accentColor:C.border}`,
               borderLeft:`3px solid ${showSearch?accentColor:C.border}`,
               borderRadius:4,padding:"10px 12px",cursor:"text",transition:"border-color 0.15s"}}>
-            <span style={{fontSize:12,color:C.muted}}>âŠ•</span>
+            <span style={{fontSize:12,color:C.muted}}>⊕</span>
             {showSearch ? (
               <input autoFocus value={carSearch} onChange={e=>setCarSearch(e.target.value)}
-                placeholder={`Search ${make}â€¦`}
+                placeholder={`Search ${make}…`}
                 style={{flex:1,background:"transparent",border:"none",outline:"none",color:C.text,fontFamily:C.fBody,fontSize:14}}
                 onBlur={()=>setTimeout(()=>setShowSearch(false),200)}
               />
@@ -3612,7 +3612,7 @@ const searchResults = carSearch.length > 0
               <NumIn label={`Top speed (${units.speed})`} value={topspeed} onChange={setTopspeed} unit={units.speed} min={50} max={units.speed==="km/h"?450:280} step={5}/>
               <NumIn label="Number of gears" value={gears} onChange={setGears} min={4} max={10} step={1}/>
             </div>
-            {/* Tire sizes â€” front and rear, supports staggered rim diameters */}
+            {/* Tire sizes — front and rear, supports staggered rim diameters */}
             <div style={{marginBottom:10}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                 <span style={S.label}>Tire sizes</span>
@@ -3634,7 +3634,7 @@ const searchResults = carSearch.length > 0
               </div>
               {/* Rear */}
               <div>
-                <span style={{fontSize:10,color:C.muted,fontFamily:C.fBody,letterSpacing:"0.08em",textTransform:"uppercase",display:"block",marginBottom:4}}>Rear â€” used for gearing calc</span>
+                <span style={{fontSize:10,color:C.muted,fontFamily:C.fBody,letterSpacing:"0.08em",textTransform:"uppercase",display:"block",marginBottom:4}}>Rear — used for gearing calc</span>
                 <div style={{display:"grid",gridTemplateColumns:"2fr auto 1fr auto 1fr",gap:5,alignItems:"center"}}>
                   <input type="number" value={tireWR} onChange={e=>setTireWR(e.target.value)}
                     style={{...S.mono,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 6px",color:C.text,fontSize:13,outline:"none",textAlign:"center",minWidth:0}}/>
@@ -3707,13 +3707,13 @@ const searchResults = carSearch.length > 0
         </div>
       </div>
 
-      {/* Generate button â€” fixed at bottom */}
+      {/* Generate button — fixed at bottom */}
       <div className="tl-generate-bar" style={{pointerEvents:"none"}}>
         <button onClick={handleGenerate} disabled={loading}
           style={{...S.btn,width:"100%",padding:"15px",pointerEvents:"auto",background:`${accentColor}14`,border:`1px solid ${accentColor}44`,borderRadius:6,color:accentColor,fontFamily:C.fCond,fontSize:16,fontWeight:700,letterSpacing:"0.22em",textTransform:"uppercase",boxShadow:"none"}}>
-          {loading?"Calculatingâ€¦":"Deploy Setup"}
+          {loading?"Calculating…":"Deploy Setup"}
         </button>
-        {!isAdvanced && <div style={{textAlign:"center",marginTop:5,fontSize:10,color:C.dim,pointerEvents:"auto"}}>Switch to âš™ Full for gearing + RPM-based math</div>}
+        {!isAdvanced && <div style={{textAlign:"center",marginTop:5,fontSize:10,color:C.dim,pointerEvents:"auto"}}>Switch to ⚙ Full for gearing + RPM-based math</div>}
       </div>
     </div>
   );
