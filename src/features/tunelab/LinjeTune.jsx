@@ -76,6 +76,11 @@ const THEME_STYLE = `
   @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 6px var(--tl-green)} 50%{opacity:0.5;box-shadow:0 0 2px var(--tl-green)} }
   @keyframes re-fade-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
   input[type=range] { accent-color: var(--tl-accent, var(--tl-green)); }
+  .tl-seg-button:hover {
+    background: var(--tl-seg-accent) !important;
+    border-color: var(--tl-seg-accent) !important;
+    color: var(--tl-seg-on-accent) !important;
+  }
   .tl-shell {
     width: 100%;
     max-width: var(--tl-shell-max);
@@ -983,7 +988,9 @@ function Seg({label, opts, val, set, color, onColor}) {
           const active = val===o;
           const highlighted = active || hovered===o;
           return (
-          <button key={o} onClick={()=>set(o)} onMouseEnter={()=>setHovered(o)} onMouseLeave={()=>setHovered(null)} style={{...S.btn,flex:1,padding:"9px 4px",
+          <button key={o} className="tl-seg-button" onClick={()=>set(o)} onMouseEnter={()=>setHovered(o)} onMouseLeave={()=>setHovered(null)} style={{...S.btn,flex:1,padding:"9px 4px",
+            "--tl-seg-accent": ac,
+            "--tl-seg-on-accent": tc,
             borderTop:`1px solid ${highlighted?ac:C.border}`,
             borderBottom:`1px solid ${highlighted?ac:C.border}`,
             borderLeft:`1px solid ${highlighted?ac:C.border}`,
