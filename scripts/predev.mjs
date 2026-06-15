@@ -32,8 +32,10 @@ const edition = (process.env.NEXT_PUBLIC_WWV_EDITION || "local").trim().toLowerC
 if (edition !== "demo") {
     run("node scripts/boot-db.mjs");
     loadEnv(".env", { override: true });
+    const bootedDatabaseUrl = process.env.DATABASE_URL;
     loadEnv(".env.local", { override: true });
-    run("npx dotenv-cli -c -- node scripts/safe-db-push.mjs");
+    if (bootedDatabaseUrl) process.env.DATABASE_URL = bootedDatabaseUrl;
+    run("node scripts/safe-db-push.mjs");
 }
 
 run("npx prisma generate");
