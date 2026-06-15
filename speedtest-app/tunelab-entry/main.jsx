@@ -1,4 +1,4 @@
 import { createRoot } from "react-dom/client";
-import TuneLab from "../../src/features/tunelab/TuneLab.jsx";
+import LinjeTune from "../../src/features/tunelab/LinjeTune.jsx";
 
-createRoot(document.getElementById("root")).render(<TuneLab />);
+createRoot(document.getElementById("root")).render(<LinjeTune />);

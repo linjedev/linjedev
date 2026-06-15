@@ -1,4 +1,4 @@
-import { TuneLabRouteClient } from "./TuneLabRouteClient";
+import { LinjeTuneRouteClient } from "./LinjeTuneRouteClient";
 
 export const metadata = {
   title: "LinjeTune | Linje",
@@ -8,7 +8,7 @@ export const metadata = {
 export default function LinjeTunePage() {
   return (
     <main className="tunelab-route">
-      <TuneLabRouteClient />
+      <LinjeTuneRouteClient />
     </main>
   );
 }
