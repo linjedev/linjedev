@@ -1905,7 +1905,14 @@ User request: ${extraPrompt}` : usr;
           if(id==="ai") paidAiUnlocked ? setOverlay("ai") : setOverlay("billing");
           else if(id==="about") setOverlay("about");
           else if(id==="settings") setOverlay("settings");
-          else if(id==="paintlab"){ setOverlay(null); if(onGoToPaintLab) onGoToPaintLab(); else onBack(); }
+          else if(id==="paintlab"){
+            setOverlay(null);
+            if((entitlements || defaultEntitlements()).paintLabUnlocked) {
+              if(onGoToPaintLab) onGoToPaintLab(); else onBack();
+            } else {
+              setOverlay("paintlab-billing");
+            }
+          }
           else if(id==="copyinputs"){
             const txt = `Tune inputs\nCar: ${st.make} ${st.model}\nClass: ${st.carClass} · ${st.pi}PI · ${st.driveType}\nMode: ${st.tuneId} · ${st.surface} · ${st.compound}\nWeight: ${st.weight} ${st.units?.weight||"lbs"} · ${st.weightDist}% front`;
             navigator.clipboard?.writeText(txt).catch(()=>{});
@@ -1916,6 +1923,7 @@ User request: ${extraPrompt}` : usr;
         }}
       />}
       {overlay==="billing"&&<BillingDrawer onClose={()=>setOverlay(null)} entitlements={entitlements||defaultEntitlements()} weeklyUsage={getWeeklyTuneUsage()} onBuy={onBuy}/>}
+      {overlay==="paintlab-billing"&&<BillingDrawer onClose={()=>setOverlay(null)} entitlements={entitlements||defaultEntitlements()} weeklyUsage={getWeeklyTuneUsage()} onBuy={onBuy} mode="paint"/>}
       {overlay==="ai"&&<AIScreen onClose={()=>setOverlay(null)}/>}
       {overlay==="enhance"&&<EnhanceDrawer
         accentColor={accentColor}
