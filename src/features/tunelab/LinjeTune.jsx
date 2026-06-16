@@ -20,7 +20,6 @@ const CLASS_PI = {
   X:  { min: 999, max: 999, default: 999 },
 };
 const PLAY_STORE    = null; // Set to Play Store URL when published
-const KOFI_URL      = "https://ko-fi.com/tunelabs";
 const DISCORD_URL   = "https://discord.gg/N4HfuWEXaN";
 const GITHUB_URL    = "https://github.com/super-android/tunelab";
 
@@ -261,9 +260,6 @@ const TUNE_PAGES = ["Tires","Gearing","Alignment","Suspension","ARB","Damping","
 const AI_PROVIDERS = [
   {id:"none",   label:"Offline only",   icon:"⚙",  color:"#888899", free:true,  soon:false, key:null,      hint:null,            docs:null},
   {id:"gemini", label:"Google Gemini",  icon:"✦",  color:"#4285f4", free:true,  soon:false, key:"AIza...", hint:"AIza...",        docs:"https://aistudio.google.com/app/apikey"},
-  {id:"grok",   label:"xAI Grok",       icon:"𝕏",  color:"#e7e7e7", free:true,  soon:true,  key:null,      hint:"xai-...",        docs:"https://console.x.ai"},
-  {id:"openai", label:"OpenAI GPT-4o",  icon:"◈",  color:"#10a37f", free:false, soon:true,  key:null,      hint:"sk-...",         docs:"https://platform.openai.com/api-keys"},
-  {id:"claude", label:"Anthropic Claude",icon:"◇", color:"#6c6cff", free:false, soon:true,  key:null,      hint:"sk-ant-api03-...",docs:"https://console.anthropic.com"},
 ];
 
 // ─── LOCAL STORAGE ────────────────────────────────────────────────────────────
@@ -273,16 +269,7 @@ const KEYS_KEY     = "tl_v1_keys";
 const USAGE_KEY    = "tl_v1_ai_usage";
 const PREFS_KEY    = "tl_v1_prefs";
 const OWNER_KEY    = "tl_v1_owner";
-const WEEKLY_KEY   = "tl_v1_weekly_tunes";
 const ENTITLEMENTS_KEY = "tl_v1_entitlements";
-const FREE_TUNES_PER_WEEK = 5;
-
-const TUNE_PRODUCTS = [
-  {id:"tunes_10", label:"10 tunes", price:"£1.99", sub:"£0.20 each"},
-  {id:"tunes_25", label:"25 tunes", price:"£3.99", sub:"£0.16 each"},
-  {id:"tunes_60", label:"60 tunes", price:"£7.99", sub:"£0.13 each"},
-];
-const PAINTLAB_PRODUCT = {id:"paintlab", label:"PaintLab unlock", price:"£2.99"};
 
 const cookieStore = {
   get: (name, fallback) => {
@@ -745,38 +732,14 @@ async function validateKey(providerId, apiKey) {
         const has15 = names.some(n=>n.includes("1.5-flash"));
         const bestModel = has25?"gemini-2.5-flash":has20?"gemini-2.0-flash":has15?"gemini-1.5-flash":null;
         if(!bestModel) return {ok:false, msg:"No usable Gemini model found on this key"};
-        // Test a tiny generation call to detect $0 spending cap
+        // Test a tiny generation call so setup problems are caught before tuning.
         const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/${bestModel}:generateContent?key=${apiKey}`;
         const testR = await fetch(testUrl,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":apiKey},body:JSON.stringify({contents:[{role:"user",parts:[{text:"Hi"}]}],generationConfig:{maxOutputTokens:1}})});
-        if(testR.status===429) return {ok:false, msg:"⚠ Spending cap detected — go to aistudio.google.com → Settings → Billing and remove the $0.00 spending cap, then test again"};
+        if(testR.status===429) return {ok:false, msg:"Quota limit reached or requests are blocked right now — try again later"};
         if(testR.status===403) return {ok:false, msg:"Key not authorised — enable Gemini API in Google AI Studio"};
         if(!testR.ok) return {ok:false, msg:`Test call failed (${testR.status}) — check key permissions`};
         return {ok:true, msg:`Key valid ✓ — ${bestModel} ready`};
       } catch { return {ok:true, msg:"Key valid ✓ — ready to enhance tunes"}; }
-    }
-    if(providerId==="grok") {
-      // Use models list endpoint — no generation quota consumed
-      const r=await fetch("https://api.x.ai/v1/models",{method:"GET",headers:{"Authorization":"Bearer "+apiKey}});
-      if(r.status===401) return {ok:false, msg:"Invalid key — check console.x.ai"};
-      if(r.status===429) return {ok:true,  msg:"Key valid ✓ (rate limited right now)"};
-      if(!r.ok)          return {ok:false, msg:`Error ${r.status}`};
-      return {ok:true, msg:"Key valid ✓ — ready to enhance tunes"};
-    }
-    if(providerId==="openai") {
-      // Use models list endpoint — no tokens consumed
-      const r=await fetch("https://api.openai.com/v1/models",{method:"GET",headers:{"Authorization":"Bearer "+apiKey}});
-      if(r.status===401) return {ok:false, msg:"Invalid key — check platform.openai.com"};
-      if(r.status===429) return {ok:true,  msg:"Key valid ✓ (rate limited or no credits)"};
-      if(!r.ok)          return {ok:false, msg:`Error ${r.status}`};
-      return {ok:true, msg:"Key valid ✓ — ready to enhance tunes"};
-    }
-    if(providerId==="claude") {
-      // Use models list endpoint — no tokens consumed
-      const r=await fetch("https://api.anthropic.com/v1/models",{method:"GET",headers:{"x-api-key":apiKey,"anthropic-version":"2023-06-01"}});
-      if(r.status===401) return {ok:false, msg:"Invalid key — check console.anthropic.com"};
-      if(r.status===429) return {ok:true,  msg:"Key valid ✓ (rate limited right now)"};
-      if(!r.ok)          return {ok:false, msg:`Error ${r.status}`};
-      return {ok:true, msg:"Key valid ✓ — ready to enhance tunes"};
     }
     return {ok:false, msg:"Unknown provider"};
   } catch(e) {
@@ -832,21 +795,6 @@ async function callAI(providerId, apiKey, sys, usr) {
       return d.candidates?.[0]?.content?.parts?.[0]?.text||"";
     }
     throw new Error("No Gemini model available — try a different AI provider or use Manual Copy");
-  }
-  if (providerId === "grok") {
-    const r = await fetch("https://api.x.ai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+apiKey},body:JSON.stringify({model:"grok-3-mini",messages:[{role:"system",content:sys},{role:"user",content:usr}],temperature:0.4,max_tokens:1200})});
-    if(!r.ok) throw new Error("Grok "+r.status);
-    const d = await r.json(); return d.choices?.[0]?.message?.content||"";
-  }
-  if (providerId === "openai") {
-    const r = await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+apiKey},body:JSON.stringify({model:"gpt-4o-mini",messages:[{role:"system",content:sys},{role:"user",content:usr}],temperature:0.4,max_tokens:1200})});
-    if(!r.ok) throw new Error("OpenAI "+r.status);
-    const d = await r.json(); return d.choices?.[0]?.message?.content||"";
-  }
-  if (providerId === "claude") {
-    const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1200,system:sys,messages:[{role:"user",content:usr}]})});
-    if(!r.ok) throw new Error("Claude "+r.status);
-    const d = await r.json(); return d.content?.[0]?.text||"";
   }
   throw new Error("Unknown provider");
 }
@@ -938,7 +886,6 @@ function formatTuneText(s, pages) {
   out.push(`\n─────────────────────────────`);
   out.push(`Tuned with LinjeTune — free FH6 tuning calculator`);
   if(PLAY_STORE) out.push(`Get it: ${PLAY_STORE}`);
-  out.push(`Support the dev: ${KOFI_URL}`);
   out.push(`\n⚠ This tune was shared from LinjeTune. AI features require your own API key — never share your key.`);
   return out.join("\n");
 }
@@ -976,30 +923,9 @@ function getLinjeTuneOwnerId() {
   return ownerId;
 }
 
-function currentWeekId(d = new Date()) {
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  const week = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
-  return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
-}
-
-function getWeeklyTuneUsage() {
-  const usage = LS.get(WEEKLY_KEY, {week: currentWeekId(), used: 0});
-  const week = currentWeekId();
-  if (usage.week !== week) return {week, used: 0};
-  return {week, used: Number(usage.used) || 0};
-}
-
-function setWeeklyTuneUsage(usage) {
-  LS.set(WEEKLY_KEY, usage);
-}
-
 function defaultEntitlements() {
-  return {paintLabUnlocked:false, tuneTokens:0, paidTuneAccess:false};
+  return {paintLabUnlocked:true};
 }
-
-const PAINTLAB_FREE_ON_WEB = true;
 
 function getCachedEntitlements() {
   return {...defaultEntitlements(), ...LS.get(ENTITLEMENTS_KEY, {})};
@@ -1019,33 +945,6 @@ async function syncLinjeTuneEntitlements(setter) {
     setter(cached);
     return cached;
   }
-}
-
-async function startLinjeTuneCheckout(productId, setEntitlements) {
-  getLinjeTuneOwnerId();
-  const response = await fetch("/api/linjetune/checkout", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({productId}),
-  });
-  const data = await response.json().catch(()=>({}));
-  if (!response.ok) throw new Error(data.error || "Checkout unavailable");
-  if (data.preview && data.entitlements) {
-    LS.set(ENTITLEMENTS_KEY, data.entitlements);
-    setEntitlements(data.entitlements);
-    return {preview:true};
-  }
-  if (data.url) window.location.href = data.url;
-  return {redirect:true};
-}
-
-async function consumePaidTuneToken(setEntitlements) {
-  const response = await fetch("/api/linjetune/consume-token", {method:"POST"});
-  const data = await response.json().catch(()=>({}));
-  if (!response.ok) throw new Error(data.error || "No tune credits remaining");
-  LS.set(ENTITLEMENTS_KEY, data);
-  setEntitlements(data);
-  return data;
 }
 
 function readableTextForColor(color, fallback = "#ffffff") {
@@ -1280,9 +1179,6 @@ function AIScreen({onClose}) {
         <p style={{fontSize:12,color:C.muted,lineHeight:1.6,marginBottom:8}}>
           LinjeTune works fully <strong style={{color:C.text}}>offline</strong> without AI. Connect a provider to unlock expert notes and smarter diagnoses.
         </p>
-        <div style={{background:C.gold+"14",border:`1px solid ${C.gold}33`,borderRadius:8,padding:"9px 11px",marginBottom:12,fontFamily:C.fBody,fontSize:11,color:C.gold,lineHeight:1.6}}>
-          💡 <strong>Setup tip:</strong> After creating your Gemini key, check that your Google project has no <strong>$0.00 spending cap</strong> — this silently blocks all requests. Remove it or set it to $1–2. At ~$0.0001 per tune you won't be charged noticeably.
-        </div>
         <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
           {AI_PROVIDERS.map(p=>(
             <button key={p.id} onClick={()=>!p.soon&&setProvider(p.id)}
@@ -1295,7 +1191,7 @@ function AIScreen({onClose}) {
                 {provider===p.id&&<span style={{marginLeft:"auto",fontSize:9,color:p.color}}>ACTIVE ✓</span>}
               </div>
               <span style={{fontFamily:C.fBody,fontSize:11,color:C.muted,paddingLeft:22}}>
-                {p.id==="none"?"Full tune via formula engine — no internet needed.":p.id==="gemini"?"Free tier: 1,500/day — no credit card needed.":"Coming soon — join Discord to get notified."}
+                {p.id==="none"?"Full tune via formula engine — no internet needed.":p.id==="gemini"?"Free tier: 1,500/day.":"Coming soon — join Discord to get notified."}
               </span>
             </button>
           ))}
@@ -1319,27 +1215,7 @@ function AIScreen({onClose}) {
                 2. Sign in with Google<br/>
                 3. Tap <strong style={{color:C.text}}>"Create API key"</strong><br/>
                 4. Copy and paste it here<br/>
-                <span style={{color:C.green}}>Free tier: 1,500 requests/day · No credit card needed</span>
-              </div>}
-              {prov.id==="grok"&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>
-                1. Tap <strong style={{color:C.text}}>Get free key ↗</strong> below<br/>
-                2. Sign in with your X account<br/>
-                3. Create an API key in the console<br/>
-                <span style={{color:C.green}}>Free tier available · No credit card needed</span>
-              </div>}
-              {prov.id==="openai"&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>
-                1. Tap <strong style={{color:C.text}}>Get key ↗</strong> below<br/>
-                2. Create an OpenAI account<br/>
-                3. Add a small credit ($5 lasts months)<br/>
-                4. Create an API key and paste here<br/>
-                <span style={{color:C.gold}}>~$0.0002 per tune · Requires credit card</span>
-              </div>}
-              {prov.id==="claude"&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>
-                1. Tap <strong style={{color:C.text}}>Get key ↗</strong> below<br/>
-                2. Create an Anthropic account<br/>
-                3. Add a small credit ($5 lasts months)<br/>
-                4. Create an API key and paste here<br/>
-                <span style={{color:C.gold}}>~$0.0003 per tune · Requires credit card</span>
+                <span style={{color:C.green}}>Free tier: 1,500 requests/day</span>
               </div>}
               {prov.docs&&<a href={prov.docs} target="_blank" rel="noreferrer"
                 style={{display:"inline-block",marginTop:8,padding:"6px 12px",background:prov.color+"22",border:`1px solid ${prov.color}55`,borderRadius:7,fontSize:11,fontWeight:600,color:prov.color,textDecoration:"none"}}>
@@ -1549,53 +1425,6 @@ function Wizard({ctx, onClose}) {
 
 // ─── OUTPUT SCREEN ────────────────────────────────────────────────────────────
 
-function BillingDrawer({onClose, entitlements, weeklyUsage, onBuy, mode = "tunes"}) {
-  const freeLeft = Math.max(0, FREE_TUNES_PER_WEEK - (weeklyUsage?.used || 0));
-  const [busy, setBusy] = useState(null);
-  const [error, setError] = useState("");
-  const buy = async(productId) => {
-    setBusy(productId);
-    setError("");
-    try { await onBuy(productId); }
-    catch(e) { setError(e.message || "Checkout unavailable"); }
-    setBusy(null);
-  };
-  return (
-    <div className="tl-shell" style={{position:"fixed",inset:0,background:"#000c",zIndex:500,display:"flex",alignItems:"flex-end",margin:"0 auto"}} onClick={onClose}>
-      <div style={{width:"100%",background:C.bg,borderTop:`1px solid ${C.border}`,borderRadius:"16px 16px 0 0",padding:"18px 16px 30px",fontFamily:C.fBody}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div>
-            <div style={{fontFamily:C.fMono,fontSize:10,color:C.green,letterSpacing:"0.18em",textTransform:"uppercase"}}>{mode==="paint"?"PaintLab access":"Tune credits"}</div>
-            <div style={{fontSize:12,color:C.muted,marginTop:5,lineHeight:1.5}}>
-              {mode==="paint"?"Unlock PaintLab permanently. Stripe converts GBP at checkout where supported.":`${freeLeft} free weekly tunes left - ${entitlements.tuneTokens || 0} paid credits`}
-            </div>
-          </div>
-          <button onClick={onClose} style={{...S.btn,color:C.muted,fontSize:18}}>x</button>
-        </div>
-        {mode==="paint" ? (
-          <button onClick={()=>buy(PAINTLAB_PRODUCT.id)} disabled={!!busy}
-            style={{...S.btn,width:"100%",padding:"13px",background:C.green,border:`1px solid ${C.green}`,borderRadius:8,color:"#050505",fontFamily:C.fCond,fontSize:15,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase"}}>
-            {busy===PAINTLAB_PRODUCT.id?"Opening checkout...":`${PAINTLAB_PRODUCT.label} - ${PAINTLAB_PRODUCT.price}`}
-          </button>
-        ) : (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-            {TUNE_PRODUCTS.map(p=>(
-              <button key={p.id} onClick={()=>buy(p.id)} disabled={!!busy}
-                style={{...S.btn,padding:"12px 8px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,display:"flex",flexDirection:"column",gap:4}}>
-                <span style={{fontFamily:C.fCond,fontSize:16,fontWeight:700,letterSpacing:"0.08em"}}>{p.label}</span>
-                <span style={{fontFamily:C.fMono,fontSize:12,color:C.green}}>{busy===p.id?"Opening...":p.price}</span>
-                <span style={{fontSize:11,color:C.dim}}>{p.sub}</span>
-              </button>
-            ))}
-          </div>
-        )}
-        {mode!=="paint"&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6,marginTop:12}}>Paid credits unlock AI-enhanced tuning while credits are available. Imported API keys stay only in this browser's cookies.</div>}
-        {error&&<div style={{fontSize:12,color:C.red,marginTop:10}}>{error}</div>}
-      </div>
-    </div>
-  );
-}
-
 function EnhancingBar({color, icon, label}) {
   const [secs, setSecs] = useState(0);
   useEffect(()=>{
@@ -1636,7 +1465,7 @@ function HamburgerMenu({onClose, onNav, isOutputScreen, appState}) {
     null,
     {id:"settings", icon:"⚙", label:"Settings",       sub:"Units, input device"},
     {id:"refresh",  icon:"↻", label:"Refresh car database", sub:"Force fetch latest cars"},
-    {id:"about",    icon:"ℹ", label:"About LinjeTune",  sub:"Version, credits, links"},
+    {id:"about",    icon:"ℹ", label:"About LinjeTune",  sub:"Version, acknowledgements, links"},
     null,
     {id:"reset",    icon:"🗑", label:"Reset all data", danger:true},
   ];
@@ -1699,7 +1528,7 @@ function EnhanceDrawer({accentColor, hasAI, prov, onClose, onEnhance}) {
   );
 }
 
-function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, units, inputDevice, onSaveUnits, onGoToPaintLab, entitlements, paidAiUnlocked, onBuy}) {
+function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, units, inputDevice, onSaveUnits, onGoToPaintLab, entitlements}) {
   const [tunePage,    setTunePage]    = useState("Tires");
   const [toast,       setToast]       = useState(null);
   const [overlay,     setOverlay]     = useState(null);
@@ -1717,7 +1546,7 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
   const [provId, setProvId] = useState(()=>LS.get(PROVIDER_KEY,"none"));
   const [aiKeys, setAiKeys] = useState(()=>LS.get(KEYS_KEY,{}));
   const prov   = AI_PROVIDERS.find(p=>p.id===provId)||AI_PROVIDERS[0];
-  const hasAI  = paidAiUnlocked && prov.id!=="none" && !!aiKeys[prov.id];
+  const hasAI  = prov.id!=="none" && !!aiKeys[prov.id];
 
   // Re-read AI settings whenever overlay closes (so key saved in AIScreen is picked up)
   useEffect(()=>{
@@ -1785,7 +1614,6 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
   };
 
   const handleManualCopy = () => {
-    if(!paidAiUnlocked){setOverlay("billing");return;}
     const {sys,usr} = buildEnhancePrompt(appState,tunePages);
     const fullPrompt = `${sys}\n\n${usr}`;
     if(navigator.clipboard){
@@ -1799,7 +1627,6 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
   const handleAIEnhance = useCallback(async() => {
     // Physical lock — prevents double-tap and re-render re-triggers
     if(aiEnhancing) return;
-    if(!paidAiUnlocked){setOverlay("billing");return;}
     if(!hasAI){setOverlay("ai");return;}
     setAiEnhancing(true);
     try {
@@ -1849,12 +1676,11 @@ function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, uni
       }
     }
     setAiEnhancing(false);
-  }, [aiEnhancing, paidAiUnlocked, hasAI, prov, aiKeys, appState, tunePages]);
+  }, [aiEnhancing, hasAI, prov, aiKeys, appState, tunePages]);
 
   // Enhance with optional custom prompt injected
   const handleAIEnhanceWithPrompt = useCallback(async(extraPrompt="") => {
     if(aiEnhancing) return;
-    if(!paidAiUnlocked){setOverlay("billing");return;}
     if(!hasAI){setOverlay("ai");return;}
     setAiEnhancing(true);
     try {
@@ -1880,7 +1706,7 @@ User request: ${extraPrompt}` : usr;
       else setToast(`AI error: ${e.message||"unknown"}`);
     }
     setAiEnhancing(false);
-  }, [aiEnhancing, paidAiUnlocked, hasAI, prov, aiKeys, appState, tunePages]);
+  }, [aiEnhancing, hasAI, prov, aiKeys, appState, tunePages]);
 
 
   // Auto-switch to first valid tab if current is null (D mode skips Gearing)
@@ -1904,16 +1730,12 @@ User request: ${extraPrompt}` : usr;
         appState={appState}
         onClose={()=>setOverlay(null)}
         onNav={(id, st)=>{
-          if(id==="ai") paidAiUnlocked ? setOverlay("ai") : setOverlay("billing");
+          if(id==="ai") setOverlay("ai");
           else if(id==="about") setOverlay("about");
           else if(id==="settings") setOverlay("settings");
           else if(id==="paintlab"){
             setOverlay(null);
-            if(PAINTLAB_FREE_ON_WEB || (entitlements || defaultEntitlements()).paintLabUnlocked) {
-              if(onGoToPaintLab) onGoToPaintLab(); else onBack();
-            } else {
-              setOverlay("paintlab-billing");
-            }
+            if(onGoToPaintLab) onGoToPaintLab(); else onBack();
           }
           else if(id==="copyinputs"){
             const txt = `Tune inputs\nCar: ${st.make} ${st.model}\nClass: ${st.carClass} · ${st.pi}PI · ${st.driveType}\nMode: ${st.tuneId} · ${st.surface} · ${st.compound}\nWeight: ${st.weight} ${st.units?.weight||"lbs"} · ${st.weightDist}% front`;
@@ -1924,8 +1746,6 @@ User request: ${extraPrompt}` : usr;
           else if(id==="reset"){if(window.confirm("Reset all data? This cannot be undone.")){Object.keys(localStorage).filter(k=>k.startsWith("tl_")).forEach(k=>localStorage.removeItem(k));window.location.reload();}}
         }}
       />}
-      {overlay==="billing"&&<BillingDrawer onClose={()=>setOverlay(null)} entitlements={entitlements||defaultEntitlements()} weeklyUsage={getWeeklyTuneUsage()} onBuy={onBuy}/>}
-      {overlay==="paintlab-billing"&&<BillingDrawer onClose={()=>setOverlay(null)} entitlements={entitlements||defaultEntitlements()} weeklyUsage={getWeeklyTuneUsage()} onBuy={onBuy} mode="paint"/>}
       {overlay==="ai"&&<AIScreen onClose={()=>setOverlay(null)}/>}
       {overlay==="enhance"&&<EnhanceDrawer
         accentColor={accentColor}
@@ -2129,7 +1949,7 @@ IMPORTANT — do NOT change these settings: ${lockList.join(", ")}.` : "";
               <button onClick={()=>setOverlay("wizard")} style={{...S.btn,padding:"11px",background:C.card,border:`1px solid ${C.border}`,borderRadius:10,color:C.text,fontFamily:C.fBody,fontSize:12,fontWeight:500,gap:5}}>
                 🔧 Wizard
               </button>
-              <button onClick={()=>paidAiUnlocked ? (hasAI&&!aiEnhancing?setOverlay("enhance"):!hasAI?setOverlay("ai"):null) : setOverlay("billing")} disabled={aiEnhancing}
+              <button onClick={()=>hasAI&&!aiEnhancing?setOverlay("enhance"):!hasAI?setOverlay("ai"):null} disabled={aiEnhancing}
                 style={{...S.btn,padding:"12px",
                   background:aiEnhancing?"transparent":hasAI?`${accentColor}12`:C.card,
                   border:`1px solid ${aiEnhancing?C.border:hasAI?`${accentColor}44`:C.border}`,
@@ -2137,7 +1957,7 @@ IMPORTANT — do NOT change these settings: ${lockList.join(", ")}.` : "";
                   color:aiEnhancing?C.dim:hasAI?accentColor:C.muted,
                   fontFamily:C.fCond,fontSize:12,fontWeight:700,letterSpacing:"0.15em",textTransform:"uppercase",
                   gap:5,opacity:aiEnhancing?0.5:1,cursor:aiEnhancing?"not-allowed":"pointer"}}>
-                {aiEnhancing?"Enhancing…":paidAiUnlocked?"✦ Enhance":"Unlock AI"}
+                {aiEnhancing?"Enhancing…":"✦ Enhance"}
               </button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:7}}>
@@ -2146,7 +1966,7 @@ IMPORTANT — do NOT change these settings: ${lockList.join(", ")}.` : "";
                 <span>📋 Copy prompt</span>
                 <span style={{fontSize:9,color:C.dim}}>→ paste in browser</span>
               </button>
-              <button onClick={()=>{if(!paidAiUnlocked){setOverlay("billing");return;} setShowPaste(true);setPasteError("");}} style={{...S.btn,padding:"9px 6px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:9,color:C.dim,fontFamily:C.fBody,fontSize:11,gap:3,flexDirection:"column",lineHeight:1.3}}>
+              <button onClick={()=>{setShowPaste(true);setPasteError("");}} style={{...S.btn,padding:"9px 6px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:9,color:C.dim,fontFamily:C.fBody,fontSize:11,gap:3,flexDirection:"column",lineHeight:1.3}}>
                 <span>📥 Paste response</span>
                 <span style={{fontSize:9,color:C.dim}}>← apply AI notes</span>
               </button>
@@ -2224,12 +2044,11 @@ function AboutScreen({onClose}) {
         <div style={{...S.card,padding:"24px 20px",textAlign:"center"}}>
           <div style={{fontFamily:C.fCond,fontSize:38,fontWeight:700,color:C.green,letterSpacing:"0.12em",marginBottom:8}}>LinjeTune</div>
           <div style={{fontFamily:C.fBody,fontSize:16,fontWeight:500,color:C.text,marginBottom:10}}>AI-assisted Forza Horizon 6 tuning</div>
-          <div style={{fontSize:13,color:C.muted,lineHeight:1.8}}>v{VERSION} · Free forever · No ads · No paywall</div>
+          <div style={{fontSize:13,color:C.muted,lineHeight:1.8}}>v{VERSION} · Free forever · No ads · No locked features</div>
           <div style={{fontSize:13,color:C.muted,lineHeight:1.8,marginTop:2}}>Physics: FH5-baseline · Updated post-FH6 launch</div>
         </div>
 
         {[
-          {icon:"☕",title:"Buy me a coffee",sub:"Ko-fi — free forever, tips appreciated",url:KOFI_URL},
           {icon:"💬",title:"Discord server",sub:"Share tunes, get help, vote on features",url:DISCORD_URL},
           {icon:"🐙",title:"GitHub",sub:"Open source — bugs, features, source code",url:GITHUB_URL},
           {icon:"🔒",title:"Privacy policy",sub:"What data we store and why",url:"https://github.com/super-android/tunelab/blob/main/privacy.md"},
@@ -3269,7 +3088,7 @@ function PaintLabScreen({onBack, accentColor: paintAccent}) {
   const menuItems = [
     {id:"back",     icon:"←", label:"Back to LinjeTune", sub:"Return to tuning"},
     null,
-    {id:"about",    icon:"ℹ", label:"About PaintLab",  sub:"Color data credits"},
+    {id:"about",    icon:"ℹ", label:"About PaintLab",  sub:"Color data acknowledgements"},
   ];
   return (
     <div className="tl-shell" style={{minHeight:"100vh",background:C.bg,color:C.text,margin:"0 auto",fontFamily:C.fBody,display:"flex",flexDirection:"column"}}>
@@ -3359,8 +3178,6 @@ export default function ForzaTuner() {
   const [overlay,     setOverlay]     = useState(null);
   const [toast,       setToast]       = useState(null);
   const [entitlements,setEntitlements]= useState(()=>getCachedEntitlements());
-  const [weeklyUsage, setWeeklyUsage] = useState(()=>getWeeklyTuneUsage());
-  const [paidAiForTune,setPaidAiForTune]= useState(false);
 
   const [make,        setMake]        = useState("Nissan");
   const [model,       setModel]       = useState("GT-R Black Edition (R35)");
@@ -3413,15 +3230,6 @@ export default function ForzaTuner() {
   useEffect(()=>{
     getLinjeTuneOwnerId();
     syncLinjeTuneEntitlements(setEntitlements);
-    setWeeklyUsage(getWeeklyTuneUsage());
-  },[]);
-
-  const buyProduct = useCallback(async(productId)=>{
-    const result = await startLinjeTuneCheckout(productId, setEntitlements);
-    if(result?.preview) {
-      setOverlay(null);
-      setToast("Purchase unlocked in preview mode.");
-    }
   },[]);
 
   // Remote car DB — fetches latest cars.json from GitHub on launch
@@ -3518,26 +3326,10 @@ export default function ForzaTuner() {
   const handleGenerate = async() => {
     setLoading(true);
     try {
-      let paidForThisTune = false;
-      const usage = getWeeklyTuneUsage();
-      if (usage.used < FREE_TUNES_PER_WEEK) {
-        const nextUsage = {...usage, used: usage.used + 1};
-        setWeeklyTuneUsage(nextUsage);
-        setWeeklyUsage(nextUsage);
-      } else if ((entitlements.tuneTokens || 0) > 0) {
-        await consumePaidTuneToken(setEntitlements);
-        paidForThisTune = true;
-      } else {
-        setOverlay("billing");
-        setToast("Free weekly tunes used. Buy credits to continue.");
-        setLoading(false);
-        return;
-      }
       const st = getState();
       const tune = calcTune(st);
       setTunePages(tune);
       setGenerated(true);
-      setPaidAiForTune(paidForThisTune || (entitlements.tuneTokens || 0) > 0);
       setScreen("output");
     } catch(e) {
       console.log("Generate error:", e.message);
@@ -3557,11 +3349,7 @@ export default function ForzaTuner() {
   };
 
   const openPaintLab = () => {
-    if (PAINTLAB_FREE_ON_WEB || entitlements.paintLabUnlocked) {
-      setScreen("paintlab");
-    } else {
-      setOverlay("paintlab-billing");
-    }
+    setScreen("paintlab");
   };
 
   // Set viewport + apply theme class on mount + listen for changes
@@ -3704,8 +3492,6 @@ const searchResults = carSearch.length > 0
         onSaveUnits={(u,dev)=>{LS.set("tl_v1_units",u);LS.set("tl_v1_device",dev);setUnits(u);setInputDevice(dev);}}
         onGoToPaintLab={openPaintLab}
         entitlements={entitlements}
-        paidAiUnlocked={paidAiForTune || (entitlements.tuneTokens || 0) > 0}
-        onBuy={buyProduct}
       />
     </OutputErrorBoundary>
   );
@@ -3730,7 +3516,7 @@ const searchResults = carSearch.length > 0
         appState={getState()}
         onClose={()=>setOverlay(null)}
         onNav={(id)=>{
-          if(id==="ai") (paidAiForTune || (entitlements.tuneTokens || 0) > 0) ? setOverlay("ai") : setOverlay("billing");
+          if(id==="ai") setOverlay("ai");
           else if(id==="about") setOverlay("about");
           else if(id==="settings") setOverlay("settings");
           else if(id==="paintlab"){ setOverlay(null); openPaintLab(); }
@@ -3739,8 +3525,6 @@ const searchResults = carSearch.length > 0
         }}
       />}
       {overlay==="save"&&<SaveDrawer appState={getState()} tunePages={tunePages} onLoad={loadTune} onClose={()=>setOverlay(null)}/>}
-      {overlay==="billing"&&<BillingDrawer onClose={()=>setOverlay(null)} entitlements={entitlements} weeklyUsage={weeklyUsage} onBuy={buyProduct}/>}
-      {overlay==="paintlab-billing"&&<BillingDrawer onClose={()=>setOverlay(null)} entitlements={entitlements} weeklyUsage={weeklyUsage} onBuy={buyProduct} mode="paint"/>}
       {overlay==="ai"&&<AIScreen onClose={()=>setOverlay(null)}/>}
       {overlay==="about"&&<AboutScreen onClose={()=>setOverlay(null)}/>}
       {overlay==="settings"&&<SettingsScreen units={units} device={inputDevice} onSave={(u,dev)=>{LS.set("tl_v1_units",u);LS.set("tl_v1_device",dev);setUnits(u);setInputDevice(dev);setOverlay(null);}} onClose={()=>setOverlay(null)}/>}
