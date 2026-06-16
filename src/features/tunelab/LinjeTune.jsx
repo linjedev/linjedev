@@ -20,8 +20,6 @@ const CLASS_PI = {
   X:  { min: 999, max: 999, default: 999 },
 };
 const PLAY_STORE    = null; // Set to Play Store URL when published
-const DISCORD_URL   = "https://discord.gg/N4HfuWEXaN";
-const GITHUB_URL    = "https://github.com/super-android/tunelab";
 
 // ─── PHYSICS CONSTANTS ────────────────────────────────────────────────────────
 // FH5-baseline spring frequencies — FH6 rewards SOFTER springs than physics predicts.
@@ -1191,7 +1189,7 @@ function AIScreen({onClose}) {
                 {provider===p.id&&<span style={{marginLeft:"auto",fontSize:9,color:p.color}}>ACTIVE ✓</span>}
               </div>
               <span style={{fontFamily:C.fBody,fontSize:11,color:C.muted,paddingLeft:22}}>
-                {p.id==="none"?"Full tune via formula engine — no internet needed.":p.id==="gemini"?"Free tier: 1,500/day.":"Coming soon — join Discord to get notified."}
+                {p.id==="none"?"Full tune via formula engine — no internet needed.":p.id==="gemini"?"Free tier: 1,500/day.":"Coming soon."}
               </span>
             </button>
           ))}
@@ -1459,13 +1457,13 @@ class OutputErrorBoundary extends Component {
 function HamburgerMenu({onClose, onNav, isOutputScreen, appState}) {
   const items = [
     {id:"ai",    icon:"✦", label:"AI settings",       sub:"Configure your Gemini key"},
-    ...(isOutputScreen ? [{id:"copyinputs", icon:"📋", label:"Copy tune inputs", sub:"Paste in Discord for bug reports"}] : []),
+    ...(isOutputScreen ? [{id:"copyinputs", icon:"📋", label:"Copy tune inputs", sub:"Copy details for bug reports"}] : []),
     null,
     {id:"paintlab", icon:"🎨", label:"PaintLab",       sub:"Browse FH6 paint colors · v1.0"},
     null,
     {id:"settings", icon:"⚙", label:"Settings",       sub:"Units, input device"},
     {id:"refresh",  icon:"↻", label:"Refresh car database", sub:"Force fetch latest cars"},
-    {id:"about",    icon:"ℹ", label:"About LinjeTune",  sub:"Version, acknowledgements, links"},
+    {id:"about",    icon:"ℹ", label:"About LinjeTune",  sub:"Version and acknowledgements"},
     null,
     {id:"reset",    icon:"🗑", label:"Reset all data", danger:true},
   ];
@@ -2046,30 +2044,6 @@ function AboutScreen({onClose}) {
           <div style={{fontFamily:C.fBody,fontSize:16,fontWeight:500,color:C.text,marginBottom:10}}>AI-assisted Forza Horizon 6 tuning</div>
           <div style={{fontSize:13,color:C.muted,lineHeight:1.8}}>v{VERSION} · Free forever · No ads · No locked features</div>
           <div style={{fontSize:13,color:C.muted,lineHeight:1.8,marginTop:2}}>Physics: FH5-baseline · Updated post-FH6 launch</div>
-        </div>
-
-        {[
-          {icon:"💬",title:"Discord server",sub:"Share tunes, get help, vote on features",url:DISCORD_URL},
-          {icon:"🐙",title:"GitHub",sub:"Open source — bugs, features, source code",url:GITHUB_URL},
-          {icon:"🔒",title:"Privacy policy",sub:"What data we store and why",url:"https://github.com/super-android/tunelab/blob/main/privacy.md"},
-        ].map(item=>(
-          <a key={item.title} href={item.url} target="_blank" rel="noopener noreferrer"
-            style={{...S.card,padding:"14px 16px",display:"flex",alignItems:"center",gap:14,textDecoration:"none",cursor:"pointer"}}>
-            <span style={{fontSize:22,flexShrink:0}}>{item.icon}</span>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:C.fBody,fontSize:15,fontWeight:500,color:C.text,marginBottom:3}}>{item.title}</div>
-              <div style={{fontFamily:C.fBody,fontSize:13,color:C.muted}}>{item.sub}</div>
-            </div>
-            <span style={{color:C.dim,fontSize:14,flexShrink:0}}>↗</span>
-          </a>
-        ))}
-
-        <div style={{...S.card,padding:"14px 16px"}}>
-          <div style={{fontFamily:C.fMono,fontSize:9,color:C.muted,letterSpacing:"0.2em",marginBottom:10}}>SEND FEEDBACK</div>
-          <a href={`${GITHUB_URL}/issues`} target="_blank" rel="noopener noreferrer"
-            style={{...S.btn,width:"100%",padding:"11px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,fontFamily:C.fBody,fontSize:14,textDecoration:"none",gap:6}}>
-            🐛 Report bug / request feature
-          </a>
         </div>
 
         {/* Car database refresh */}
