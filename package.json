@@ -111,7 +111,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "fast-check": "^4.8.0",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.1.1",
     "rollup-plugin-external-globals": "^0.13.0",
     "tree-kill": "^1.2.2",
     "tsx": "^4.22.3",
