@@ -1460,6 +1460,7 @@ function HamburgerMenu({onClose, onNav, isOutputScreen, appState}) {
     ...(isOutputScreen ? [{id:"copyinputs", icon:"📋", label:"Copy tune inputs", sub:"Copy details for bug reports"}] : []),
     null,
     {id:"paintlab", icon:"🎨", label:"PaintLab",       sub:"Browse FH6 paint colors · v1.0"},
+    {id:"browser",  icon:"⌘", label:"Browser",        sub:"Open allowed web previews"},
     null,
     {id:"settings", icon:"⚙", label:"Settings",       sub:"Units, input device"},
     {id:"refresh",  icon:"↻", label:"Refresh car database", sub:"Force fetch latest cars"},
@@ -1526,7 +1527,7 @@ function EnhanceDrawer({accentColor, hasAI, prov, onClose, onEnhance}) {
   );
 }
 
-function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, units, inputDevice, onSaveUnits, onGoToPaintLab, entitlements}) {
+function OutputScreen({appState, tunePages, setTunePages, onBack, onNewTune, units, inputDevice, onSaveUnits, onGoToPaintLab, onOpenBrowser, entitlements}) {
   const [tunePage,    setTunePage]    = useState("Tires");
   const [toast,       setToast]       = useState(null);
   const [overlay,     setOverlay]     = useState(null);
@@ -1741,6 +1742,7 @@ User request: ${extraPrompt}` : usr;
             setToast("Tune inputs copied!");
           }
           else if(id==="refresh"){localStorage.removeItem("tl_v1_cardb_cache");localStorage.removeItem("tl_v1_cardb_version");localStorage.removeItem("tl_v1_cardb_time");window.location.reload();}
+          else if(id==="browser"){ setOverlay(null); onOpenBrowser&&onOpenBrowser(); }
           else if(id==="reset"){if(window.confirm("Reset all data? This cannot be undone.")){Object.keys(localStorage).filter(k=>k.startsWith("tl_")).forEach(k=>localStorage.removeItem(k));window.location.reload();}}
         }}
       />}
@@ -2024,6 +2026,79 @@ function SettingsScreen({units, device, onSave, onClose}) {
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BrowserScreen({onBack}) {
+  const [url, setUrl] = useState(()=>LS.get("tl_v1_browser_url","https://example.com/"));
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const loadPreview = () => {
+    setError("");
+    try {
+      const parsed = new URL(url);
+      if(parsed.protocol!=="https:" && parsed.protocol!=="http:") throw new Error("Only HTTP and HTTPS URLs are supported");
+      LS.set("tl_v1_browser_url", parsed.toString());
+      setLoading(true);
+      setPreviewUrl(`/api/linjetune/browser?url=${encodeURIComponent(parsed.toString())}`);
+    } catch(e) {
+      setPreviewUrl("");
+      setError(e.message || "Enter a valid URL");
+    }
+  };
+
+  return (
+    <div className="tl-shell" style={{minHeight:"100vh",background:C.bg,color:C.text,margin:"0 auto",fontFamily:C.fBody,display:"flex",flexDirection:"column"}}>
+      <style>{FONTS+THEME_STYLE}</style>
+      <div className="tl-header" style={{position:"sticky",top:0,zIndex:20,background:C.bg,borderBottom:`1px solid ${C.border}`,padding:"calc(env(safe-area-inset-top, 0px) + 10px) 14px 10px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={onBack} style={{...S.btn,background:"transparent",color:C.green,fontFamily:C.fCond,fontSize:13,fontWeight:600,letterSpacing:"0.12em",textTransform:"uppercase",padding:0}}>
+            ← Back
+          </button>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:C.fCond,fontSize:21,fontWeight:700,color:C.text,letterSpacing:"0.12em",lineHeight:1}}>Browser</div>
+            <div style={{fontFamily:C.fMono,fontSize:8,color:C.dim,letterSpacing:"0.12em",marginTop:2}}>LINJETUNE WEB PREVIEW</div>
+          </div>
+        </div>
+      </div>
+      <div style={{padding:"14px",display:"flex",gap:8,borderBottom:`1px solid ${C.border}`,background:C.surface}}>
+        <input
+          value={url}
+          onChange={e=>setUrl(e.target.value)}
+          onKeyDown={e=>{if(e.key==="Enter") loadPreview();}}
+          placeholder="https://example.com/"
+          style={{flex:1,minWidth:0,background:C.card,border:`1px solid ${error?C.red:C.border}`,borderRadius:6,padding:"10px 12px",color:C.text,fontFamily:C.fBody,fontSize:14,outline:"none"}}
+        />
+        <button onClick={loadPreview} style={{...S.btn,padding:"0 16px",background:`${C.green}12`,border:`1px solid ${C.green}33`,borderRadius:6,color:C.green,fontFamily:C.fMono,fontSize:11,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
+          Open
+        </button>
+      </div>
+      {error&&<div style={{padding:"8px 14px",fontFamily:C.fBody,fontSize:12,color:C.red,background:"rgba(239,68,68,0.08)",borderBottom:`1px solid ${C.border}`}}>{error}</div>}
+      <div style={{flex:1,minHeight:0,background:"#0b0b0b",position:"relative"}}>
+        {!previewUrl&&(
+          <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:C.fMono,fontSize:11,color:C.dim,letterSpacing:"0.14em",textAlign:"center",padding:24}}>
+            ENTER AN ALLOWED URL
+          </div>
+        )}
+        {previewUrl&&(
+          <iframe
+            key={previewUrl}
+            title="LinjeTune browser preview"
+            src={previewUrl}
+            sandbox="allow-forms allow-same-origin allow-scripts"
+            onLoad={()=>setLoading(false)}
+            style={{width:"100%",height:"100%",border:0,display:"block",background:"#fff"}}
+          />
+        )}
+        {loading&&(
+          <div style={{position:"absolute",top:12,right:12,background:C.card,border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 9px",fontFamily:C.fMono,fontSize:9,color:C.green,letterSpacing:"0.12em"}}>
+            LOADING
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3453,6 +3528,10 @@ const searchResults = carSearch.length > 0
     </PaintLabErrorBoundary>
   );
 
+  if (screen==="browser") return (
+    <BrowserScreen onBack={()=>setScreen("main")}/>
+  );
+
   if (screen==="output") return (
     <OutputErrorBoundary onBack={()=>setScreen("main")}>
       <OutputScreen
@@ -3465,6 +3544,7 @@ const searchResults = carSearch.length > 0
         inputDevice={inputDevice}
         onSaveUnits={(u,dev)=>{LS.set("tl_v1_units",u);LS.set("tl_v1_device",dev);setUnits(u);setInputDevice(dev);}}
         onGoToPaintLab={openPaintLab}
+        onOpenBrowser={()=>setScreen("browser")}
         entitlements={entitlements}
       />
     </OutputErrorBoundary>
@@ -3494,6 +3574,7 @@ const searchResults = carSearch.length > 0
           else if(id==="about") setOverlay("about");
           else if(id==="settings") setOverlay("settings");
           else if(id==="paintlab"){ setOverlay(null); openPaintLab(); }
+          else if(id==="browser"){ setOverlay(null); setScreen("browser"); }
           else if(id==="refresh"){localStorage.removeItem("tl_v1_cardb_cache");localStorage.removeItem("tl_v1_cardb_version");localStorage.removeItem("tl_v1_cardb_time");window.location.reload();}
           else if(id==="reset"){if(window.confirm("Reset all data? This cannot be undone.")){Object.keys(localStorage).filter(k=>k.startsWith("tl_")).forEach(k=>localStorage.removeItem(k));window.location.reload();}}
         }}
@@ -3507,12 +3588,18 @@ const searchResults = carSearch.length > 0
       <div className="tl-header" style={{position:"sticky",top:0,zIndex:20,background:C.bg,borderBottom:`1px solid ${C.border}`,padding:"calc(env(safe-area-inset-top, 0px) + 10px) 14px 8px"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {/* Logo */}
-          <div style={{flex:1,minWidth:0}}>
+          <button
+            type="button"
+            onClick={()=>setScreen("browser")}
+            title="Open LinjeTune browser"
+            aria-label="Open LinjeTune browser"
+            style={{...S.btn,flex:1,minWidth:0,display:"block",textAlign:"left",background:"transparent",border:"none",padding:0}}
+          >
             <div style={{fontFamily:C.fCond,fontSize:22,fontWeight:700,color:C.text,letterSpacing:"0.12em",lineHeight:1}}><span style={{color:accentColor}}>Linje</span>Tune</div>
             <div style={{fontFamily:C.fMono,fontSize:8,color:C.green,letterSpacing:"0.08em",marginTop:2}}>
               {carStatus}
             </div>
-          </div>
+          </button>
           {/* Quick/Full toggle */}
           <div style={{display:"flex",background:C.surface,borderRadius:8,border:`1px solid ${C.border}`,overflow:"hidden",flexShrink:0}}>
             {[{id:"D",label:"⚡ Quick"},{id:"S",label:"⚙ Full"}].map(m=>(

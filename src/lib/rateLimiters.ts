@@ -19,6 +19,12 @@ export const cameraProxyLimiter = new RateLimiter({
     maxRequests: 30,
 });
 
+/** /api/linjetune/browser — bounds authenticated web preview requests. */
+export const linjeTuneBrowserLimiter = new RateLimiter({
+    windowMs: 60_000,
+    maxRequests: 20,
+});
+
 /** /api/plugins/osm-search — bounds expensive Overpass proxy calls. */
 export const osmSearchLimiter = new RateLimiter({
     windowMs: 60_000,
