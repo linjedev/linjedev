@@ -3614,12 +3614,18 @@ const searchResults = carSearch.length > 0
       <div className="tl-header" style={{position:"sticky",top:0,zIndex:20,background:C.bg,borderBottom:`1px solid ${C.border}`,padding:"calc(env(safe-area-inset-top, 0px) + 10px) 14px 8px"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {/* Logo */}
-          <div style={{flex:1,minWidth:0}}>
+          <button
+            type="button"
+            onClick={()=>setScreen("browser")}
+            title="Open LinjeTune browser"
+            aria-label="Open LinjeTune browser"
+            style={{...S.btn,flex:1,minWidth:0,display:"block",textAlign:"left",background:"transparent",border:"none",padding:0}}
+          >
             <div style={{fontFamily:C.fCond,fontSize:22,fontWeight:700,color:C.text,letterSpacing:"0.12em",lineHeight:1}}><span style={{color:accentColor}}>Linje</span>Tune</div>
             <div style={{fontFamily:C.fMono,fontSize:8,color:C.green,letterSpacing:"0.08em",marginTop:2}}>
               {carStatus}
             </div>
-          </div>
+          </button>
           {/* Quick/Full toggle */}
           <div style={{display:"flex",background:C.surface,borderRadius:8,border:`1px solid ${C.border}`,overflow:"hidden",flexShrink:0}}>
             {[{id:"D",label:"⚡ Quick"},{id:"S",label:"⚙ Full"}].map(m=>(
