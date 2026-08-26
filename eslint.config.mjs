@@ -42,6 +42,7 @@ const config = [
             "no-console": "off",
 
             // React 19 hook-purity rules from eslint-plugin-react-hooks 7+:
+            "react-hooks/set-state-in-effect": "warn",
             // (These were previously hallucinated or require extra plugins)
             // Misc one-offs across the codebase:
             "@typescript-eslint/ban-ts-comment": "warn",
