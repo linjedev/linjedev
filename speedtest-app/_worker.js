@@ -17,6 +17,8 @@ const CAR_DATA_URL = "https://raw.githubusercontent.com/super-android/tunelab/ma
 const OWNER_KEY = "tl_v1_owner";
 const ENTITLEMENTS_COOKIE = "lt_entitlements";
 const COMPLETED_SESSIONS_LIMIT = 20;
+const BROWSER_MAX_BYTES = 2 * 1024 * 1024;
+const BROWSER_TIMEOUT_MS = 10000;
 const PRODUCTS = {
   paintlab: { label: "PaintLab unlock", price: 299, tokens: 0, paint: true },
   tunes_10: { label: "10 LinjeTune credits", price: 199, tokens: 10, paint: false },
@@ -46,6 +48,76 @@ function json(data, init = {}) {
       ...(init.headers || {}),
     },
   });
+}
+
+function isBlockedHost(hostname) {
+  const h = hostname.toLowerCase();
+  return h === "localhost" || h.endsWith(".localhost") || /^(0|10|127|169\.254|192\.168)\./.test(h) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(h);
+}
+
+function assertBrowserAllowed(target, env) {
+  if (target.protocol !== "https:" && target.protocol !== "http:") throw new Error("Only HTTP and HTTPS URLs are supported");
+  if (isBlockedHost(target.hostname)) throw new Error("Private or local hosts are not allowed");
+  const raw = env?.LINJETUNE_BROWSER_ALLOWLIST || env?.PROXY_HOST_ALLOWLIST || "";
+  const allowed = raw.split(",").map((host) => host.trim().toLowerCase()).filter(Boolean);
+  if (!allowed.length || !allowed.includes(target.hostname.toLowerCase())) {
+    throw new Error(`Host "${target.hostname}" is not allowed`);
+  }
+}
+
+function escapeHtml(value) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function injectBase(html, targetUrl) {
+  const base = `<base href="${escapeHtml(targetUrl).replaceAll('"', "&quot;")}">`;
+  return /<head[\s>]/i.test(html) ? html.replace(/<head([^>]*)>/i, `<head$1>${base}`) : `${base}${html}`;
+}
+
+async function handleBrowserPreview(request, env) {
+  const url = new URL(request.url);
+  const rawTarget = url.searchParams.get("url");
+  if (!rawTarget) return json({ error: "Missing url" }, { status: 400 });
+
+  let target;
+  try {
+    target = new URL(rawTarget);
+    assertBrowserAllowed(target, env);
+  } catch (error) {
+    return json({ error: error.message || "Invalid URL" }, { status: 403 });
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), BROWSER_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(target.toString(), {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "LinjeTune/1.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml,text/plain,application/json;q=0.9,*/*;q=0.5",
+      },
+      redirect: "manual",
+    });
+    const contentType = upstream.headers.get("content-type") || "text/html";
+    if (!/text\/html|text\/plain|application\/json|application\/xhtml\+xml|application\/xml/i.test(contentType)) {
+      return json({ error: "Unsupported content type" }, { status: 415 });
+    }
+    const body = await upstream.text();
+    if (body.length > BROWSER_MAX_BYTES) return json({ error: "Response too large" }, { status: 413 });
+    const html = /text\/html|application\/xhtml\+xml/i.test(contentType) ? injectBase(body, target.toString()) : `<pre>${escapeHtml(body)}</pre>`;
+    return new Response(html, {
+      status: upstream.status,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch (error) {
+    return json({ error: error.name === "AbortError" ? "Preview timed out" : "Preview unavailable" }, { status: 502 });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function parseCookies(request) {
@@ -221,6 +293,9 @@ async function handleLinjeTuneApi(request, env) {
   }
   if (url.pathname === "/api/linjetune/consume-token" && request.method === "POST") {
     return consumeToken(request, env);
+  }
+  if (url.pathname === "/api/linjetune/browser" && request.method === "GET") {
+    return handleBrowserPreview(request, env);
   }
   if (url.pathname === "/api/billing/webhook" && request.method === "POST") {
     return json({ received: true });
